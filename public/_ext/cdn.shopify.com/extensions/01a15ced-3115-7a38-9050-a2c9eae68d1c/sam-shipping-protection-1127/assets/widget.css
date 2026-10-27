@@ -1,0 +1,451 @@
+.sam__protect--wrapper * {
+  box-sizing: border-box;
+}
+
+/* The cloned checkout button (layout_3/4) keeps the theme's line-height: themes like
+   Focal size .button via line-height with zero vertical padding, so resetting it
+   collapses the button to a thin bar. :where() keeps specificity at (0,1,0). */
+.sam__protect--wrapper *:where(:not([data-sam-clone], [data-sam-clone] *)) {
+  line-height: normal;
+}
+
+.sam__protect--wrapper p {
+  margin: 0;
+}
+
+.sam__protect--wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  grid-column: 1 / -1;
+}
+
+.sam__widget {
+  margin: 5px 0;
+  width: 100%;
+  max-width: 500px;
+}
+
+.sam__widget--content-wrapper {
+  display: flex;
+  gap: 5px;
+}
+
+.sam__widget--content-wrapper.layout-align-left,
+.layout-align-left .sam__widget--header-container {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.sam__widget--content {
+  display: flex;
+  flex-grow: 1;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sam__widget--icon-container {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sam__widget--icon-container.img-inactive {
+  -webkit-filter: grayscale(100%);
+  -moz-filter: grayscale(100%);
+  -o-filter: grayscale(100%);
+  filter: grayscale(100%);
+}
+
+.sam__widget--icon {
+  width: 100%;
+}
+
+.sam__widget--header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.sam__widget--title-container {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.sam-protect-estimate,
+.sam__widget--title {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.sam__widget--description {
+  font-size: 12px;
+}
+
+.sam__widget--policy-link {
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.mini-cart-footer>.sam__protect--wrapper {
+  padding: 0 10px;
+}
+
+.sam-btn-disable {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+.sam-btn-disable * {
+  pointer-events: none !important;
+}
+
+/* Toggle switch */
+.sam_protect_switch .sam_switch_label {
+  display: block;
+  width: 28px !important;
+  min-width: 28px !important;
+  padding: 0 !important;
+  height: 18px;
+  border-radius: 30px;
+  background: var(--switch-bg) !important;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  margin: unset;
+}
+
+.sam_protect_switch .sam_switch_label:before {
+  display: block;
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff !important;
+  position: absolute;
+  left: 2px;
+  top: 50% !important;
+  transform: translateY(-50%);
+  transition: all .3s;
+  z-index: 1;
+  border-style: none;
+}
+
+.sam_protect_switch #sam_switch_label:before {
+  transform: unset;
+  margin-top: -7px;
+  border: 2px solid transparent;
+  border-right-color: var(--before-border-color, #BABABA) !important;
+  animation: spin 1s linear infinite;
+}
+
+.sam_protect_switch .sam_switch_label:after {
+  position: absolute !important;
+  display: block !important;
+  content: "" !important;
+  width: 0 !important;
+  height: 24px !important;
+  background: var(--switch-active, #31C948) !important;
+  transition: all .3s !important;
+  transform: none !important;
+  top: 0 !important;
+  left: 0 !important;
+  border-style: none !important;
+}
+
+.sam_protect_switch .sam_switch_label.sam_active:before {
+  left: 12px;
+}
+
+.sam_protect_switch .sam_switch_label.sam_active:after {
+  width: 100% !important;
+}
+
+@media only screen and (max-width: 749px) {
+  .sam__widget {
+    margin: 10px auto;
+  }
+}
+
+@keyframes sam-custom-spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.sam__checkout-btn-spinner {
+  display: inline-block !important;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff !important;
+  border-top-color: transparent !important;
+  border-radius: 50% !important;
+  vertical-align: middle !important;
+  animation: sam-custom-spinner 1s linear infinite !important;
+}
+
+.sam-btn-loading {
+  position: relative !important;
+  pointer-events: none !important;
+  opacity: 0.6 !important;
+}
+
+.sam-btn-loading > *:not(.sam__checkout-btn-loading-overlay) {
+  opacity: 0.3 !important;
+}
+
+.sam__checkout-btn-loading-overlay {
+  display: none !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: inherit !important;
+  z-index: 10 !important;
+  pointer-events: none !important;
+  box-sizing: border-box !important;
+}
+
+.sam-btn-loading .sam__checkout-btn-loading-overlay {
+  display: flex !important;
+}
+
+.sam__widget--mask {
+  text-align: center;
+  font-size: 12px;
+  margin-top: 0;
+  margin-bottom: -8px;
+  background: linear-gradient(90deg, #6668eb, #17be55);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.sam__button-overlay-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.sam__checkout-btn-overlay {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999;
+  cursor: pointer;
+}
+
+/* Floating tooltip (showTooltip/hideTooltip) */
+.sam-tooltip {
+  position: fixed;
+  max-width: 350px;
+  background: #333;
+  color: #fff;
+  padding: 6px;
+  font-size: 13px;
+  border-radius: 4px;
+  z-index: 9999;
+}
+
+/* Custom Checkbox */
+.sam-custom-checkbox {
+  position: relative;
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.sam-custom-checkbox input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.sam-checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 20px;
+  width: 20px;
+  background-color: var(--sam-toggle-off, #ccc) !important;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sam-custom-checkbox input:checked+.sam-checkmark {
+  background-color: var(--sam-toggle-on, #31C948) !important;
+}
+
+.sam-checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.sam-custom-checkbox input:checked+.sam-checkmark:after {
+  display: block;
+}
+
+.sam-custom-checkbox .sam-checkmark:after {
+  left: 7px;
+  top: 3px;
+  width: 5px;
+  height: 10px;
+  border: solid white !important;
+  border-width: 0 3px 3px 0 !important;
+  transform: rotate(45deg);
+}
+
+/* Inline tooltip (layout_1, layout_2, layout_3) */
+.sam-info-tooltip-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 5px;
+  cursor: pointer;
+}
+
+.sam-tooltip-text {
+  visibility: hidden;
+  width: 200px;
+  background-color: var(--sam-tooltip-bg, #fff);
+  color: var(--sam-tooltip-color, #333);
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -100px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  font-weight: normal;
+  border: 1px solid #eee;
+}
+
+.sam-tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: 20px;
+}
+
+.sam-info-tooltip-container:hover .sam-tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Layout 3 */
+.sam__widget--layout3 {
+  width: 100%;
+  /* max-width: 350px; */
+  margin: 10px 0;
+}
+
+.sam-layout3-unprotected-btn-container {
+  text-align: center;
+}
+
+.sam-btn-layout3 {
+  display: block !important;
+  width: 100% !important;
+  margin: 0;
+}
+
+.sam-link-layout3 {
+  text-decoration: underline !important;
+  cursor: pointer;
+  color: #000 !important;
+  font-size: 14px;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  display: inline-block;
+  box-shadow: none !important;
+  min-height: unset !important;
+  min-width: unset !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  margin: 8px auto;
+  width: 100%;
+}
+
+.sam-link-layout3:hover {
+  opacity: 0.8;
+  background: transparent !important;
+  color: #000 !important;
+}
+
+/* Layout 4: standard content box + checkout-replace buttons (reuse layout3 btns) */
+.sam__widget--layout4 {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.sam-layout4-checkout {
+  margin-top: 12px;
+}
+
+/* Merchant-tunable checkout-button fonts (layout_3/4), driven by CSS vars set on the
+   widget root. Only applied in 'custom' mode (.sam-checkout-btn-custom on the root) so
+   the default 'theme' mode leaves the cloned checkout button untouched. */
+.sam-checkout-btn-custom .sam-layout3-protected-btn-container button,
+.sam-checkout-btn-custom .sam-btn-layout3 {
+  font-size: var(--sam-btn-fs, 14px) !important;
+  font-weight: var(--sam-btn-fw, 600) !important;
+  color: var(--sam-btn-color, #FFFFFF) !important;
+  background-color: var(--sam-btn-bg, #000000) !important;
+  border-radius: var(--sam-btn-radius, 8px) !important;
+  padding-top: var(--sam-btn-py, 12px) !important;
+  padding-bottom: var(--sam-btn-py, 12px) !important;
+  line-height: normal !important;
+}
+
+.sam-link-layout3,
+.sam-link-layout3:hover {
+  font-size: var(--sam-link-fs, 14px) !important;
+  font-weight: var(--sam-link-fw, 400) !important;
+  color: var(--sam-link-color, #000000) !important;
+}
+
+/* Price skeleton loading */
+.sam-protect-estimate.sam-price-loading {
+  display: inline-block !important;
+  min-width: 50px;
+  height: 14px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+  background-size: 200% 100%;
+  animation: sam-skeleton-shimmer 1.5s ease-in-out infinite;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+  user-select: none;
+  vertical-align: middle;
+}
+
+@keyframes sam-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

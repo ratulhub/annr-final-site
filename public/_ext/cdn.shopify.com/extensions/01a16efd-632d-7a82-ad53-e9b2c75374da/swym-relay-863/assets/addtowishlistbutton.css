@@ -1,0 +1,194 @@
+.atw-button {
+    color: white;
+    border: none;
+    padding: 12px 12px;
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center; /* Ensure text and icon are horizontally centered */
+    align-items: center;    /* Align content vertically */
+    cursor: pointer;
+    transition: all 0.1s;
+    text-align: center;
+    pointer-events: auto
+}
+
+.atw-button.show-btn-text {
+    gap: 5px;
+}
+
+.atw-button-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.swym-atw-button-container {
+    justify-content: center;
+    align-items: center;
+    width: 100%; /* Full-width container */
+}
+
+.swym-atw-button-container.margin-top {
+    margin-top: 1rem;
+}
+
+.swym-atw-button-container.margin-bottom {
+    margin-bottom: 1rem;
+}
+
+.atw-button.full-width {
+    width: 100%;
+}
+
+.atw-button.atw-button-loading { 
+    opacity: 0.7;
+}
+
+.swym-atw-animated-loader-wrapper {
+    min-height: 24px;
+    min-width: 24px;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+.atw-button-no-icon { 
+    width: 0px;
+}
+
+.swym-atw-btn-wrapper {
+    display: flex;
+    justify-content: space-between;
+}
+
+.swym-atw-button-container.align-left {
+    justify-content: flex-start;
+}
+
+.swym-atw-button-container.align-center {
+    justify-content: center;
+}
+
+.swym-atw-button-container.align-right {
+    justify-content: flex-end;
+}
+
+.swym-atw-button-container.consent-given.default-position {
+    display: flex;
+}
+
+.swym-atw-button-container.consent-given.add_to_cart_button_left-position,
+.swym-atw-button-container.consent-given.product_title_left-position,
+.swym-atw-button-container.consent-given.product_title_right-position,
+.swym-atw-button-container.consent-given.add_to_cart_button_right-position,
+.swym-atw-button-container.consent-given.product_image_top_right,
+.swym-atw-button-container.consent-given.product_image_top_left,
+.swym-atw-button-container.consent-given.product_image_bottom_right,
+.swym-atw-button-container.consent-given.product_image_bottom_left,
+.swym-atw-button-container.consent-given.buy_buttons_above {
+    display: block;
+    width: auto;
+}
+
+.swym-atw-button-container.product_image_top_right,
+.swym-atw-button-container.product_image_top_left,
+.swym-atw-button-container.product_image_bottom_left,
+.swym-atw-button-container.product_image_bottom_right {
+    /* width: min-content; */
+    position: absolute;
+}
+
+.swym-atw-button-container.product_image_bottom_right {
+    bottom: 1rem;
+    right: 1rem;
+}
+
+.swym-atw-button-container.product_image_bottom_left {
+    bottom: 1rem;
+    left: 1rem;
+}
+
+.swym-atw-button-container.product_image_top_right {
+    top: 1rem;
+    right: 1rem;
+}
+
+.swym-atw-button-container.product_image_top_left {
+    top: 1rem;
+    left: 1rem;
+}
+
+.swym-atw-btn-wrapper.add_to_cart_button_left-position,
+.swym-atw-btn-wrapper.product_title_left-position,
+.swym-atw-btn-wrapper.product_title_right-position,
+.swym-atw-btn-wrapper.add_to_cart_button_right-position {
+    display: flex;
+    gap: 10px;
+}
+
+.swym-atw-btn-wrapper.product_title_left-position,
+.swym-atw-btn-wrapper.product_title_right-position {
+    justify-content: start;
+    align-items: center;
+}
+
+.swym-atw-btn-wrapper.product_title_right-position {
+    flex-direction: row-reverse;
+}
+
+.swym-atw-btn-wrapper.add_to_cart_button_right-position {
+    flex-direction: row-reverse;
+}
+
+.swym-atw-btn-wrapper.add_to_cart_button_left-position {
+    align-items: center;
+}
+
+.swym-atw-btn-wrapper.add_to_cart_button_right-position {
+    align-items: center;
+}
+
+.swym-atw-btn-wrapper-for-img.product_image_top_right,
+.swym-atw-btn-wrapper-for-img.product_image_bottom_left,
+.swym-atw-btn-wrapper-for-img.product_image_bottom_right,
+.swym-atw-btn-wrapper-for-img.product_image_top_left {
+    z-index: 9999999;
+    width: 100%;
+    height : auto;
+    display: flex;
+    pointer-events: none;
+    flex-direction: row-reverse;
+}
+
+.dot-flashing-loader {
+    position: relative;
+    width: 10px;
+    height: 10px;
+}
+
+
+.atw-button:hover {
+    transform: scale(1.04);
+}
+
+.default-position .atw-button:hover {
+    transform: scale(1.01);
+}
+
+.swym-atw-pdp-button-img-icon {
+    max-width: 10rem;
+    min-width: 2rem;
+}
+
+/* Hide the old button */
+div.swym-button-bar.swym-wishlist-button-bar.swym-inject,
+button.swym-button.swym-add-to-wishlist.swym-inject.swym-loaded,
+#swym-atw-pdp-button.swym-button-disabled
+{
+    display: none;
+}
+
+/* Consent-based visibility */
+.swym-atw-button-container {
+    display: none;
+}
