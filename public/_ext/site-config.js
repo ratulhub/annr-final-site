@@ -104,7 +104,9 @@
     if (t.customCss) r.push(cleanCss(t.customCss));
     // Section look (spacing, background, alignment, width, device visibility)
     (S.sections && S.sections[tpl] || []).forEach(function (s) {
-      var sel = '[id^="shopify-section-"][id$="__' + s.key + '"]', rule = [];
+      var sel = s.key === "template-faq"
+        ? '[id^="shopify-section-"][id$="__template-faq"],[id^="shopify-section-"][id$="__template-policy"],.shopify-policy__container'
+        : '[id^="shopify-section-"][id$="__' + s.key + '"]', rule = [];
       if (!s.visible) rule.push("display:none!important");
       if (cv(s.padTop)) rule.push("padding-top:" + cv(s.padTop) + "!important");
       if (cv(s.padBottom)) rule.push("padding-bottom:" + cv(s.padBottom) + "!important");
@@ -131,7 +133,7 @@
 
     // Hidden pages and maintenance
     var hidden = (S.hiddenPages || []).some(function (p) { return path.indexOf(p) === 0; });
-    var pg = tpl === "page" && G[handleOf(path, "pages")], col = tpl === "collection" && C[handleOf(path, "collections")];
+    var pg = tpl === "page" && G[pageHandle(path)], col = tpl === "collection" && C[handleOf(path, "collections")];
     if (hidden || (pg && pg.visible === false) || (col && col.visible === false))
       return overlay("adm-404", "<div>" + esc(tech.notFoundTitle || "Page not found") + "<br><small style='font-size:11px'>" + esc(tech.notFoundText) + "<br><a href='/home.html' style='color:#fff'>HOME</a></small></div>", FULL);
     if (tech.maintenance)
@@ -140,22 +142,113 @@
     // Page transition off: the delegated handler needs .reload-overflow, so removing it disables the effect.
     if (tech.pageTransition === false) document.querySelectorAll(".reload-overflow,.loading-bar").forEach(function (e) { e.remove(); });
 
-    // Products everywhere
+    // Products everywhere (cards on home, collections, search, recommendations)
     document.querySelectorAll("a.product-card-title").forEach(function (a) {
       var o = P[handleOf(a.getAttribute("href"), "products")]; if (!o) return;
+      var card = a.closest(".product-card, li, .grid__item") || a.parentElement;
       if (o.title != null) a.textContent = o.title;
-      if (o.price != null) setMoney(a.parentElement && a.parentElement.querySelector(".product-card-price"), o.price);
-      if (o.status && o.status !== "active") { var c = a.closest(".product-card, li, .grid__item") || a.parentElement; if (c) c.style.display = "none"; }
+      if (o.price != null || o.compareAt != null) setMoney(a.parentElement && a.parentElement.querySelector(".product-card-price"), o.price, o.compareAt);
+      if (o.badge != null && card) {
+        var lbl = card.querySelector(".product-card-labels");
+        if (!o.badge) { if (lbl) lbl.style.display = "none"; }
+        else {
+          if (!lbl) {
+            var imgBox = card.querySelector(".product-card-image");
+            if (imgBox) { lbl = document.createElement("div"); lbl.className = "product-card-labels"; lbl.style.cssText = "background:#000;color:#fff"; imgBox.insertBefore(lbl, imgBox.firstChild); }
+          }
+          if (lbl) { lbl.style.display = ""; lbl.textContent = o.badge; }
+        }
+      }
+      if (o.images && o.images.length && card) {
+        var cImgs = card.querySelectorAll(".product-card-image-wrapper img");
+        var u0 = safeImg(o.images[0]), u1 = safeImg(o.images[1] || o.images[0]);
+        if (cImgs[0] && u0) { cImgs[0].src = u0; cImgs[0].removeAttribute("srcset"); }
+        if (cImgs[1] && u1) { cImgs[1].src = u1; cImgs[1].removeAttribute("srcset"); }
+      }
+      if (o.status && o.status !== "active" && card) card.style.display = "none";
     });
-    var ph = handleOf(path, "products"), ch = handleOf(path, "collections"), gh = handleOf(path, "pages");
+    var ph = handleOf(path, "products"), ch = handleOf(path, "collections"), gh = pageHandle(path);
     var o = ph ? P[ph] : ch ? C[ch] : gh ? G[gh] : null;
     if (ph && o) {
       var t = document.querySelector(".product-info-title"); if (t && o.title != null) t.textContent = o.title;
-      if (o.price != null) setMoney(document.querySelector(".product-info-price"), o.price);
+      if (o.price != null || o.compareAt != null) setMoney(document.querySelector(".product-info-price"), o.price, o.compareAt);
+      if (o.description != null) {
+        var descBox = document.querySelector(".product-info-details-header .product-info-detail-content-inner");
+        if (descBox) descBox.innerHTML = "<h3 class='hide-mob'>DESCRIPTION</h3><div style='white-space:pre-wrap'>" + esc(o.description) + "</div>";
+      }
+      if (o.sizeChart) {
+        var detailsWrap = document.querySelector(".product-info-details-header .product-info-detail-content-inner") || document.querySelector(".product-info-details");
+        if (detailsWrap && !detailsWrap.querySelector(".adm-size-chart")) {
+          var sc = document.createElement("div"); sc.className = "adm-size-chart";
+          sc.style.cssText = "margin-top:16px;padding-top:12px;border-top:1px solid rgba(0,0,0,.15);white-space:pre-wrap;font-size:12px";
+          sc.innerHTML = "<strong>SIZE &amp; FIT</strong><br>" + esc(o.sizeChart);
+          detailsWrap.appendChild(sc);
+        }
+      }
+      if (o.images && o.images.length) {
+        var validImgs = o.images.map(safeImg).filter(Boolean);
+        if (validImgs.length) {
+          document.querySelectorAll(".product-gallery-carousel .swiper-slide img").forEach(function (img, idx) {
+            var u = validImgs[idx % validImgs.length]; img.src = u; img.removeAttribute("srcset");
+          });
+          document.querySelectorAll(".product-gallery-thumb-carousel .swiper-slide img").forEach(function (img, idx) {
+            var u = validImgs[idx % validImgs.length]; img.src = u; img.removeAttribute("srcset");
+          });
+        }
+      }
+      if (Array.isArray(o.variants) && o.trackStock !== false && !o.allowBackorder) {
+        var totalStock = o.variants.reduce(function (n, v) { return n + (Number(v && v.stock) || 0); }, 0);
+        if (totalStock <= 0) {
+          var subBtn = document.querySelector(".product-info-submit button[type=submit]");
+          if (subBtn) { subBtn.disabled = true; var sbt = subBtn.querySelector(".text") || subBtn; sbt.textContent = "SOLD OUT"; }
+        }
+      }
     }
-    if (gh && o && o.body != null) {
-      var body = document.querySelector('[id$="__template-faq"] .container, [id$="__template-faq"]');
-      if (body) body.innerHTML = "<div style='padding:40px 0;white-space:pre-wrap'>" + esc(o.body) + "</div>";
+    if (ch && o) {
+      var colTitle = document.querySelector(".collection-title"); if (colTitle && o.title != null) colTitle.textContent = o.title;
+      if (o.description != null && o.description !== "") {
+        var tbLeft = document.querySelector(".collection-display-toolbar__left");
+        if (tbLeft && !tbLeft.querySelector(".adm-col-desc")) {
+          var cd = document.createElement("div"); cd.className = "adm-col-desc";
+          cd.style.cssText = "font:11px/1.5 'NB Architekt Std',sans-serif;margin-top:6px;opacity:.8;max-width:640px";
+          cd.textContent = o.description; tbLeft.appendChild(cd);
+        }
+      }
+      if (o.image && safeImg(o.image)) {
+        var cHero = document.querySelector('[id$="__collection_hero"]');
+        if (cHero && !cHero.querySelector(".adm-col-hero")) {
+          cHero.innerHTML = "<img class='adm-col-hero' src='" + esc(safeImg(o.image)) + "' alt='" + esc(o.title || "") + "' style='width:100%;max-height:360px;object-fit:cover;display:block'>";
+        }
+      }
+      var grid = document.querySelector(".collection-product-grid");
+      if (grid && Array.isArray(o.products) && o.products.length) {
+        var allowed = {}; o.products.forEach(function (h) { allowed[h] = true; });
+        grid.querySelectorAll(".product-card").forEach(function (card) {
+          var link = card.querySelector("a.product-card-title");
+          var h = link && handleOf(link.getAttribute("href"), "products");
+          if (h && !allowed[h]) card.style.display = "none";
+        });
+      }
+      if (grid && o.sort && o.sort !== "manual") {
+        var cards = Array.prototype.slice.call(grid.querySelectorAll(".product-card"));
+        var priceVal = function (c) { var t = (c.querySelector(".product-card-price") || {}).textContent || ""; return parseFloat(t.replace(/[^0-9.]/g, "")) || 0; };
+        var titleVal = function (c) { return ((c.querySelector(".product-card-title") || {}).textContent || "").trim().toLowerCase(); };
+        if (o.sort === "price low-high") cards.sort(function (a, b) { return priceVal(a) - priceVal(b); });
+        else if (o.sort === "price high-low") cards.sort(function (a, b) { return priceVal(b) - priceVal(a); });
+        else if (o.sort === "a-z") cards.sort(function (a, b) { return titleVal(a) < titleVal(b) ? -1 : titleVal(a) > titleVal(b) ? 1 : 0; });
+        cards.forEach(function (c) { grid.appendChild(c); });
+      }
+    }
+    if (gh && o) {
+      var pageTitleEl = document.querySelector(".js-textContent-section h1, .shopify-policy__title h1");
+      if (pageTitleEl && o.title != null) pageTitleEl.textContent = o.title;
+      if (o.body != null) {
+        var body = document.querySelector(".js-textContent-section, .shopify-policy__body, [id$='__template-faq'] .container");
+        if (body) {
+          var hText = (o.title != null ? o.title : (pageTitleEl && pageTitleEl.textContent) || "").trim();
+          body.innerHTML = (hText && !document.querySelector(".shopify-policy__title") ? "<h1>" + esc(hText) + "</h1>" : "") + "<div style='padding:16px 0 40px;white-space:pre-wrap'>" + esc(o.body) + "</div>";
+        }
+      }
     }
 
     // SEO
@@ -167,6 +260,10 @@
     if (o && o.seoTitle != null) meta("og:title", o.seoTitle, "property");
     if (safeImg(seo.ogImage)) meta("og:image", safeImg(seo.ogImage), "property");
     if (seo.noindex) meta("robots", "noindex");
+    if (diff("seo", "canonicalBase") && /^https?:\/\//i.test(safeUrl(seo.canonicalBase))) {
+      var canLink = document.querySelector("link[rel='canonical']");
+      if (canLink) canLink.href = safeUrl(seo.canonicalBase).replace(/\/$/, "") + path;
+    }
     if (gen.favicon) { var fav = document.querySelector("link[rel~='icon']"); if (fav && safeImg(gen.favicon)) fav.href = safeImg(gen.favicon); }
 
     // Header
