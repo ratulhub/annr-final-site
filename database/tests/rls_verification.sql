@@ -49,6 +49,14 @@ values
   ('10000000-0000-0000-0000-000000000001', 'active-test-item', 'Active Item', 5000, 'active'),
   ('10000000-0000-0000-0000-000000000002', 'draft-test-item', 'Draft Item', 5000, 'draft');
 
+insert into public.product_variants (id, product_id, sku, option_size, price)
+values
+  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'TEST-SKU-1', 'M', 5000);
+
+insert into public.inventory (variant_id, on_hand, reserved)
+values
+  ('30000000-0000-0000-0000-000000000001', 5, 0);
+
 insert into public.customer_addresses (id, user_id, full_name, line1, city)
 values
   ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000004', 'Customer A', '123 Road', 'Dhaka');
@@ -131,5 +139,58 @@ begin
   end;
 end $$;
 
+-- 9. E-commerce price integrity & inventory reservation check (public.create_validated_order).
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-000000000004","role":"authenticated"}';
+
+do $$
+declare
+  _oid uuid;
+  _tot numeric(12,2);
+  _pstat text;
+  _res int;
+begin
+  -- Customer A sends a forged unit_price of 0.01; RPC must ignore it and charge 2 * 5000 = 10000.
+  _oid := public.create_validated_order(
+    'custA@test.local',
+    '[{"variant_id":"30000000-0000-0000-0000-000000000001","quantity":2,"unit_price":0.01}]'::jsonb,
+    null,
+    '{"city":"Dhaka"}'::jsonb,
+    'idem-test-001'
+  );
+  select total, payment_status into _tot, _pstat from public.orders where id = _oid;
+  if _tot <> 10000.00 or _pstat <> 'unpaid' then
+    raise exception 'SECURITY FAILURE: order total (%) or payment_status (%) was tampered', _tot, _pstat;
+  end if;
+  select reserved into _res from public.inventory where variant_id = '30000000-0000-0000-0000-000000000001';
+  if _res <> 2 then
+    raise exception 'SECURITY FAILURE: inventory reserved (%) was not updated to 2', _res;
+  end if;
+  -- Overselling beyond remaining stock (3 left) must fail with P0002.
+  begin
+    perform public.create_validated_order(
+      'custA@test.local',
+      '[{"variant_id":"30000000-0000-0000-0000-000000000001","quantity":4}]'::jsonb,
+      null, null, 'idem-test-002'
+    );
+    raise exception 'SECURITY FAILURE: overselling stock succeeded';
+  exception when no_data_found then null;
+  end;
+end $$;
+
+-- 10. Order IDOR / BOLA check: Customer B cannot read Customer A's order or line items.
+set local "request.jwt.claims" = '{"sub":"00000000-0000-0000-0000-000000000005","role":"authenticated"}';
+
+do $$
+begin
+  if (select count(*) from public.orders where user_id = '00000000-0000-0000-0000-000000000004') <> 0 then
+    raise exception 'SECURITY FAILURE: Customer B read Customer A order (BOLA)';
+  end if;
+  if (select count(*) from public.order_items) <> 0 then
+    raise exception 'SECURITY FAILURE: Customer B read Customer A order_items (BOLA)';
+  end if;
+end $$;
+
 rollback;
+
 
