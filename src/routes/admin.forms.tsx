@@ -10,8 +10,8 @@ export const Route = createFileRoute("/admin/forms")({ component: Forms });
 const APPLIED: Record<string, string> = {
   newsletter: "Title, button, placeholder and consent text update on the store.",
   search: "Placeholder updates on the store.",
-  "vip-login": "Wording here is saved for later; the VIP login is handled by Shopify.",
-  "vip-register": "Wording here is saved for later; the VIP signup is handled by Shopify.",
+  "vip-login": "Title, button, email/password placeholders and consent text update on /account/login; sign-in submission is handled by Shopify.",
+  "vip-register": "Title, button and consent text update on /account/register; registration submission is handled by Shopify.",
 };
 
 function Forms() {
@@ -47,7 +47,7 @@ function Forms() {
             </tbody></table>
           </Card>
           <Card title="Submissions">
-            <p>No submissions. This store's forms send to Shopify (shihiko.com), not to this admin, so nothing is recorded here yet. Submissions will appear once a backend is connected.</p>
+            <p>No submissions. This store's forms send to the live Shopify store, not to this admin, so nothing is recorded here yet. Submissions will appear in <code>public.contact_submissions</code> once the Supabase backend is connected.</p>
           </Card>
         </div>;
       })}

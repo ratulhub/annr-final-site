@@ -19,6 +19,8 @@ function Website() {
     ...s.pages.map((p) => [p.title, `/pages/${p.handle}/index.html`, p.handle] as [string, string, string]),
     ["All collections (22)", "/collections/all/index.html", "collections"],
     ["All products (93)", "/products/aka-manto-longsleeve/index.html", "products"],
+    ["VIP login", "/account/login/index.html", "account-login"],
+    ["VIP signup", "/account/register/index.html", "account-register"],
   ];
   return (
     <>
@@ -31,7 +33,7 @@ function Website() {
             const canHide = k !== "home" && k !== "collections" && k !== "products";
             return <tr key={url}><td>{t}</td><td><a className="link" href={url} target="_blank" rel="noreferrer">{url}</a></td>
               <td>{canHide ? <input type="checkbox" checked={vis} onChange={() => pg ? setState((x) => ({ ...x, pages: x.pages.map((p) => (p.handle === k ? { ...p, visible: !p.visible } : p)) })) : toggleHidden(url)} /> : "always"}</td>
-              <td>{pg ? <Link className="link" to="/admin/pages">Edit text & SEO</Link> : k === "products" ? <Link className="link" to="/admin/products">Products</Link> : k === "collections" ? <Link className="link" to="/admin/collections">Collections</Link> : <Link className="link" to="/admin/sections">Sections</Link>}</td></tr>;
+              <td>{pg ? <Link className="link" to="/admin/pages">Edit text & SEO</Link> : k === "products" ? <Link className="link" to="/admin/products">Products</Link> : k === "collections" ? <Link className="link" to="/admin/collections">Collections</Link> : k.startsWith("account-") ? <Link className="link" to="/admin/forms">Edit form wording</Link> : <Link className="link" to="/admin/sections">Sections</Link>}</td></tr>;
           })}
         </tbody></table>
         <p className="adm-hint">Hidden pages show a “Page not found” screen after you publish.</p>
