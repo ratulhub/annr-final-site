@@ -1,45 +1,46 @@
-# Security Remediation & Production Migration Plan (`docs/security-remediation-plan.md`)
+# AnnR Security Remediation Plan (`docs/security-remediation-plan.md`)
 
-This document outlines how to transition the Shihiko Admin Panel from its current **Demo / Browser-Only Mode** to full production enforcement once a PostgreSQL / Supabase / Lovable Cloud backend is connected.
-
----
-
-## Phase 1: Completed in Repository (Frontend + Proxy + SQL Package)
-
-- [x] Proxy hardening (`src/routes/$.ts`): method allowlist, 1 MB payload cap, `safeRedirectTarget()`, `staticPagePath()`, and `SECURITY_HEADERS`.
-- [x] Static header rules (`public/_headers`): HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, `/admin*` `X-Robots-Tag: noindex`, and `Content-Security-Policy-Report-Only`.
-- [x] Untrusted admin content sanitization (`src/admin/security/sanitize.ts` & `public/_ext/site-config.js`): HTML escaping, safe URL/image schemes, CSS value/stylesheet sanitization, and analytics query-string stripping.
-- [x] Upload magic-byte verification (`src/admin/services/media.ts`): `sniffImage()` blocking SVG/HTML, enforcing ≤ 400 KB and ≤ 6000 px on both Media Library and Product image uploads.
-- [x] Demo auth hardening (`src/admin/security/auth.ts`): no plaintext password in bundle, lockout after 5 failed attempts, 30-min idle / 8-h absolute expiry, and 5-min password re-confirmation (`reauthenticate()`) before destructive/sensitive actions.
-- [x] Complete SQL migration suite (`database/sql/01..07`), RLS verification test suite (`database/tests/rls_verification.sql`), and runbook (`database/README.md`).
+This document tracks all remediated security vulnerabilities (`SEC-01` through `SEC-13`) and the remaining operational steps required when connecting the live Supabase backend.
 
 ---
 
-## Phase 2: Database Activation (Run in SQL Editor)
+## 1. Completed Code & SQL Remediations (`SEC-01` → `SEC-13`)
 
-1. Execute `database/sql/01_core_schema.sql` through `database/sql/07_storage.sql` in numerical order (see `database/README.md` §3).
-2. Create the first `super_admin` user in `auth.users` and assign their role via the SQL Editor (`database/README.md` §4).
-3. Run `database/tests/rls_verification.sql` and verify that all checks pass with zero exceptions (`database/README.md` §5).
-4. Schedule the daily `security.purge_old_audit_logs(400)` job (`database/README.md` §7).
-
----
-
-## Phase 3: Authentication & Data Source Swap
-
-1. **Auth (`src/admin/security/auth.ts`)**:
-   - Replace demo `login()`, `logout()`, `getSession()`, and `reauthenticate()` with Supabase Auth (`signInWithPassword`, `signOut`, `getSession`, and MFA factor verification `auth.mfa.challengeAndVerify`).
-   - Require TOTP MFA (`aal2`) for all staff roles (`super_admin`, `admin`, and managers).
-2. **Data Source (`src/admin/services/dataSource.ts` & `src/admin/store.ts`)**:
-   - Replace `localStorage` reads/writes with queries to `public.products`, `public.collections`, `public.site_pages`, and `public.publish_site_config()`.
-   - Serve the latest published `public.site_config_versions` row to the storefront instead of `localStorage["shihiko-site-config"]`.
-3. **Media (`src/admin/services/media.ts`)**:
-   - Replace `FileReader` data URL return in `storeFile()` with an upload to the `public-media` bucket (`storage.from('public-media').upload(...)`), while keeping `sniffImage()` client-side pre-validation.
+| ID | Vulnerability | Severity | Status | Files Remediated |
+| :--- | :--- | :---: | :---: | :--- |
+| **SEC-01** | Open redirect via protocol-relative clean URL (`//evil.example`) | High | **Fixed & Verified** | `src/routes/$.ts`, `src/admin/security/security.test.ts` |
+| **SEC-02** | Unbounded proxy request body & unchecked `POST` `Content-Type` | High | **Fixed & Verified** | `src/routes/$.ts` (`MAX_BODY_BYTES = 1_000_000`, `413` / `415`) |
+| **SEC-03** | Stored XSS & CSS injection in storefront DOM overrides & admin fields | Critical | **Fixed & Verified** | `public/_ext/site-config.js`, `src/admin/security/sanitize.ts`, `src/admin/site/fields.tsx` |
+| **SEC-04** | Unsafe file uploads & SVG/HTML polyglot script execution | High | **Fixed & Verified** | `src/admin/ui.tsx`, `src/admin/security/sanitize.ts` (`sniffImage`), `database/sql/07_storage.sql` |
+| **SEC-05** | Plaintext demo password, missing brute-force lockout & missing step-up reauth | High | **Fixed & Verified** | `src/admin/security/auth.ts`, `src/routes/admin*.tsx` |
+| **SEC-06** | Query-string token/PII leakage in analytics & browser env secret exposure check | Medium | **Fixed & Verified** | `src/admin/analytics/tracker.ts`, `src/lib/backend-status.ts`, `.env.example` |
+| **SEC-07** | Database RBAC, RLS, append-only audit log & storage policies | Critical | **Prepared in SQL** | `database/sql/01..07`, `supabase/migrations/20261028000001..07`, `database/tests/rls_verification.sql` |
+| **SEC-08** | Missing server-side rate limiting & CSRF Origin validation on proxy `POST` routes | High | **Fixed & Verified** | `src/routes/$.ts` (`checkRateLimit`, `isSameOriginMutation`), `src/admin/security/security.test.ts` |
+| **SEC-09** | Missing security headers & `Cache-Control: no-store` on SSR / `/admin*` / `500` responses | Medium | **Fixed & Verified** | `src/server.ts`, `src/routes/$.ts`, `public/_headers` |
+| **SEC-10** | Stored XSS (`b.level = "script"`) & CSS injection (`b.columns`) in Custom Page Builder (`PageView.tsx`) | Critical | **Fixed & Verified** | `src/site/PageView.tsx`, `src/routes/p.$slug.tsx`, `src/admin/security/security.test.ts` |
+| **SEC-11** | Unauthenticated admin data export & unbounded/unvalidated JSON import in Settings | Medium | **Fixed & Verified** | `src/routes/admin.settings.tsx` (`isValidImport`, `confirmReauth`, `can(role, "data.export")`) |
+| **SEC-12** | Missing `site.publish` permission check & audit logging on Publish / Restore actions | Medium | **Fixed & Verified** | `src/routes/admin.publish.tsx`, `src/routes/admin.tsx` |
+| **SEC-13** | E-commerce order price tampering, discount abuse & overselling race condition | Critical | **Prepared in SQL** | `database/sql/06_rpc_functions.sql` (`public.create_validated_order`), `database/tests/rls_verification.sql` |
 
 ---
 
-## Phase 4: Edge / Server Rate Limiting & Monitoring
+## 2. Staged Production Cutover Plan (When Connecting Supabase)
 
-1. Configure server/edge rate limits on `/admin` login, `/contact` submissions, and media uploads.
-2. Review browser console reports from `Content-Security-Policy-Report-Only` on the deployed domain; once clean, promote the header in `public/_headers` to `Content-Security-Policy`.
-3. Connect an error-monitoring provider (e.g., Sentry) via server environment variables.
+### Step 1 — Provision Database & Run Ordered Migrations
+1. Open the Supabase SQL Editor for your project.
+2. Execute `database/sql/01_core_schema.sql` through `database/sql/07_storage.sql` (or the identical files in `supabase/migrations/20261028000001..07_*.sql`) in order.
+3. Execute `database/tests/rls_verification.sql` and confirm it completes with `ROLLBACK` and zero exceptions.
 
+### Step 2 — Configure Supabase Auth & Bootstrap First Super Admin
+1. Enable Email/Password authentication and TOTP (Authenticator App) MFA in Supabase Auth settings.
+2. Create the initial administrator user via Supabase Auth and run the bootstrap query from `database/README.md §4` to assign `super_admin` in `public.user_roles`.
+3. Log in and enroll TOTP MFA (`aal2`).
+
+### Step 3 — Wire Frontend Data Source Adapter
+1. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env.local`.
+2. Swap the browser-local adapter in `src/admin/services/dataSource.ts` and `src/admin/security/auth.ts` to call Supabase Auth and the `public.*` RPCs (`publish_site_config`, `adjust_inventory`, `update_order_status`, `create_validated_order`, `grant_role`, `revoke_role`, `read_audit_log`).
+3. Verify all indicators in `/admin/security` transition from `Demo data` / `Not connected` to `Verified · passing`.
+
+### Step 4 — Transition CSP from Report-Only to Enforced
+1. Monitor browser console / CSP reports from `Content-Security-Policy-Report-Only`.
+2. Promote `Content-Security-Policy-Report-Only` to enforced `Content-Security-Policy` in `src/routes/$.ts` and `public/_headers`.
