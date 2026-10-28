@@ -139,7 +139,11 @@ export function resetState() { dataSource.clear(KEY); dataSource.clear(DRAFT_KEY
 // store-facing part into PUB_KEY, which the store pages read; DRAFT_KEY feeds ?preview=1.
 const PUB_KEY = "shihiko-site-config", DRAFT_KEY = "shihiko-site-draft", HIST_KEY = "shihiko-site-history";
 let seedCache: State | null = null;
-const PUBLIC_FIELDS = { products: ["title", "price", "status", "seoTitle", "seoDescription", "description"], collections: ["title", "description", "seoTitle", "seoDescription", "visible"], pages: ["title", "seoTitle", "seoDescription", "visible", "body"] } as const;
+const PUBLIC_FIELDS = {
+  products: ["title", "price", "compareAt", "status", "seoTitle", "seoDescription", "description", "badge", "images", "sizeChart", "variants", "trackStock", "allowBackorder"],
+  collections: ["title", "description", "image", "seoTitle", "seoDescription", "visible", "sort", "products"],
+  pages: ["title", "seoTitle", "seoDescription", "visible", "body"],
+} as const;
 export function siteConfig(s: State) {
   const base = (seedCache ||= seed());
   const out: Record<"products" | "collections" | "pages", Record<string, unknown>> = { products: {}, collections: {}, pages: {} };
