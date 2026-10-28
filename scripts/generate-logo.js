@@ -7,9 +7,8 @@ async function main() {
   const buffer = fs.readFileSync(fontPath);
   const font = opentype.parse(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
   
-  console.log('Font loaded:', font.names.fontFamily.en);
+  console.log('Font names:', font.names);
   
-  // Test generating path for "AnnR"
   const text = 'AnnR';
   const fontSize = 72;
   const pathObj = font.getPath(text, 0, 0, fontSize);
