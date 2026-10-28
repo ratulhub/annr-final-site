@@ -68,3 +68,4 @@ After running `01..07`, execute `database/tests/rls_verification.sql` (`supabase
 4. **Environment Variables (`.env.local`)**:
    - Set only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
    - Never place `SUPABASE_SERVICE_ROLE_KEY` or `sb_secret_...` in any `VITE_*` variable.
+

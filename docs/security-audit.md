@@ -120,3 +120,4 @@ Every layer of the repository was inspected prior to and during hardening:
 | `zod` (`3.25.76`) | High | Direct dependency | Advisory relates to memory exhaustion on huge collections. All inputs and JSON imports enforce strict byte/length/array caps prior to parsing. Upgrade to `zod >= 4.x` after form schema compatibility review. |
 | `js-yaml` | High | `@tanstack/react-start` -> `@tanstack/Nitro` (build-time) | Build-time configuration parser only; never bundled into client or invoked on runtime user input. |
 | `source-map-js` | High | `@tailwindcss/vite` (build-time) | CSS build toolchain only; never exposed to visitors or runtime requests. |
+

@@ -69,3 +69,4 @@
 1. **Browser-Only Demo Mode Limitation**: Until Supabase is connected and `.env.local` is configured, anyone with local DevTools access to their own browser can edit their own `localStorage`/`sessionStorage`. This affects only their own browser tab, never other visitors.
 2. **Upstream Shopify Dependency**: Cart, search, and checkout proxy to the upstream store. Payment card security relies on Shopify's PCI-DSS Level 1 hosted checkout.
 3. **CSP Enforcement Progression**: `Content-Security-Policy-Report-Only` is active so inline Shopify theme scripts continue to work without breaking storefront layout; transition to enforced CSP with script nonces/hashes once theme inline scripts are cataloged.
+
