@@ -38,3 +38,4 @@ const svg = `<svg width="${vbWidth}" height="${vbHeight}" viewBox="0 0 ${vbWidth
 
 fs.writeFileSync('public/cdn/shop/t/75/assets/image_logo.svg', svg);
 console.log('Updated public/cdn/shop/t/75/assets/image_logo.svg successfully!');
+
