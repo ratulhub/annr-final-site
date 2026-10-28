@@ -4,6 +4,8 @@
 # Klaviyo, Tolstoy…); enforce it only after the browser console shows no violations.
 /*
   X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self)
   Strict-Transport-Security: max-age=31536000; includeSubDomains

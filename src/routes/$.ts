@@ -172,7 +172,13 @@ async function handle({ request }: { request: Request }) {
 async function route(request: Request): Promise<Response> {
   const url = new URL(request.url);
   if (!ALLOWED_METHODS.has(request.method)) return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD, POST" } });
+  if (!isSameOriginMutation(request, url)) return new Response("Forbidden: cross-origin mutation rejected", { status: 403 });
   if (DYNAMIC.test(url.pathname)) {
+    const clientIp = (request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0] || "local").trim().slice(0, 64);
+    const rl = checkRateLimit(clientIp, request.method);
+    if (!rl.allowed) {
+      return new Response("Too many requests", { status: 429, headers: { "retry-after": String(rl.retryAfterSec), "cache-control": "no-store" } });
+    }
     const isPopup = url.pathname === "/cart" && url.searchParams.get("section_id") === "ajax-cart-popup";
     const popupFallback = () =>
       fetch(new URL("/_ext/cart-popup-empty.html", url.origin)).then(
