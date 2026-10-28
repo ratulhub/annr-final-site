@@ -1,7 +1,7 @@
 # AnnR Storefront & Admin Codebase Map (`CODEBASE.md`)
 
 > **CRITICAL RULE — PRESERVE STOREFRONT STRUCTURE & ANNR BRANDING:**
-> The storefront is served as static HTML from `public/` (158 HTML pages + `/cdn/shop/...` + `/_ext/...`) with **AnnR** branding across all titles, logos (`.icon-logo:before` in `fonts.css` & `image_logo.svg`), descriptions, policies, and admin defaults, and footer credit `created by Ratul` (`https://ratul.site`).
+> The storefront is served as static HTML from `public/` (158 HTML pages + `/cdn/shop/...` + `/_ext/...`) with **AnnR** branding across all titles, logos (`.icon-logo:before` in `fonts.css` and vector `image_logo.svg` rendered in official **Rockybilly** handwritten brush font `Rockybilly.ttf`), descriptions, policies, and admin defaults, and footer credit `created by Ratul` (`https://ratul.site`).
 > - **Never alter** the layout, structure, or functionality of the static HTML, CSS, JS, or media files in `public/` (or how `src/routes/index.tsx` and `src/routes/$.ts` serve/proxy them).
 > - Note: Remote Shopify CDN asset URLs (`https://shihiko.com/cdn/...`), custom element tags (`<shihiko-header>`, `<shihiko-localization-modal>`), and static product folder handles must remain intact so images and scripts continue working.
 
