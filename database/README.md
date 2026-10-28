@@ -30,8 +30,8 @@ Run the files in `database/sql/` (or `supabase/migrations/`) in strict numerical
 1. `database/sql/01_core_schema.sql` (`supabase/migrations/20261028000001_core_schema.sql`) — Creates extensions, `security` schema, and all core tables/triggers.
 2. `database/sql/02_audit_log.sql` (`supabase/migrations/20261028000002_audit_log.sql`) — Creates `security.audit_log`, immutability trigger, and row-change audit triggers.
 3. `database/sql/03_rbac.sql` (`supabase/migrations/20261028000003_rbac.sql`) — Creates `public.app_role`, `user_roles`, `role_permissions`, `has_permission()`, `is_mfa_verified()`, `grant_role()`, `revoke_role()`, and `read_audit_log()`.
-4. `database/sql/04_rls_policies.sql` (`supabase/migrations/20261028000004_rls_policies.sql`) — Enables and forces RLS on all 19 tables and creates deny-by-default RLS policies.
-5. `database/sql/05_grants_and_hardening.sql` (`supabase/migrations/20261028000005_grants_and_hardening.sql`) — Sets least-privilege column/table grants for `anon` and `authenticated`.
+4. `database/sql/04_grants.sql` (`supabase/migrations/20261028000004_grants.sql`) — Enables and forces RLS on all 19 tables and sets least-privilege grants for `anon` and `authenticated`.
+5. `database/sql/05_rls_policies.sql` (`supabase/migrations/20261028000005_rls_policies.sql`) — Creates deny-by-default RLS policies across all 19 tables.
 6. `database/sql/06_rpc_functions.sql` (`supabase/migrations/20261028000006_rpc_functions.sql`) — Creates audited server RPC functions (`publish_site_config`, `adjust_inventory`, `update_order_status`, `check_discount_code`, `purge_old_audit_logs`, `create_validated_order`).
 7. `database/sql/07_storage.sql` (`supabase/migrations/20261028000007_storage.sql`) — Configures `public-media` (400 KB max, raster images only, no SVG) and `private-documents` (10 MB max, PDF only) storage buckets and object policies.
 

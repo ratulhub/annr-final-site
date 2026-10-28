@@ -114,7 +114,7 @@ function SecurityCenter() {
       <Card title="6. Database integration & 7. RLS policy status">
         <Table>
           <Row name="Supabase environment config" s={backend === "not_connected" ? "disconnected" : "unchecked"} why={backend === "not_connected" ? "VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are not set (.env.example provided)." : "Environment variables detected; run SQL verification before production use."} />
-          <Row name="Row Level Security (19 tables)" s="disconnected" why="Defined in database/sql/04_rls_policies.sql with ENABLE + FORCE ROW LEVEL SECURITY on all 19 public & security tables." />
+          <Row name="Row Level Security (19 tables)" s="disconnected" why="Defined in database/sql/04_grants.sql & 05_rls_policies.sql with ENABLE + FORCE ROW LEVEL SECURITY on all 19 public & security tables." />
           <Row name="Authoritative order & price RPC" s="disconnected" why="Defined in database/sql/06_rpc_functions.sql (public.create_validated_order): calculates totals from DB prices, reserves inventory, and ignores client-supplied prices." />
           <Row name="RLS automated test script" s="disconnected" why="Prepared in database/tests/rls_verification.sql (tests anon, customer A vs customer B IDOR, content_manager vs super_admin, and audit immutability)." />
         </Table>
