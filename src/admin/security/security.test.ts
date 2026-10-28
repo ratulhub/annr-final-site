@@ -101,10 +101,10 @@ describe("Proxy rate limiting, CSRF & security headers", () => {
   });
 
   it("defines required anti-framing and isolation headers", () => {
-    expect(SECURITY_HEADERS["X-Frame-Options"]).toBe("SAMEORIGIN");
-    expect(SECURITY_HEADERS["X-Content-Type-Options"]).toBe("nosniff");
-    expect(SECURITY_HEADERS["Cross-Origin-Opener-Policy"]).toBe("same-origin-allow-popups");
-    expect(SECURITY_HEADERS["Strict-Transport-Security"]).toContain("max-age=");
+    expect(SECURITY_HEADERS["x-frame-options"]).toBe("SAMEORIGIN");
+    expect(SECURITY_HEADERS["x-content-type-options"]).toBe("nosniff");
+    expect(SECURITY_HEADERS["cross-origin-opener-policy"]).toBe("same-origin-allow-popups");
+    expect(SECURITY_HEADERS["strict-transport-security"]).toContain("max-age=");
   });
 });
 
