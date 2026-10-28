@@ -72,12 +72,12 @@ describe("Server redirects", () => {
 describe("Proxy rate limiting, CSRF & security headers", () => {
   it("enforces per-IP POST rate limits (30/min)", () => {
     const ip = "203.0.113.99";
-    for (let i = 0; i < 30; i++) expect(checkRateLimit(ip, "POST", 10_000).ok).toBe(true);
+    for (let i = 0; i < 30; i++) expect(checkRateLimit(ip, "POST", 10_000).allowed).toBe(true);
     const blocked = checkRateLimit(ip, "POST", 10_000);
-    expect(blocked.ok).toBe(false);
-    expect(blocked.retryAfter).toBeGreaterThan(0);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.retryAfterSec).toBeGreaterThan(0);
     // Resets after 60s window
-    expect(checkRateLimit(ip, "POST", 71_000).ok).toBe(true);
+    expect(checkRateLimit(ip, "POST", 71_000).allowed).toBe(true);
   });
 
   it("blocks cross-site POST via Sec-Fetch-Site or mismatched Origin", () => {
