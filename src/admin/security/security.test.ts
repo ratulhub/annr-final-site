@@ -3,7 +3,9 @@ import { escapeHtml, safeCssValue, safeImageUrl, safeUrl, sanitizeCss, stripQuer
 import { can, canAssignRole, permissionForPath, ROLES } from "./permissions";
 import { isLocked, registerFailure, sessionValid, MAX_ATTEMPTS, LOCK_MS, IDLE_MS, ABSOLUTE_MS, type Session } from "./auth";
 import { sniffImage } from "../services/media";
-import { safeRedirectTarget, staticPagePath } from "../../routes/$";
+import { checkRateLimit, isSameOriginMutation, safeRedirectTarget, SECURITY_HEADERS, staticPagePath } from "../../routes/$";
+import { isValidImport } from "../../routes/admin.settings";
+import { leakedSecretInBrowserEnv } from "../../lib/backend-status";
 
 describe("XSS / unsafe URLs", () => {
   it("escapes quotes used in attributes", () => expect(escapeHtml(`x' onerror='alert(1)`)).not.toContain("'"));
@@ -65,4 +67,56 @@ describe("Server redirects", () => {
   it("maps clean product URLs", () => expect(staticPagePath("/products/aka", null)).toBe("/products/aka/index.html"));
   it("drops upstream redirects to unknown hosts", () => expect(safeRedirectTarget("https://evil.com/x")).toBeNull());
   it("keeps Shopify checkout redirects", () => expect(safeRedirectTarget("https://shihiko.com/checkouts/abc")).toBe("https://shihiko.com/checkouts/abc"));
+});
+
+describe("Proxy rate limiting, CSRF & security headers", () => {
+  it("enforces per-IP POST rate limits (30/min)", () => {
+    const ip = "203.0.113.99";
+    for (let i = 0; i < 30; i++) expect(checkRateLimit(ip, "POST", 10_000).ok).toBe(true);
+    const blocked = checkRateLimit(ip, "POST", 10_000);
+    expect(blocked.ok).toBe(false);
+    expect(blocked.retryAfter).toBeGreaterThan(0);
+    // Resets after 60s window
+    expect(checkRateLimit(ip, "POST", 71_000).ok).toBe(true);
+  });
+
+  it("blocks cross-site POST via Sec-Fetch-Site or mismatched Origin", () => {
+    const crossSite = new Request("https://annr.store/cart/add.js", {
+      method: "POST",
+      headers: { "sec-fetch-site": "cross-site", origin: "https://evil.example" },
+    });
+    expect(isSameOriginMutation(crossSite)).toBe(false);
+
+    const badOrigin = new Request("https://annr.store/contact", {
+      method: "POST",
+      headers: { origin: "https://evil.example" },
+    });
+    expect(isSameOriginMutation(badOrigin)).toBe(false);
+
+    const sameOrigin = new Request("https://annr.store/cart/add.js", {
+      method: "POST",
+      headers: { "sec-fetch-site": "same-origin", origin: "https://annr.store" },
+    });
+    expect(isSameOriginMutation(sameOrigin)).toBe(true);
+  });
+
+  it("defines required anti-framing and isolation headers", () => {
+    expect(SECURITY_HEADERS["X-Frame-Options"]).toBe("SAMEORIGIN");
+    expect(SECURITY_HEADERS["X-Content-Type-Options"]).toBe("nosniff");
+    expect(SECURITY_HEADERS["Cross-Origin-Opener-Policy"]).toBe("same-origin-allow-popups");
+    expect(SECURITY_HEADERS["Strict-Transport-Security"]).toContain("max-age=");
+  });
+});
+
+describe("Admin backup import validation & secret leak guard", () => {
+  it("accepts valid bounded backup and rejects unknown admin roles or oversized arrays", () => {
+    expect(isValidImport({ products: [], collections: [], pages: [], site: {}, admins: [{ id: "1", email: "a@b.c", role: "super_admin" }] })).toBe(true);
+    expect(isValidImport({ products: [], collections: [], pages: [], site: {}, admins: [{ id: "1", email: "a@b.c", role: "root_hacker" }] })).toBe(false);
+    expect(isValidImport({ products: new Array(501).fill({}), collections: [], pages: [], site: {} })).toBe(false);
+    expect(isValidImport(null)).toBe(false);
+  });
+
+  it("verifies zero secret keys in browser env", () => {
+    expect(leakedSecretInBrowserEnv()).toEqual([]);
+  });
 });
