@@ -20,11 +20,14 @@ export const Route = createFileRoute("/p/$slug")({
   component: CustomPageRoute,
 });
 
+const SAFE_SLUG = /^[a-z0-9][a-z0-9-]{0,119}$/i;
+
 // Pages built in the admin. They live in this browser's published config (demo), so they render after load.
 function CustomPageRoute() {
   const { slug } = Route.useParams();
   const [data, setData] = useState<{ page: CustomPage | null; products: MiniProduct[] } | null>(null);
   useEffect(() => {
+    if (!SAFE_SLUG.test(slug)) { setData({ page: null, products: [] }); return; }
     const preview = new URLSearchParams(location.search).get("preview") === "1";
     try {
       const cfg = JSON.parse(localStorage.getItem(preview ? "shihiko-site-draft" : "shihiko-site-config") || "null");

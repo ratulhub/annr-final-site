@@ -33,12 +33,62 @@ function rewrite(text: string) {
 // Security headers on every response this server produces (static files get theirs from public/_headers).
 export const SECURITY_HEADERS: Record<string, string> = {
   "x-content-type-options": "nosniff",
+  "x-frame-options": "SAMEORIGIN",
+  "cross-origin-opener-policy": "same-origin-allow-popups",
   "referrer-policy": "strict-origin-when-cross-origin",
   "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=(self)",
   "strict-transport-security": "max-age=31536000; includeSubDomains",
 };
 const MAX_BODY = 1024 * 1024; // 1 MB: cart/contact payloads are tiny
 const ALLOWED_METHODS = new Set(["GET", "HEAD", "POST"]);
+
+// Sliding-window per-IP rate limiter for proxied storefront endpoints (POST mutations vs GET queries).
+const RATE_WINDOW_MS = 60_000;
+const RATE_LIMIT_POST = 30;
+const RATE_LIMIT_GET = 120;
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+export function checkRateLimit(key: string, method: string, now = Date.now()): { allowed: boolean; retryAfterSec: number } {
+  const limit = method === "POST" ? RATE_LIMIT_POST : RATE_LIMIT_GET;
+  const bucketKey = `${method === "POST" ? "P" : "G"}:${key}`;
+  if (rateBuckets.size > 5000) {
+    for (const [k, v] of rateBuckets) if (v.resetAt <= now) rateBuckets.delete(k);
+  }
+  const cur = rateBuckets.get(bucketKey);
+  if (!cur || cur.resetAt <= now) {
+    rateBuckets.set(bucketKey, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return { allowed: true, retryAfterSec: 0 };
+  }
+  cur.count += 1;
+  if (cur.count > limit) {
+    return { allowed: false, retryAfterSec: Math.max(1, Math.ceil((cur.resetAt - now) / 1000)) };
+  }
+  return { allowed: true, retryAfterSec: 0 };
+}
+
+// Rejects cross-site POST requests to proxied mutation endpoints (/cart, /contact, /discount, /localization).
+export function isSameOriginMutation(request: Request, url = new URL(request.url)): boolean {
+  if (request.method === "GET" || request.method === "HEAD") return true;
+  const secFetchSite = request.headers.get("sec-fetch-site");
+  if (secFetchSite && secFetchSite !== "same-origin" && secFetchSite !== "none") return false;
+  const origin = request.headers.get("origin");
+  if (origin) {
+    try {
+      return new URL(origin).host === url.host;
+    } catch {
+      return false;
+    }
+  }
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).host === url.host;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
 
 function secure(res: Response) {
   const h = new Headers(res.headers);
