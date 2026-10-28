@@ -87,18 +87,21 @@
 - `admin.security.tsx`: Honest Security Center dashboard (`pass`, `fail`, `unchecked`, `disconnected`, `demo` badges, live header & open-redirect checks, re-authentication, RBAC matrix, auth log, dependency scan).
 - `admin.m.$module.tsx`: Module overview & direct links to each completed admin module.
 
-### Database & Docs (`database/`, `docs/`)
-- `database/sql/01_core_schema.sql`: Core tables, constraints, `touch_updated_at()`, `handle_new_user()`.
-- `database/sql/02_audit_log.sql`: Private `security.audit_log` append-only table, `security.audit()`, row-change triggers.
-- `database/sql/03_rbac.sql`: `public.app_role`, `user_roles`, `role_permissions`, `has_permission()`, `has_role()`, `grant_role()`, `revoke_role()`, `read_audit_log()`.
-- `database/sql/04_grants.sql`: Default privilege revocation, `ENABLE` + `FORCE ROW LEVEL SECURITY` on all tables, least-privilege table grants.
-- `database/sql/05_rls_policies.sql`: Explicit deny-by-default RLS policies for `anon` and `authenticated` across all 19 tables.
-- `database/sql/06_rpc_functions.sql`: Audited `SECURITY DEFINER` RPCs (`publish_site_config`, `adjust_inventory`, `update_order_status`, `check_discount_code`, `purge_old_audit_logs`).
-- `database/sql/07_storage.sql`: `public-media` and `private-documents` storage buckets + `storage.objects` RLS policies.
-- `database/tests/rls_verification.sql`: Self-contained SQL verification test suite for RLS, RBAC, BOLA, and append-only audit log.
+### Database & Docs (`database/`, `supabase/`, `docs/`)
+- `database/sql/01_core_schema.sql` (`supabase/migrations/20261028000001_core_schema.sql`): Core tables, constraints, `touch_updated_at()`, `handle_new_user()`.
+- `database/sql/02_audit_log.sql` (`supabase/migrations/20261028000002_audit_log.sql`): Private `security.audit_log` append-only table, `security.audit()`, row-change triggers.
+- `database/sql/03_rbac.sql` (`supabase/migrations/20261028000003_rbac.sql`): `public.app_role`, `user_roles`, `role_permissions`, `has_permission()`, `is_mfa_verified()`, `has_role()`, `grant_role()`, `revoke_role()`, `read_audit_log()`.
+- `database/sql/04_grants.sql` (`supabase/migrations/20261028000004_grants.sql`): Default privilege revocation, `ENABLE` + `FORCE ROW LEVEL SECURITY` on all tables, least-privilege table grants.
+- `database/sql/05_rls_policies.sql` (`supabase/migrations/20261028000005_rls_policies.sql`): Explicit deny-by-default RLS policies for `anon` and `authenticated` across all 19 tables.
+- `database/sql/06_rpc_functions.sql` (`supabase/migrations/20261028000006_rpc_functions.sql`): Audited `SECURITY DEFINER` RPCs (`publish_site_config`, `adjust_inventory`, `update_order_status`, `check_discount_code`, `purge_old_audit_logs`, `create_validated_order`).
+- `database/sql/07_storage.sql` (`supabase/migrations/20261028000007_storage.sql`): `public-media` and `private-documents` storage buckets + `storage.objects` RLS policies.
+- `database/tests/rls_verification.sql` (`supabase/tests/rls_verification.sql`): Self-contained 10-part SQL verification test suite for RLS, RBAC, BOLA/IDOR, authoritative checkout pricing/stock reservation, and append-only audit log.
 - `database/README.md`: Operator runbook (§1–§7).
 - `docs/admin-control-inventory.md`: Storefront control mapping (Parts 1–3).
-- `docs/security-report.md`: Full security audit & architecture report.
-- `docs/security-remediation-plan.md`: Remediation phases & production migration plan.
+- `docs/security-threat-model.md`: Architecture trust boundaries, asset inventory, STRIDE threat model.
+- `docs/security-audit.md`: Complete OWASP ASVS / Top 10 / API Security audit (`SEC-01` through `SEC-13`).
+- `docs/security-remediation-plan.md`: Remediation tracking & staged Supabase production cutover plan.
+- `docs/supabase-security-plan.md`: 19-table RLS matrix, RBAC permissions, and Supabase Auth/MFA setup.
 - `docs/security-verification-checklist.md`: Pre-production & post-deploy verification checklist.
+- `docs/security-report.md`: Executive security posture summary.
 
