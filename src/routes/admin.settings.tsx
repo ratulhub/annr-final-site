@@ -2,25 +2,42 @@ import { IntegrationsCard } from "../admin/site/IntegrationsCard";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { replaceState, resetState, setState, useAdmin, type State } from "../admin/store";
-import { confirmReauth } from "../admin/security/auth";
+import { confirmReauth, getSession, logAuthEvent } from "../admin/security/auth";
+import { can, ROLES } from "../admin/security/permissions";
 import { Card, KeyValueEditor } from "../admin/ui";
 import { Big, Chk, F, Obj, UrlF } from "../admin/site/fields";
 
 export const Route = createFileRoute("/admin/settings")({ component: Settings });
 
-function isValidImport(x: unknown): x is State {
-  if (!x || typeof x !== "object") return false;
+export function isValidImport(x: unknown): x is State {
+  if (!x || typeof x !== "object" || Array.isArray(x)) return false;
   const o = x as Record<string, unknown>;
-  return Array.isArray(o["products"]) && Array.isArray(o["collections"]) && Array.isArray(o["pages"]) && typeof o["site"] === "object" && o["site"] !== null;
+  if (!Array.isArray(o["products"]) || o["products"].length > 500) return false;
+  if (!Array.isArray(o["collections"]) || o["collections"].length > 100) return false;
+  if (!Array.isArray(o["pages"]) || o["pages"].length > 200) return false;
+  if (typeof o["site"] !== "object" || o["site"] === null || Array.isArray(o["site"])) return false;
+  if (o["admins"] !== undefined) {
+    if (!Array.isArray(o["admins"]) || o["admins"].length > 100) return false;
+    for (const a of o["admins"]) {
+      if (!a || typeof a !== "object") return false;
+      const role = String((a as Record<string, unknown>)["role"] ?? "");
+      if (!(ROLES as readonly string[]).includes(role)) return false;
+    }
+  }
+  return true;
 }
 
 function Settings() {
   const s = useAdmin();
   const [dataMsg, setDataMsg] = useState("");
-  const exportJson = () => {
+  const exportJson = async () => {
+    if (!can(getSession()?.role, "data.export")) { setDataMsg("Permission denied: data.export required."); return; }
+    if (!(await confirmReauth("export all admin data"))) return;
+    logAuthEvent("data_export");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(s, null, 2)], { type: "application/json" }));
-    a.download = "shihiko-admin-data.json"; a.click();
+    a.download = "annr-admin-data.json"; a.click();
+    setDataMsg("Exported admin data.");
   };
   return (
     <>
@@ -65,10 +82,10 @@ function Settings() {
             try {
               const parsed = JSON.parse(await f.text());
               if (!isValidImport(parsed)) { setDataMsg("Invalid admin backup file."); return; }
-              if (await confirmReauth("import admin data")) { replaceState(parsed); setDataMsg("Data imported into draft."); }
+              if (await confirmReauth("import admin data")) { replaceState(parsed); logAuthEvent("data_import"); setDataMsg("Data imported into draft."); }
             } catch { setDataMsg("Could not read JSON file."); }
           }} /></label>
-          <button className="adm-btn danger" onClick={async () => { if (confirm("Reset everything to the original store data?") && await confirmReauth("reset all admin data")) { resetState(); setDataMsg("Reset to original."); } }}>Reset to original</button>
+          <button className="adm-btn danger" onClick={async () => { if (confirm("Reset everything to the original store data?") && await confirmReauth("reset all admin data")) { resetState(); logAuthEvent("data_reset"); setDataMsg("Reset to original."); } }}>Reset to original</button>
         </div>
         {dataMsg && <p className="adm-hint" style={{ marginTop: 8 }}>{dataMsg}</p>}
       </Card>
