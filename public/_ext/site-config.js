@@ -296,13 +296,23 @@
   var sess = sessionStorage.getItem("shihiko-sess") || Math.random().toString(36).slice(2, 10);
   sessionStorage.setItem("shihiko-sess", sess);
   var device = window.innerWidth < 768 ? "Mobile" : window.innerWidth < 1100 ? "Tablet" : "Desktop";
-  function trackEvent(name, props) {
+  var pendingEvents = [], flushTimer = 0;
+  var scheduleIdle = window.requestIdleCallback || function (fn) { return setTimeout(fn, 32); };
+  function flushEvents() {
+    flushTimer = 0;
+    if (!pendingEvents.length) return;
+    var batch = pendingEvents.splice(0, pendingEvents.length);
     try {
       var l = JSON.parse(localStorage.getItem(KEY) || "[]");
-      var p = props || {}; p.session = sess; p.device = device;
-      l.push({ name: name, at: new Date().toISOString(), path: location.pathname, props: p });
+      for (var i = 0; i < batch.length; i++) l.push(batch[i]);
       localStorage.setItem(KEY, JSON.stringify(l.slice(-3000)));
     } catch (e) { /* storage full or blocked */ }
+  }
+  function trackEvent(name, props) {
+    var p = props || {}; p.session = sess; p.device = device;
+    pendingEvents.push({ name: name, at: new Date().toISOString(), path: location.pathname, props: p });
+    if (document.visibilityState === "hidden") { flushEvents(); return; }
+    if (!flushTimer) flushTimer = scheduleIdle(flushEvents);
   }
   window.shihikoTrack = trackEvent;
   var q = new URLSearchParams(location.search), pv = { referrer: document.referrer ? new URL(document.referrer).hostname : "Direct" };
@@ -322,10 +332,20 @@
     else trackEvent("form_submit", { form: id });
   }, true);
   document.addEventListener("focusin", function (e) { var f = e.target.form; if (f && !f.__t) { f.__t = 1; trackEvent("form_start", { form: f.id || "form" }); } });
-  var marks = {}; window.addEventListener("scroll", function () {
-    var h = document.documentElement, pct = Math.round(((h.scrollTop + innerHeight) / h.scrollHeight) * 100);
-    [25, 50, 75, 100].forEach(function (m) { if (pct >= m && !marks[m]) { marks[m] = 1; trackEvent("scroll_depth", { percent: m }); } });
-  }, { passive: true });
+  var marks = {}, scrollTick = false;
+  function onScrollDepth() {
+    if (scrollTick) return;
+    scrollTick = true;
+    requestAnimationFrame(function () {
+      scrollTick = false;
+      var h = document.documentElement, sh = h.scrollHeight;
+      if (!sh) return;
+      var pct = Math.round(((window.scrollY + innerHeight) / sh) * 100);
+      [25, 50, 75, 100].forEach(function (m) { if (pct >= m && !marks[m]) { marks[m] = 1; trackEvent("scroll_depth", { percent: m }); } });
+      if (marks[100]) window.removeEventListener("scroll", onScrollDepth);
+    });
+  }
+  window.addEventListener("scroll", onScrollDepth, { passive: true });
   window.addEventListener("error", function (e) { trackEvent("javascript_error", { message: String(e.message || "error").slice(0, 120) }); });
   function vital(metric, value) { trackEvent("web_vital", { metric: metric, value: Math.round(value * (metric === "CLS" ? 1000 : 1)) / (metric === "CLS" ? 1000 : 1) }); }
   try {
