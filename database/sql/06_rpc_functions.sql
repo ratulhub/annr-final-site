@@ -101,3 +101,135 @@ begin
 end $$;
 revoke all on function security.purge_old_audit_logs(int) from public, anon, authenticated;
 
+-- 6. Server-authoritative order creation & atomic inventory reservation (Phase 5 E-Commerce Security).
+-- Never trusts client-supplied unit prices, subtotals, discounts, or payment status.
+create or replace function public.create_validated_order(
+  _email text,
+  _items jsonb,
+  _discount_code text default null,
+  _shipping_address jsonb default null,
+  _idempotency_key text default null
+)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  _uid uuid := auth.uid();
+  _order_id uuid;
+  _item jsonb;
+  _vid uuid;
+  _qty int;
+  _unit_price numeric(12,2);
+  _title text;
+  _on_hand int;
+  _reserved int;
+  _subtotal numeric(12,2) := 0;
+  _discount_total numeric(12,2) := 0;
+  _disc record;
+begin
+  if _uid is null then
+    raise exception 'authentication required' using errcode = '42501';
+  end if;
+  if _email is null or char_length(trim(_email)) = 0 or char_length(_email) > 254 then
+    raise exception 'invalid email' using errcode = '22023';
+  end if;
+  if _items is null or jsonb_typeof(_items) <> 'array' or jsonb_array_length(_items) < 1 or jsonb_array_length(_items) > 30 then
+    raise exception 'order must contain between 1 and 30 line items' using errcode = '22023';
+  end if;
+
+  -- Idempotency guard: prevent duplicate order submission on network retry.
+  if _idempotency_key is not null then
+    select o.id into _order_id
+      from public.orders o
+     where o.idempotency_key = left(_idempotency_key, 100)
+       and o.user_id = _uid;
+    if _order_id is not null then
+      return _order_id;
+    end if;
+  end if;
+
+  -- First pass: validate every variant, check active product status, reserve inventory, and sum authoritative prices.
+  for _item in select * from jsonb_array_elements(_items) loop
+    _vid := (_item->>'variant_id')::uuid;
+    _qty := (_item->>'quantity')::int;
+    if _vid is null or _qty is null or _qty < 1 or _qty > 20 then
+      raise exception 'invalid item quantity (must be 1..20)' using errcode = '22023';
+    end if;
+
+    select coalesce(pv.price, p.price), p.title
+      into _unit_price, _title
+      from public.product_variants pv
+      join public.products p on p.id = pv.product_id
+     where pv.id = _vid and p.status = 'active';
+    if not found or _unit_price is null or _unit_price < 0 then
+      raise exception 'product variant unavailable' using errcode = '22023';
+    end if;
+
+    select inv.on_hand, inv.reserved
+      into _on_hand, _reserved
+      from public.inventory inv
+     where inv.variant_id = _vid
+       for update;
+    if not found or (_on_hand - _reserved) < _qty then
+      raise exception 'insufficient stock for variant %', _vid using errcode = 'P0002';
+    end if;
+
+    update public.inventory
+       set reserved = reserved + _qty, updated_at = now()
+     where variant_id = _vid;
+
+    _subtotal := _subtotal + (_unit_price * _qty);
+  end loop;
+
+  -- Optional server-side discount code calculation & usage counter increment.
+  if _discount_code is not null and char_length(trim(_discount_code)) > 0 then
+    select d.id, d.kind, d.value
+      into _disc
+      from public.discounts d
+     where d.code = upper(trim(_discount_code))
+       and d.active = true
+       and (d.starts_at is null or d.starts_at <= now())
+       and (d.ends_at is null or d.ends_at > now())
+       and (d.max_uses is null or d.used_count < d.max_uses)
+       for update;
+    if not found then
+      raise exception 'invalid or expired discount code' using errcode = '22023';
+    end if;
+    if _disc.kind = 'percent' then
+      _discount_total := round(_subtotal * (_disc.value / 100.0), 2);
+    else
+      _discount_total := least(_subtotal, _disc.value);
+    end if;
+    update public.discounts set used_count = used_count + 1 where id = _disc.id;
+  end if;
+
+  insert into public.orders (
+    user_id, email, status, payment_status,
+    subtotal, discount_total, shipping_total, total,
+    idempotency_key, shipping_address
+  ) values (
+    _uid, trim(_email), 'pending', 'unpaid',
+    _subtotal, _discount_total, 0, greatest(0, _subtotal - _discount_total),
+    case when _idempotency_key is not null then left(_idempotency_key, 100) else null end,
+    _shipping_address
+  ) returning id into _order_id;
+
+  -- Insert order line items using authoritative DB prices.
+  for _item in select * from jsonb_array_elements(_items) loop
+    _vid := (_item->>'variant_id')::uuid;
+    _qty := (_item->>'quantity')::int;
+    select coalesce(pv.price, p.price), p.title
+      into _unit_price, _title
+      from public.product_variants pv
+      join public.products p on p.id = pv.product_id
+     where pv.id = _vid;
+    insert into public.order_items (order_id, variant_id, title, unit_price, quantity)
+    values (_order_id, _vid, left(_title, 200), _unit_price, _qty);
+  end loop;
+
+  perform security.audit('order.create', 'orders', _order_id::text, 'success',
+    jsonb_build_object('subtotal', _subtotal, 'discount_total', _discount_total, 'total', greatest(0, _subtotal - _discount_total)));
+  return _order_id;
+end $$;
+revoke all on function public.create_validated_order(text, jsonb, text, jsonb, text) from public, anon;
+grant execute on function public.create_validated_order(text, jsonb, text, jsonb, text) to authenticated;
+
+
