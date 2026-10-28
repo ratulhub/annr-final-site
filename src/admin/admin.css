@@ -1,4 +1,12 @@
 
+@font-face {
+  font-family: "Rockybilly";
+  src: url("/cdn/shop/t/75/assets/Rockybilly.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 .adm {
   --ink: #000; --paper: #fff; --line: #000; --muted: #6b6b6b; --soft: #f2f2f2; --red: #e10600;
   font-family: "NB Architekt Std", "FK Grotesk SemiMono", monospace; color: var(--ink); background: var(--paper);
@@ -8,8 +16,8 @@
 .adm h1, .adm h2, .adm h3 { font-family: "Druk Wide", sans-serif; text-transform: uppercase; margin: 0; font-weight: 500; }
 .adm h1 { font-size: 22px; } .adm h2 { font-size: 15px; } .adm h3 { font-size: 12px; }
 .adm-side { width: 230px; background: var(--ink); color: var(--paper); padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow: auto; flex-shrink: 0; }
-.adm-logo { font-family: "Druk Wide Super", "Druk Wide", sans-serif; font-size: 20px; padding: 0 22px 22px; text-transform: uppercase; }
-.adm-logo small { display: block; font-family: "FK Grotesk SemiMono", monospace; font-size: 10px; opacity: .6; letter-spacing: .2em; }
+.adm-logo { font-family: "Rockybilly", cursive, sans-serif; font-size: 32px; padding: 0 22px 18px; text-transform: none; font-weight: 400; line-height: 1.1; letter-spacing: 0; }
+.adm-logo small { display: block; font-family: "FK Grotesk SemiMono", monospace; font-size: 10px; opacity: .6; letter-spacing: .2em; text-transform: uppercase; margin-top: 4px; }
 .adm-nav a { display: block; padding: 10px 22px; color: var(--paper); text-decoration: none; text-transform: uppercase; font-size: 11px; letter-spacing: .12em; border-left: 3px solid transparent; }
 .adm-nav a:hover, .adm-nav a.active { background: #1a1a1a; border-left-color: var(--red); }
 .adm-main { flex: 1; padding: 28px 36px; min-width: 0; }
