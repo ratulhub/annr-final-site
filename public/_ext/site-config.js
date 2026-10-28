@@ -14,7 +14,7 @@
   var P = cfg.products || {}, C = cfg.collections || {}, G = cfg.pages || {};
   var S = cfg.site || {}, D = cfg.defaults || {};
   var path = location.pathname;
-  var tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/pages\//.test(path) ? "page" : /\/home\.html$|^\/$/.test(path) ? "home" : "other";
+  var tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/home\.html$|^\/$/.test(path) ? "home" : "other";
   var J = JSON.stringify;
   function changed(k) { return J(S[k]) !== J(D[k]); }
   function diff(k, f) { return S[k] && D[k] && S[k][f] !== D[k][f]; }
@@ -51,11 +51,25 @@
     m.setAttribute("content", val);
   }
   function handleOf(href, kind) { var m = (href || "").match(new RegExp("/" + kind + "/([^/?#]+)")); return m ? m[1] : null; }
+  function pageHandle(p) {
+    var h = handleOf(p, "pages") || handleOf(p, "policies");
+    if (h === "privacy-policy") return "legal-privacy";
+    if (h === "refund-policy") return "return-policy";
+    return h;
+  }
   function money(p) { return "Tk " + String(p).replace(/\.00$/, ""); }
-  function setMoney(el, price) {
+  function setMoney(el, price, compareAt) {
     if (!el) return;
     var span = el.querySelector(".money") || el, code = span.querySelector(".money-currency-code");
-    span.textContent = money(price); if (code) span.appendChild(code);
+    if (price != null) { span.textContent = money(price); if (code) span.appendChild(code); }
+    var oldDel = el.querySelector(".adm-compare"); if (oldDel) oldDel.remove();
+    if (compareAt) {
+      var del = document.createElement("del");
+      del.className = "adm-compare";
+      del.style.cssText = "opacity:.55;margin-left:6px;text-decoration:line-through;font-size:.9em";
+      del.textContent = money(compareAt);
+      el.appendChild(del);
+    }
   }
   function inScope(scope) { return !scope || scope === "all" || scope === tpl || (scope.charAt(0) === "/" && path.indexOf(scope) === 0); }
   function overlay(id, html, style) {
