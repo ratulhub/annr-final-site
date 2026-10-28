@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-rout
 import { useEffect, useState, type ReactNode } from "react";
 import adminCss from "../admin/admin.css?url";
 import { isLoggedIn, login, logout, getSession } from "../admin/store";
-import { touch } from "../admin/security/auth";
+import { logAuthEvent, touch } from "../admin/security/auth";
 import { can, permissionForPath } from "../admin/security/permissions";
 import { useAdmin } from "../admin/store";
 import { NAV_GROUPS } from "../admin/config/navigation";
@@ -132,9 +132,10 @@ function Denied({ perm }: { perm: string }) {
 
 function PublishButton() {
   const dirty = useDirty();
+  const mayPublish = can(getSession()?.role, "site.publish");
   return <span className="adm-row" style={{ gap: 6 }}>
     <Link to="/admin/publish" className="link">{dirty ? "Unpublished changes" : "All published"}</Link>
-    <button className="adm-btn sm" disabled={!dirty} onClick={() => publish()}>Publish</button>
+    <button className="adm-btn sm" disabled={!dirty || !mayPublish} onClick={() => { if (!mayPublish) return; publish(); logAuthEvent("site_publish"); }}>Publish</button>
   </span>;
 }
 
