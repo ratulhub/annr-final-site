@@ -112,7 +112,7 @@ function Funnels({ f, src }: { f: Filters; src: Source }) {
         <select value={s} onChange={(e) => save(steps.map((x, j) => (j === i ? (e.target.value as EventName) : x)))} style={{ width: 220 }}>{EVENT_NAMES.map((n) => <option key={n}>{n}</option>)}</select>
         <button className="adm-btn danger sm" disabled={steps.length <= 2} onClick={() => save(steps.filter((_, j) => j !== i))}>✕</button></div>)}
       <button className="adm-btn ghost sm" disabled={steps.length >= 6} onClick={() => save([...steps, "form_submit"])}>+ Add step</button>
-      <p className="adm-hint">Checkout happens on shihiko.com (Shopify), so purchase is not tracked here; the deepest step is add_to_cart.</p>
+      <p className="adm-hint">Checkout happens on the live Shopify store, so purchase is not tracked here; the deepest step is add_to_cart.</p>
     </Card>
     <div className="adm-stats"><MetricCard c={{ label: "Entered", value: res[0]?.count ?? null, help: src === "local" ? "Sessions in this browser" : "Sample sessions" }} /><MetricCard c={{ label: "Completed", value: res[res.length - 1]?.count ?? null, help: "Reached the last step" }} /><MetricCard c={{ label: "Overall conversion", value: overall, unit: "%", help: "Completed ÷ entered" }} /></div>
     <Card title="Funnel"><Funnel steps={res} /></Card>
