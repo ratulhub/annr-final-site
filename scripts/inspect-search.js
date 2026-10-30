@@ -1,9 +1,7 @@
 import fs from 'fs';
 
-const html = fs.readFileSync('public/search/index.html', 'utf8');
-const scripts = [];
-for (const m of html.matchAll(/<script[^>]*src=["']([^"']+)["'][^>]*>/g)) {
-  scripts.push(m[1]);
-}
-console.log('Scripts loaded by public/search/index.html:');
-scripts.forEach(s => console.log(' - ' + s));
+const html = fs.readFileSync('public/home.html', 'utf8');
+const start = html.indexOf('<div class="header-search-new__products">');
+const end = html.indexOf('</div>\n                    </div>', start);
+console.log('Sample product card inside search:');
+console.log(html.substring(start, start + 3000));
