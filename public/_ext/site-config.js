@@ -10,7 +10,7 @@
   var preview = false;
   var cfg = null, P = {}, C = {}, G = {}, S = {}, D = {}, allCols = [];
   var path = location.pathname;
-  var tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/home\.html$|^\/$/.test(path) ? "home" : "other";
+  var tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/search\b/.test(path) ? "search" : /\/home\.html$|^\/$/.test(path) ? "home" : "other";
   function refreshState() {
     var framed = window.self !== window.top;
     preview = framed ? window.name === "shihiko-preview" : sessionStorage.getItem("shihiko-preview") === "1";
@@ -21,11 +21,106 @@
       allCols = cfg.allCollections || [];
     }
     path = location.pathname;
-    tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/home\.html$|^\/$/.test(path) ? "home" : "other";
+    tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/search\b/.test(path) ? "search" : /\/home\.html$|^\/$/.test(path) ? "home" : "other";
     return !!cfg;
   }
   refreshState();
-  if (!cfg && !preview) return;
+
+  // Search Engine & Catalog
+  var baseCatalog = [];
+  function loadBaseCatalog() {
+    try {
+      fetch("/_ext/catalog.json").then(function (r) {
+        return r.ok ? r.json() : null;
+      }).then(function (data) {
+        if (Array.isArray(data)) {
+          baseCatalog = data;
+          if (tpl === "search") setupSearchPage();
+        }
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  loadBaseCatalog();
+
+  function getFullCatalog() {
+    var map = {};
+    var list = [];
+    (baseCatalog || []).forEach(function (p) {
+      if (p && p.handle) {
+        map[p.handle] = p;
+        list.push(p);
+      }
+    });
+    if (cfg && Array.isArray(cfg.catalog)) {
+      cfg.catalog.forEach(function (p) {
+        if (p && p.handle) {
+          if (!map[p.handle]) list.push(p);
+          map[p.handle] = Object.assign({}, map[p.handle] || {}, p);
+        }
+      });
+    }
+    return list.map(function (p) {
+      return map[p.handle] || p;
+    });
+  }
+
+  function searchProducts(query) {
+    var q = String(query || "").trim().toLowerCase();
+    var terms = q.split(/\s+/).filter(Boolean);
+    var all = getFullCatalog();
+    if (!terms.length) return all.filter(function (p) { return !p.status || p.status === "active"; });
+
+    return all.filter(function (p) {
+      if (p.status && p.status !== "active") return false;
+      var o = P[p.handle] || {};
+      if (o.status && o.status !== "active") return false;
+      var title = (o.title || p.title || "").toLowerCase();
+      var desc = (o.description || p.description || "").toLowerCase();
+      var handle = (p.handle || "").toLowerCase();
+      var tags = (p.tags || "").toLowerCase();
+      var type = (p.type || "").toLowerCase();
+      var hay = title + " " + desc + " " + handle + " " + tags + " " + type;
+      return terms.every(function (t) { return hay.indexOf(t) >= 0; });
+    });
+  }
+
+  window.annrSearchProducts = searchProducts;
+
+  window.annrSearchPredictiveHtml = function (query) {
+    var q = String(query || "").trim();
+    if (!q) return "";
+    var matches = searchProducts(q).slice(0, 10);
+    if (!matches.length) return "";
+
+    var cards = matches.map(function (p) {
+      var o = P[p.handle] || {};
+      var title = o.title || p.title;
+      var pr = String(o.price != null ? o.price : p.price || "0").replace(/\.00$/, "");
+      var img = (o.images && o.images[0]) || p.image;
+      var badge = o.badge || p.badge;
+      var badgeHtml = badge ? "<div class='product-card-labels' style='background:#000;color:#fff'>" + esc(badge) + "</div>" : "";
+
+      return "<div class='lazy-item product-card'>" +
+        "<div class='product-card-image'>" + badgeHtml +
+          "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(title) + "'>" +
+            "<img src='" + esc(safeImg(img)) + "' alt='" + esc(title) + "' loading='lazy'>" +
+          "</a>" +
+        "</div>" +
+        "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(title) + "</a>" +
+        "<div class='product-card-price'>" +
+          "<span class='money'>Tk " + esc(pr) + "<span class='money-currency-code'>BDT</span></span>" +
+        "</div>" +
+      "</div>";
+    }).join("\n");
+
+    return "<div id='shopify-section-predictive-search-new' class='shopify-section'>" +
+      "<div id='predictive-search-new-results'>" +
+        "<div class='header-search-new__result-products' data-header-search-new-result-products>" +
+          cards +
+        "</div>" +
+      "</div>" +
+    "</div>";
+  };
   var J = JSON.stringify;
   function changed(k) { return J(S[k]) !== J(D[k]); }
   function diff(k, f) { return S[k] && D[k] && S[k][f] !== D[k][f]; }
