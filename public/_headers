@@ -9,7 +9,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self)
   Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline' https://*.shopify.com https://*.shopifycdn.com https://www.googletagmanager.com https://*.klaviyo.com; style-src 'self' 'unsafe-inline' https://fonts.bunny.net; img-src 'self' data: blob: https:; media-src 'self' https:; font-src 'self' data: https://fonts.bunny.net; connect-src 'self' https:; frame-src 'self' https://*.shopify.com https://*.gotolstoy.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self' https://*.shopify.com https://shihiko.com; frame-ancestors 'self' https://*.lovable.app https://*.lovable.dev https://lovable.dev
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline' https://*.shopify.com https://*.shopifycdn.com https://www.googletagmanager.com https://*.klaviyo.com; style-src 'self' 'unsafe-inline' https://fonts.bunny.net; img-src 'self' data: blob: https:; media-src 'self' https:; font-src 'self' data: https://fonts.bunny.net; connect-src 'self' https:; frame-src 'self' https://*.shopify.com https://*.gotolstoy.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self' https://*.shopify.com https://shihiko.com; frame-ancestors 'self'
 
 /admin*
   Cache-Control: no-store
