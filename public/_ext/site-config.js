@@ -511,6 +511,9 @@
       if (cb) cb.querySelector("button").onclick = function () { localStorage.setItem("shihiko-cookie-ok", "1"); cb.remove(); };
     }
   }
+  window.shihikoApply = apply;
+  window.addEventListener("shihiko:collection:loaded", function () { apply(); });
+  window.addEventListener("popstate", function () { setTimeout(apply, 0); });
   whenReady(apply);
 })();
 
