@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import fs from "node:fs";
+import path from "node:path";
 import catalog from "../admin/catalog.json";
 
 // Same behaviour as the original mirror server: live Shopify features (cart, cart drawer,
