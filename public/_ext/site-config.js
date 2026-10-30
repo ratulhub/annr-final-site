@@ -268,7 +268,7 @@
       if (o.status && o.status !== "active" && card) card.style.display = "none";
     });
     var ph = handleOf(path, "products"), ch = handleOf(path, "collections"), gh = pageHandle(path);
-    var o = ph ? P[ph] : ch ? C[ch] : gh ? G[gh] : null;
+    var o = ph ? P[ph] : ch ? (C[ch] || colsMap[ch]) : gh ? G[gh] : null;
     if (ph && o) {
       var t = document.querySelector(".product-info-title"); if (t && o.title != null) t.textContent = o.title;
       if (o.price != null || o.compareAt != null) setMoney(document.querySelector(".product-info-price"), o.price, o.compareAt);
