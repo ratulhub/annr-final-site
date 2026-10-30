@@ -26,6 +26,51 @@
   }
   refreshState();
 
+  var J = JSON.stringify;
+  function changed(k) { return J(S[k]) !== J(D[k]); }
+  function diff(k, f) { return S[k] && D[k] && S[k][f] !== D[k][f]; }
+  // Security: mirrors src/admin/security/sanitize.ts. Admin content is untrusted (import files, compromised accounts).
+  function esc(t) { return String(t == null ? "" : t).replace(/[&<>"'`]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "`": "&#96;" }[c]; }); }
+  function safeUrl(u) {
+    var s = String(u == null ? "" : u).trim();
+    if (!s || s.length > 2048 || /[\u0000-\u001f\\]/.test(s)) return "#";
+    if (s.charAt(0) === "#") return s;
+    if (s.charAt(0) === "/") return s.charAt(1) === "/" ? "#" : s;
+    return /^(https?:\/\/|mailto:|tel:)/i.test(s) ? s : "#";
+  }
+  function safeImg(u) {
+    var s = String(u == null ? "" : u).trim();
+    if (/^data:image\/(png|jpe?g|webp|gif|avif);base64,[a-z0-9+\/=]+$/i.test(s)) return s;
+    var r = safeUrl(s); return r.charAt(0) === "#" || /^(mailto|tel):/i.test(r) ? "" : r;
+  }
+
+  function renderProductCardHtml(p, o) {
+    o = o || (P && P[p.handle]) || {};
+    var title = o.title != null ? o.title : p.title || "";
+    var price = o.price != null ? o.price : p.price || "0";
+    var pr = String(price).replace(/\.00$/, "");
+    var compareAt = o.compareAt != null ? o.compareAt : p.compareAt;
+    var img = (o.images && o.images[0]) || p.image || "";
+    var img2 = (o.images && o.images[1]) || p.image2 || img;
+    var badge = o.badge != null ? o.badge : p.badge;
+    var badgeHtml = badge ? "<div class='product-card-labels' style='background:#000;color:#fff'>" + esc(badge) + "</div>" : "";
+    var cmpHtml = compareAt ? "<span class='old-price money' style='opacity:.55;margin-left:6px;text-decoration:line-through;font-size:.9em'>Tk " + esc(String(compareAt).replace(/\.00$/, "")) + "<span class='money-currency-code'>BDT</span></span>" : "";
+
+    return "<div class='lazy-item product-card' data-handle='" + esc(p.handle) + "'>" +
+      "<div class='product-card-image'>" + badgeHtml +
+        "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(title) + "'>" +
+          "<img src='" + esc(safeImg(img)) + "' alt='" + esc(title) + "' width='1200' height='1200' loading='lazy'>" +
+          (img2 && img2 !== img ? "<img src='" + esc(safeImg(img2)) + "' alt='" + esc(title) + "' width='1200' height='1200' loading='lazy'>" : "") +
+        "</a>" +
+      "</div>" +
+      "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(title) + "</a>" +
+      "<div class='product-card-price'>" +
+        "<span class='money'>Tk " + esc(pr) + "<span class='money-currency-code'>BDT</span></span>" +
+        cmpHtml +
+      "</div>" +
+    "</div>";
+  }
+
   // Search Engine & Catalog
   var baseCatalog = [];
   function loadBaseCatalog() {
@@ -59,8 +104,17 @@
         }
       });
     }
-    return list.map(function (p) {
-      return map[p.handle] || p;
+    var delSet = {};
+    if (cfg && Array.isArray(cfg.deletedProducts)) {
+      cfg.deletedProducts.forEach(function (h) { delSet[h] = true; });
+    }
+    return list.filter(function (p) {
+      if (delSet[p.handle]) return false;
+      var o = P && P[p.handle];
+      if (o && (o.deleted || o.status === "deleted")) return false;
+      return true;
+    }).map(function (p) {
+      return Object.assign({}, map[p.handle] || p, (P && P[p.handle]) || {});
     });
   }
 
@@ -72,7 +126,7 @@
 
     return all.filter(function (p) {
       if (p.status && p.status !== "active") return false;
-      var o = P[p.handle] || {};
+      var o = (P && P[p.handle]) || {};
       if (o.status && o.status !== "active") return false;
       var title = (o.title || p.title || "").toLowerCase();
       var desc = (o.description || p.description || "").toLowerCase();
@@ -93,24 +147,7 @@
     if (!matches.length) return "";
 
     var cards = matches.map(function (p) {
-      var o = P[p.handle] || {};
-      var title = o.title || p.title;
-      var pr = String(o.price != null ? o.price : p.price || "0").replace(/\.00$/, "");
-      var img = (o.images && o.images[0]) || p.image;
-      var badge = o.badge || p.badge;
-      var badgeHtml = badge ? "<div class='product-card-labels' style='background:#000;color:#fff'>" + esc(badge) + "</div>" : "";
-
-      return "<div class='lazy-item product-card'>" +
-        "<div class='product-card-image'>" + badgeHtml +
-          "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(title) + "'>" +
-            "<img src='" + esc(safeImg(img)) + "' alt='" + esc(title) + "' loading='lazy'>" +
-          "</a>" +
-        "</div>" +
-        "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(title) + "</a>" +
-        "<div class='product-card-price'>" +
-          "<span class='money'>Tk " + esc(pr) + "<span class='money-currency-code'>BDT</span></span>" +
-        "</div>" +
-      "</div>";
+      return renderProductCardHtml(p, P && P[p.handle]);
     }).join("\n");
 
     return "<div id='shopify-section-predictive-search-new' class='shopify-section'>" +
@@ -121,23 +158,6 @@
       "</div>" +
     "</div>";
   };
-  var J = JSON.stringify;
-  function changed(k) { return J(S[k]) !== J(D[k]); }
-  function diff(k, f) { return S[k] && D[k] && S[k][f] !== D[k][f]; }
-  // Security: mirrors src/admin/security/sanitize.ts. Admin content is untrusted (import files, compromised accounts).
-  function esc(t) { return String(t == null ? "" : t).replace(/[&<>"'`]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "`": "&#96;" }[c]; }); }
-  function safeUrl(u) {
-    var s = String(u == null ? "" : u).trim();
-    if (!s || s.length > 2048 || /[\u0000-\u001f\\]/.test(s)) return "#";
-    if (s.charAt(0) === "#") return s;
-    if (s.charAt(0) === "/") return s.charAt(1) === "/" ? "#" : s;
-    return /^(https?:\/\/|mailto:|tel:)/i.test(s) ? s : "#";
-  }
-  function safeImg(u) {
-    var s = String(u == null ? "" : u).trim();
-    if (/^data:image\/(png|jpe?g|webp|gif|avif);base64,[a-z0-9+\/=]+$/i.test(s)) return s;
-    var r = safeUrl(s); return r.charAt(0) === "#" || /^(mailto|tel):/i.test(r) ? "" : r;
-  }
   function cv(v) {
     var s = String(v == null ? "" : v).trim();
     if (!s || s.length > 120 || /[;{}<>\\"`]|url\s*\(|expression\s*\(|@import|javascript:|\/\*/i.test(s)) return "";
