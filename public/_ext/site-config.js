@@ -688,7 +688,10 @@
       var canLink = document.querySelector("link[rel='canonical']");
       if (canLink) canLink.href = safeUrl(seo.canonicalBase).replace(/\/$/, "") + path;
     }
-    if (gen.favicon) { var fav = document.querySelector("link[rel~='icon']"); if (fav && safeImg(gen.favicon)) fav.href = safeImg(gen.favicon); }
+    var favUrl = (gen.favicon && safeImg(gen.favicon)) || "/favicon.svg";
+    var favs = document.querySelectorAll("link[rel~='icon']");
+    if (favs.length) { favs.forEach(function (f) { f.href = favUrl; }); }
+    else { var nl = document.createElement("link"); nl.rel = "icon"; nl.href = favUrl; document.head.appendChild(nl); }
 
     // Header
     if (changed("header")) {
