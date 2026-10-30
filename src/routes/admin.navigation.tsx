@@ -43,6 +43,53 @@ function Navigation() {
             <td><button className="adm-btn danger sm" onClick={() => confirm(`Remove “${it.label}”?`) && setItems(h.items.filter((x) => x.id !== it.id))}>✕</button></td></tr>; })}
         </tbody></table>
       </Card>
+      <Card title="Collections Dropdown Menu (Navbar References)">
+        <p className="adm-hint">
+          These items appear directly under the “Collections” mega-menu and mobile navigation dropdown, as well as the collection category bar. They are live references to your collections in <strong>Collections</strong>. When you edit titles or visibility here or in Collections, changes sync everywhere immediately.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Collection</th>
+              <th>Handle / Link</th>
+              <th>Navbar Display Title</th>
+              <th>Visible</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dropdownCollections.map((col) => (
+              <tr key={col.handle}>
+                <td><strong>{col.title}</strong></td>
+                <td><code>/collections/{col.handle}/index.html</code></td>
+                <td>
+                  <input
+                    value={col.title}
+                    onChange={(e) => upCol(col.handle, { title: e.target.value })}
+                    style={{ maxWidth: 220 }}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={col.visible !== false}
+                    onChange={(e) => upCol(col.handle, { visible: e.target.checked })}
+                  />
+                </td>
+                <td>
+                  <RouterLink
+                    to="/admin/collections"
+                    className="adm-btn ghost sm"
+                    style={{ textDecoration: "none" }}
+                  >
+                    Edit Collection →
+                  </RouterLink>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
       <Card title="Header options"><Obj k="header">{(v, set) => <div className="adm-grid">
         <Chk label="Show VIP button" value={v.showVip} onChange={(showVip) => set({ showVip })} />
         <Chk label="Show cart button" value={v.showCart} onChange={(showCart) => set({ showCart })} />
