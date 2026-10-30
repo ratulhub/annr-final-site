@@ -1,5 +1,5 @@
 // DEMO admin sign-in (no backend yet). This is NOT production security: anything in the browser can be
-// bypassed. It exists so the panel can be tested. Production must use Lovable Cloud / Supabase Auth with MFA,
+// bypassed. It exists so the panel can be tested. Production must use Supabase Auth with MFA,
 // and the database (RLS + has_permission) must enforce every rule. See docs/security-remediation-plan.md.
 import type { Role } from "./permissions";
 
