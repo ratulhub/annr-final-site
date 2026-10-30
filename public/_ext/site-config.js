@@ -140,16 +140,104 @@
   }
 
   function apply() {
+    refreshState();
+    if (!cfg) { if (preview) previewBar(); return; }
     if (preview) previewBar();
     var gen = S.general || {}, tech = S.technical || {}, seo = S.seo || {};
 
+    var colsMap = {};
+    (allCols || []).forEach(function (c) {
+      if (c && c.handle) colsMap[c.handle] = { title: c.title, visible: c.visible !== false };
+    });
+    Object.keys(C || {}).forEach(function (h) {
+      colsMap[h] = colsMap[h] || {};
+      if (C[h].title != null) colsMap[h].title = C[h].title;
+      if (C[h].visible != null) colsMap[h].visible = C[h].visible !== false;
+    });
+
     // Hidden pages and maintenance
     var hidden = (S.hiddenPages || []).some(function (p) { return path.indexOf(p) === 0; });
-    var pg = tpl === "page" && G[pageHandle(path)], col = tpl === "collection" && C[handleOf(path, "collections")];
+    var pg = tpl === "page" && G[pageHandle(path)];
+    var colHandle = handleOf(path, "collections");
+    var col = tpl === "collection" && (C[colHandle] || colsMap[colHandle]);
     if (hidden || (pg && pg.visible === false) || (col && col.visible === false))
-      return overlay("adm-404", "<div>" + esc(tech.notFoundTitle || "Page not found") + "<br><small style='font-size:11px'>" + esc(tech.notFoundText) + "<br><a href='/home.html' style='color:#fff'>HOME</a></small></div>", FULL);
+      return overlay("adm-404", "<div>" + esc(tech.notFoundTitle || "Page not found") + "<br><small style='font-size:11px'>" + esc(tech.notFoundText || "This collection is currently unavailable.") + "<br><a href='/home.html' style='color:#fff'>HOME</a></small></div>", FULL);
     if (tech.maintenance)
       return overlay("adm-maint", "<div>" + esc(tech.maintenanceTitle || gen.siteName) + "<br><small style='font-size:11px;letter-spacing:1px'>" + esc(tech.maintenanceText) + "</small></div>", FULL);
+
+    // Dynamic Collections reference synchronization in Navbar:
+    // 1. Desktop header mega-menu dropdown under Collections
+    var megaSections = document.querySelectorAll(".header-submenu-list.header-new__mega-list > .header-new__mega-section");
+    var visibleIdx = 1;
+    megaSections.forEach(function (sec) {
+      var a = sec.querySelector(".header-new__mega-heading > a");
+      if (!a) return;
+      var h = handleOf(a.getAttribute("href"), "collections");
+      if (!h) return;
+      var info = colsMap[h];
+      if (info) {
+        if (info.visible === false) {
+          sec.style.setProperty("display", "none", "important");
+          return;
+        } else {
+          sec.style.removeProperty("display");
+        }
+        if (info.title != null && info.title !== "") a.textContent = info.title;
+        var numSpan = sec.querySelector(".header-new__mega-heading > span");
+        if (numSpan) {
+          numSpan.textContent = "\n\t\t\t\t\t\t\t\t\t\t\t\t\t[" + (visibleIdx < 10 ? "0" + visibleIdx : visibleIdx) + "]\n\t\t\t\t\t\t\t\t\t\t\t\t";
+        }
+        visibleIdx++;
+      }
+    });
+
+    // 2. Mobile navigation sublinks under Collections
+    var mobileColLinks = document.querySelectorAll(".header-new__mobile-section > a.mobile-menu-sublinks-item[href*='/collections/']");
+    mobileColLinks.forEach(function (a) {
+      var h = handleOf(a.getAttribute("href"), "collections");
+      if (!h) return;
+      var info = colsMap[h];
+      var wrapper = a.closest(".header-new__mobile-section") || a;
+      if (info) {
+        if (info.visible === false) {
+          wrapper.style.setProperty("display", "none", "important");
+          return;
+        } else {
+          wrapper.style.removeProperty("display");
+        }
+        if (info.title != null && info.title !== "") {
+          var span = a.querySelector("span") || a;
+          span.textContent = info.title;
+        }
+      }
+    });
+
+    // 3. Collection secondary menu on collection pages (.collection-menu)
+    var colMenuItems = document.querySelectorAll(".collection-menu__list > .collection-menu__item");
+    var activeColHandle = handleOf(path, "collections");
+    colMenuItems.forEach(function (item) {
+      var a = item.querySelector("a.collection-menu__link");
+      if (!a) return;
+      var h = handleOf(a.getAttribute("href"), "collections");
+      if (!h) return;
+      var info = colsMap[h];
+      if (info) {
+        if (info.visible === false) {
+          item.style.setProperty("display", "none", "important");
+          return;
+        } else {
+          item.style.removeProperty("display");
+        }
+        if (info.title != null && info.title !== "") a.textContent = info.title.toUpperCase();
+      }
+      if (activeColHandle && h === activeColHandle) {
+        a.classList.add("collection-menu__link--active");
+        a.setAttribute("aria-current", "page");
+      } else if (activeColHandle) {
+        a.classList.remove("collection-menu__link--active");
+        a.removeAttribute("aria-current");
+      }
+    });
 
     // Page transition off: the delegated handler needs .reload-overflow, so removing it disables the effect.
     if (tech.pageTransition === false) document.querySelectorAll(".reload-overflow,.loading-bar").forEach(function (e) { e.remove(); });
