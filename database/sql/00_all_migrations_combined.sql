@@ -377,8 +377,8 @@ returns boolean language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.user_roles where user_id = auth.uid() and role = _role)
 $$;
 
-revoke all on function public.has_permission(text), public.has_role(public.app_role) from public, anon;
-grant execute on function public.has_permission(text), public.has_role(public.app_role) to authenticated;
+revoke all on function public.has_permission(text), public.has_role(public.app_role) from public;
+grant execute on function public.has_permission(text), public.has_role(public.app_role) to anon, authenticated;
 
 create or replace function public.grant_role(_user uuid, _role public.app_role)
 returns void language plpgsql security definer set search_path = '' as $$
