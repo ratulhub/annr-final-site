@@ -259,7 +259,7 @@ async function route(request: Request): Promise<Response> {
   if (request.method === "GET") {
     // Dynamic product page fallback for newly added admin products
     const prodMatch = url.pathname.match(/^\/products\/([a-zA-Z0-9_-]+)(?:\/index\.html)?$/);
-    if (prodMatch) {
+    if (prodMatch && prodMatch[1]) {
       const handle = prodMatch[1];
       if (!url.pathname.endsWith("/index.html")) {
         return new Response(null, {
@@ -282,7 +282,7 @@ async function route(request: Request): Promise<Response> {
 
     // Dynamic collection page fallback for newly added collections
     const colMatch = url.pathname.match(/^\/collections\/([a-zA-Z0-9_-]+)(?:\/index\.html)?$/);
-    if (colMatch) {
+    if (colMatch && colMatch[1]) {
       const colHandle = colMatch[1];
       if (!url.pathname.endsWith("/index.html")) {
         return new Response(null, {
