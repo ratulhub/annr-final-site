@@ -234,10 +234,151 @@
       "position:fixed;left:0;right:0;bottom:0;z-index:99998;background:#e10600;color:#fff;text-align:center;font:10px/1 'NB Architekt Std',sans-serif;letter-spacing:1px;padding:10px");
   }
 
+  function setupSearchPage() {
+    var q = (new URLSearchParams(location.search).get("q") || "").trim();
+    var input = document.getElementById("search");
+    if (input) input.value = q;
+    var headInput = document.getElementById("header-search-new-input");
+    if (headInput && q) headInput.value = q;
+
+    var clearBtn = document.querySelector(".js-clear-search-input");
+    if (clearBtn) {
+      clearBtn.style.display = q ? "" : "none";
+      clearBtn.classList.toggle("hide", !q);
+    }
+
+    var countEl = document.querySelector(".search-head-count");
+    var titleEl = document.querySelector(".collection-top .collection-title");
+    var gridEl = document.querySelector(".collection-product-grid");
+    var resultsWrap = document.querySelector(".lazy-element.search-results");
+
+    var matches = searchProducts(q);
+
+    // Sorting
+    var sortActive = document.querySelector(".collection-filter-option-value input[name='sort_by']:checked");
+    var sortVal = sortActive ? sortActive.value : "relevance";
+    if (sortVal === "price-ascending") {
+      matches.sort(function (a, b) {
+        var pa = parseFloat(String(a.price || "0").replace(/[^0-9.]/g, "")) || 0;
+        var pb = parseFloat(String(b.price || "0").replace(/[^0-9.]/g, "")) || 0;
+        return pa - pb;
+      });
+    } else if (sortVal === "price-descending") {
+      matches.sort(function (a, b) {
+        var pa = parseFloat(String(a.price || "0").replace(/[^0-9.]/g, "")) || 0;
+        var pb = parseFloat(String(b.price || "0").replace(/[^0-9.]/g, "")) || 0;
+        return pb - pa;
+      });
+    }
+
+    if (countEl) {
+      if (q) {
+        countEl.innerHTML = "<span>" + matches.length + "</span><span>//</span><span>results found for your search</span><span> //</span><span>“" + esc(q) + "”</span>";
+      } else {
+        countEl.innerHTML = "<span>" + matches.length + "</span><span>//</span><span>products in catalog</span>";
+      }
+    }
+
+    if (titleEl) {
+      if (q) {
+        titleEl.textContent = matches.length ? 'RESULTS FOR “' + q.toUpperCase() + '”' : 'NO RESULTS FOR “' + q.toUpperCase() + '”';
+      } else {
+        titleEl.textContent = "ALL PRODUCTS";
+      }
+    }
+
+    if (resultsWrap) {
+      resultsWrap.classList.toggle("empty", matches.length === 0);
+    }
+
+    if (gridEl) {
+      if (matches.length > 0) {
+        gridEl.innerHTML = matches.map(function (p) {
+          var pr = String(p.price || "0").replace(/\.00$/, "");
+          var o = P[p.handle] || {};
+          var title = o.title || p.title;
+          var price = o.price != null ? o.price : pr;
+          var compareAt = o.compareAt != null ? o.compareAt : p.compareAt;
+          var img = (o.images && o.images[0]) || p.image;
+          var img2 = (o.images && o.images[1]) || p.image2 || img;
+          var badge = o.badge || p.badge;
+          var badgeHtml = badge ? "<div class='product-card-labels' style='background:#000;color:#fff'>" + esc(badge) + "</div>" : "";
+          var cmpHtml = compareAt ? "<span class='old-price money'>Tk " + esc(compareAt) + "<span class='money-currency-code'>BDT</span></span>" : "";
+
+          return "<div class='lazy-item product-card'>" +
+            "<div class='product-card-image'>" + badgeHtml +
+              "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(title) + "'>" +
+                "<img src='" + esc(safeImg(img)) + "' alt='" + esc(title) + "' loading='lazy'>" +
+                (img2 ? "<img src='" + esc(safeImg(img2)) + "' alt='" + esc(title) + "' loading='lazy'>" : "") +
+              "</a>" +
+            "</div>" +
+            "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(title) + "</a>" +
+            "<div class='product-card-price'>" +
+              "<span class='money'>Tk " + esc(price) + "<span class='money-currency-code'>BDT</span></span>" +
+              cmpHtml +
+            "</div>" +
+          "</div>";
+        }).join("");
+      } else if (q) {
+        gridEl.innerHTML = "<div style='grid-column:1/-1;text-align:center;padding:60px 20px;font:12px/1.6 \"NB Architekt Std\",sans-serif;letter-spacing:1px;text-transform:uppercase;opacity:.8'>" +
+          "<p style='font-size:14px;margin-bottom:8px'>No products found matching “" + esc(q) + "”</p>" +
+          "<p style='font-size:11px;opacity:.6'>Try checking your spelling or use general keywords like “hoodie”, “jacket”, “tee”, “jeans”.</p>" +
+        "</div>";
+      }
+    }
+
+    var searchForm = document.querySelector(".search-head-form.js-search-form");
+    if (searchForm && !searchForm.__annrBound) {
+      searchForm.__annrBound = true;
+      searchForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var val = (document.getElementById("search")?.value || "").trim();
+        var newUrl = "/search/index.html?type=product&q=" + encodeURIComponent(val);
+        history.pushState(null, "", newUrl);
+        setupSearchPage();
+      });
+    }
+
+    var clr = document.querySelector(".js-clear-search-input");
+    if (clr && !clr.__annrBound) {
+      clr.__annrBound = true;
+      clr.addEventListener("click", function () {
+        var inp = document.getElementById("search");
+        if (inp) inp.value = "";
+        history.pushState(null, "", "/search/index.html");
+        setupSearchPage();
+      });
+    }
+
+    var inpLive = document.getElementById("search");
+    if (inpLive && !inpLive.__annrBound) {
+      inpLive.__annrBound = true;
+      inpLive.addEventListener("input", function () {
+        var hasVal = !!inpLive.value.trim();
+        if (clearBtn) {
+          clearBtn.style.display = hasVal ? "" : "none";
+          clearBtn.classList.toggle("hide", !hasVal);
+        }
+      });
+    }
+
+    document.querySelectorAll(".collection-filter-option-value input[name='sort_by']").forEach(function (radio) {
+      if (!radio.__annrBound) {
+        radio.__annrBound = true;
+        radio.addEventListener("change", function () {
+          setupSearchPage();
+        });
+      }
+    });
+  }
+
   function apply() {
     refreshState();
-    if (!cfg) { if (preview) previewBar(); return; }
     if (preview) previewBar();
+    if (tpl === "search") {
+      setupSearchPage();
+    }
+    if (!cfg) return;
     var gen = S.general || {}, tech = S.technical || {}, seo = S.seo || {};
 
     var colsMap = {};
