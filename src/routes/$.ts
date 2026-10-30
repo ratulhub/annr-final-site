@@ -168,7 +168,7 @@ async function proxy(request: Request, url: URL) {
   return new Response(up.status === 204 || up.status === 304 ? null : payload, { status: up.status, headers: out });
 }
 
-function esc(t: any): string {
+function esc(t: unknown): string {
   return String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
 }
 
@@ -177,9 +177,9 @@ function buildPredictiveSearchHtml(query: string): string {
   if (!terms.length) {
     return `<div id="shopify-section-predictive-search-new" class="shopify-section"><div id="predictive-search-new-results"><div class="header-search-new__result-products" data-header-search-new-result-products></div></div></div>`;
   }
-  const matches = (catalog.products || []).filter((p: any) => {
-    if (p.status && p.status !== "active") return false;
-    const hay = `${p.title} ${p.description || ""} ${p.handle} ${p.type || ""} ${p.tags || ""}`.toLowerCase();
+  const matches = ((catalog.products || []) as Array<Record<string, unknown>>).filter((p) => {
+    if (p["status"] && p["status"] !== "active") return false;
+    const hay = `${p["title"] || ""} ${p["description"] || ""} ${p["handle"] || ""} ${p["type"] || ""} ${p["tags"] || ""}`.toLowerCase();
     return terms.every((t) => hay.includes(t));
   }).slice(0, 10);
 
@@ -187,10 +187,11 @@ function buildPredictiveSearchHtml(query: string): string {
     return `<div id="shopify-section-predictive-search-new" class="shopify-section"><div id="predictive-search-new-results"><div class="header-search-new__result-products" data-header-search-new-result-products></div></div></div>`;
   }
 
-  const cards = matches.map((p: any) => {
-    const img = p.image || (p.images && p.images[0]) || "";
-    const pTitle = esc(p.title);
-    const price = String(p.price || "0").replace(/\.00$/, "");
+  const cards = matches.map((p) => {
+    const images = Array.isArray(p["images"]) ? (p["images"] as string[]) : [];
+    const img = (typeof p["image"] === "string" ? p["image"] : "") || images[0] || "";
+    const pTitle = esc(p["title"]);
+    const price = String(p["price"] || "0").replace(/\.00$/, "");
     return `<div class="lazy-item product-card">
 	<div class="product-card-image">
 		<a href="/products/${esc(p.handle)}/index.html" class="product-card-image-wrapper" aria-label="${pTitle}">
