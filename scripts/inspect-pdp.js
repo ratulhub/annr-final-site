@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from "fs";
 const html = fs.readFileSync('public/products/aka-manto-longsleeve/index.html', 'utf8');
 const regex = /class=["']([^"']*product-info[^"']*)["']/g;
 const matches = new Set();
@@ -9,8 +9,8 @@ while ((m = regex.exec(html)) !== null) {
 console.log('Classes found:');
 console.log(Array.from(matches));
 
-const formIdx = html.indexOf('<product-form');
-if (formIdx !== -1) {
-  console.log('\nProduct form context:');
-  console.log(html.slice(formIdx - 200, formIdx + 1200));
+const atcIdx = html.indexOf('product-info-submit');
+if (atcIdx !== -1) {
+  console.log('\nATC context:');
+  console.log(html.slice(atcIdx - 300, atcIdx + 400));
 }
