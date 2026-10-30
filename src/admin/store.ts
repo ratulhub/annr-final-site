@@ -88,9 +88,9 @@ function get(): State {
 }
 // Compare two states and describe every change (section, item, fields).
 type Change = Omit<Activity, "id" | "at" | "by">;
-const label = (o: any) => o?.title || o?.name || o?.code || o?.label || o?.id || o?.handle || "item";
-const keyOf = (o: any) => o?.handle ?? o?.id;
-function diffList(section: string, a: any[], b: any[], out: Change[]) {
+const label = (o: Record<string, unknown>) => String(o?.title || o?.name || o?.code || o?.label || o?.id || o?.handle || "item");
+const keyOf = (o: Record<string, unknown>) => String(o?.handle ?? o?.id ?? "");
+function diffList(section: string, a: Record<string, unknown>[], b: Record<string, unknown>[], out: Change[]) {
   const am = new Map(a.map((x) => [keyOf(x), x])), bm = new Map(b.map((x) => [keyOf(x), x]));
   for (const [k, x] of bm) {
     const old = am.get(k);
@@ -148,11 +148,11 @@ export function siteConfig(s: State) {
   const base = (seedCache ||= seed());
   const out: Record<"products" | "collections" | "pages", Record<string, unknown>> = { products: {}, collections: {}, pages: {} };
   for (const sec of ["products", "collections", "pages"] as const) {
-    const orig = new Map<string, any>(base[sec].map((x: any) => [x.handle, x]));
-    for (const item of s[sec] as any[]) {
-      const o = orig.get(item.handle); const d: Record<string, unknown> = {};
+    const orig = new Map<string, Record<string, unknown>>(base[sec].map((x) => [x.handle, x as unknown as Record<string, unknown>]));
+    for (const item of s[sec] as Array<Record<string, unknown>>) {
+      const o = orig.get(item["handle"] as string); const d: Record<string, unknown> = {};
       for (const f of PUBLIC_FIELDS[sec]) if (!o || JSON.stringify(o[f]) !== JSON.stringify(item[f])) d[f] = item[f];
-      if (Object.keys(d).length) out[sec][item.handle] = d;
+      if (Object.keys(d).length) out[sec][item["handle"] as string] = d;
     }
   }
 
