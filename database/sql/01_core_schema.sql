@@ -153,6 +153,7 @@ create table if not exists public.saved_items (
   created_at  timestamptz not null default now(),
   primary key (user_id, product_id)
 );
+create index if not exists saved_items_product_idx on public.saved_items(product_id);
 
 -- ---------- Orders (money and payment fields written ONLY by trusted server code) ----------
 create table if not exists public.orders (
@@ -184,6 +185,7 @@ create table if not exists public.order_items (
   quantity    int not null check (quantity between 1 and 20)
 );
 create index if not exists order_items_order_idx on public.order_items(order_id);
+create index if not exists order_items_variant_idx on public.order_items(variant_id);
 
 -- ---------- Marketing ----------
 create table if not exists public.discounts (
