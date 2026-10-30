@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
-const env = import.meta.env as Record<string, string | undefined>;
+const env =
+  typeof import.meta !== "undefined" && import.meta.env
+    ? (import.meta.env as Record<string, string | undefined>)
+    : (process.env as Record<string, string | undefined>);
 
 const supabaseUrl =
   env["VITE_SUPABASE_URL"] || "https://aooydxydkyjtulhduexa.supabase.co";
