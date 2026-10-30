@@ -20,3 +20,4 @@ export function reportAppError(error: unknown, context: Record<string, unknown> 
     ...context,
   });
 }
+
