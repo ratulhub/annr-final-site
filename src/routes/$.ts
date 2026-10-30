@@ -257,6 +257,52 @@ async function route(request: Request): Promise<Response> {
     }
   }
   if (request.method === "GET") {
+    // Dynamic product page fallback for newly added admin products
+    const prodMatch = url.pathname.match(/^\/products\/([a-zA-Z0-9_-]+)(?:\/index\.html)?$/);
+    if (prodMatch) {
+      const handle = prodMatch[1];
+      if (!url.pathname.endsWith("/index.html")) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: `/products/${handle}/index.html${url.search}` },
+        });
+      }
+      const targetFile = path.resolve(process.cwd(), "public", "products", handle, "index.html");
+      if (!fs.existsSync(targetFile)) {
+        const templateFile = path.resolve(process.cwd(), "public", "products", "aka-manto-longsleeve", "index.html");
+        if (fs.existsSync(templateFile)) {
+          const templateHtml = fs.readFileSync(templateFile, "utf-8");
+          return new Response(templateHtml, {
+            status: 200,
+            headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+          });
+        }
+      }
+    }
+
+    // Dynamic collection page fallback for newly added collections
+    const colMatch = url.pathname.match(/^\/collections\/([a-zA-Z0-9_-]+)(?:\/index\.html)?$/);
+    if (colMatch) {
+      const colHandle = colMatch[1];
+      if (!url.pathname.endsWith("/index.html")) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: `/collections/${colHandle}/index.html${url.search}` },
+        });
+      }
+      const targetFile = path.resolve(process.cwd(), "public", "collections", colHandle, "index.html");
+      if (!fs.existsSync(targetFile)) {
+        const templateFile = path.resolve(process.cwd(), "public", "collections", "all", "index.html");
+        if (fs.existsSync(templateFile)) {
+          const templateHtml = fs.readFileSync(templateFile, "utf-8");
+          return new Response(templateHtml, {
+            status: 200,
+            headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+          });
+        }
+      }
+    }
+
     const target = staticPagePath(url.pathname, url.searchParams.get("page"));
     if (target) return new Response(null, { status: 302, headers: { location: target } });
   }
