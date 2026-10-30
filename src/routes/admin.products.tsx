@@ -28,7 +28,7 @@ function Products() {
       </div>
       <div className="adm-card" style={{ padding: 0, overflowX: "auto" }}>
         <table>
-          <thead><tr><th /><th>Product</th><th>Status</th><th>Price</th><th>Stock</th><th>Variants</th></tr></thead>
+          <thead><tr><th /><th>Product</th><th>Status</th><th>Price</th><th>Stock</th><th>Variants</th><th style={{ textAlign: "right", paddingRight: 16 }}>Actions</th></tr></thead>
           <tbody>
             {list.map((p) => (
               <tr key={p.handle}>
@@ -38,6 +38,12 @@ function Products() {
                 <td>৳{p.price}</td>
                 <td>{p.variants.reduce((n, v) => n + (Number(v.stock) || 0), 0)}</td>
                 <td>{p.variants.length}</td>
+                <td style={{ textAlign: "right", paddingRight: 16 }}>
+                  <div className="adm-row" style={{ justifyContent: "flex-end", gap: 6 }}>
+                    <Link className="adm-btn ghost sm" to="/admin/products/$handle" params={{ handle: p.handle }}>Edit</Link>
+                    <button className="adm-btn danger sm" onClick={() => { if (confirm(`Delete product "${p.title}"?`)) setState((x) => ({ ...x, products: x.products.filter((y) => y.handle !== p.handle) })); }}>Delete</button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
