@@ -12,6 +12,7 @@ describe("XSS / unsafe URLs", () => {
   it("blocks javascript: links", () => expect(safeUrl("javascript:alert(1)")).toBe("#"));
   it("blocks protocol-relative links", () => expect(safeUrl("//evil.com")).toBe("#"));
   it("blocks backslash tricks", () => expect(safeUrl("/\\evil.com")).toBe("#"));
+  it("blocks DEL and C1 control characters in URLs", () => expect(safeUrl("https://x.com/\u007f\u0085")).toBe("#"));
   it("allows store paths and https", () => { expect(safeUrl("/pages/faq")).toBe("/pages/faq"); expect(safeUrl("https://x.com")).toBe("https://x.com"); });
   it("blocks SVG data images", () => expect(safeImageUrl("data:image/svg+xml;base64,PHN2Zz4=")).toBe(""));
   it("allows PNG data images", () => expect(safeImageUrl("data:image/png;base64,iVBORw0=")).not.toBe(""));
@@ -21,9 +22,9 @@ describe("CSS injection", () => {
   it("rejects values that close the rule", () => expect(safeCssValue("red}body{display:none")).toBe(""));
   it("rejects url()", () => expect(safeCssValue("url(https://evil.com/x)")).toBe(""));
   it("keeps colours", () => expect(safeCssValue("#ff0000")).toBe("#ff0000"));
-  it("strips remote url() and @import from custom CSS", () => {
-    const out = sanitizeCss("@import 'https://e.com/a.css'; a{background:url(https://e.com/?k=1)} </style><script>");
-    expect(out).not.toMatch(/@import|e\.com|<\/style/);
+  it("strips remote url(), @import, behavior, and -moz-binding from custom CSS", () => {
+    const out = sanitizeCss("@import 'https://e.com/a.css'; a{background:url(https://e.com/?k=1);behavior:url(x.htc);-moz-binding:url(x.xml)} </style><script>");
+    expect(out).not.toMatch(/@import|e\.com|<\/style|behavior|-moz-binding/);
   });
 });
 
