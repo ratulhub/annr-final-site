@@ -166,6 +166,47 @@ async function proxy(request: Request, url: URL) {
   return new Response(up.status === 204 || up.status === 304 ? null : payload, { status: up.status, headers: out });
 }
 
+function esc(t: any): string {
+  return String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
+}
+
+function buildPredictiveSearchHtml(query: string): string {
+  const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!terms.length) {
+    return `<div id="shopify-section-predictive-search-new" class="shopify-section"><div id="predictive-search-new-results"><div class="header-search-new__result-products" data-header-search-new-result-products></div></div></div>`;
+  }
+  const matches = (catalog.products || []).filter((p: any) => {
+    if (p.status && p.status !== "active") return false;
+    const hay = `${p.title} ${p.description || ""} ${p.handle} ${p.type || ""} ${p.tags || ""}`.toLowerCase();
+    return terms.every((t) => hay.includes(t));
+  }).slice(0, 10);
+
+  if (!matches.length) {
+    return `<div id="shopify-section-predictive-search-new" class="shopify-section"><div id="predictive-search-new-results"><div class="header-search-new__result-products" data-header-search-new-result-products></div></div></div>`;
+  }
+
+  const cards = matches.map((p: any) => {
+    const img = p.image || (p.images && p.images[0]) || "";
+    const pTitle = esc(p.title);
+    const price = String(p.price || "0").replace(/\.00$/, "");
+    return `<div class="lazy-item product-card">
+	<div class="product-card-image">
+		<a href="/products/${esc(p.handle)}/index.html" class="product-card-image-wrapper" aria-label="${pTitle}">
+			<img src="${esc(img)}" alt="${pTitle}" loading="lazy">
+		</a>
+	</div>
+	<a href="/products/${esc(p.handle)}/index.html" class="product-card-title">
+		${pTitle}
+	</a>
+	<div class="product-card-price">
+		<span class="money">Tk ${price}<span class="money-currency-code">BDT</span></span>
+	</div>
+</div>`;
+  }).join("\n");
+
+  return `<div id="shopify-section-predictive-search-new" class="shopify-section"><div id="predictive-search-new-results"><div class="header-search-new__result-products" data-header-search-new-result-products>${cards}</div></div></div>`;
+}
+
 async function handle({ request }: { request: Request }) {
   return secure(await route(request));
 }
@@ -174,6 +215,18 @@ async function route(request: Request): Promise<Response> {
   const url = new URL(request.url);
   if (!ALLOWED_METHODS.has(request.method)) return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD, POST" } });
   if (!isSameOriginMutation(request, url)) return new Response("Forbidden: cross-origin mutation rejected", { status: 403 });
+  if (url.pathname === "/search" || url.pathname === "/search/") {
+    return new Response(null, {
+      status: 302,
+      headers: { location: `/search/index.html${url.search}` },
+    });
+  }
+  if (url.pathname === "/search/suggest") {
+    return new Response(buildPredictiveSearchHtml(url.searchParams.get("q") || ""), {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
   if (DYNAMIC.test(url.pathname)) {
     const clientIp = (request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0] || "local").trim().slice(0, 64);
     const rl = checkRateLimit(clientIp, request.method);
