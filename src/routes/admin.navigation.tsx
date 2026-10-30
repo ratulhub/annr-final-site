@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { setSite, uid } from "../admin/store";
+import { createFileRoute, Link as RouterLink } from "@tanstack/react-router";
+import { setSite, uid, useAdmin, setState, type Collection } from "../admin/store";
 import { Card } from "../admin/ui";
 import { Chk, F, Obj, UrlF, isUrl, move, OrderBtns, useSite } from "../admin/site/fields";
 import { siteDefaults } from "../admin/site/defaults";
@@ -7,11 +7,25 @@ import type { FooterColumn, HeaderItem, Link } from "../admin/site/types";
 
 export const Route = createFileRoute("/admin/navigation")({ component: Navigation });
 
+const NAVBAR_HANDLES = ["bonsai", "golden-goal", "samurai", "clocked-out", "divine", "classics", "archived"];
+
 function Navigation() {
   const site = useSite();
+  const s = useAdmin();
   const h = site.header, f = site.footer;
   const setItems = (items: HeaderItem[]) => setSite("header", { ...h, items });
   const setCols = (columns: FooterColumn[]) => setSite("footer", { ...f, columns });
+
+  const dropdownCollections = [
+    ...(NAVBAR_HANDLES.map((h) => s.collections.find((c) => c.handle === h)).filter(Boolean) as Collection[]),
+    ...s.collections.filter((c) => !NAVBAR_HANDLES.includes(c.handle)),
+  ];
+
+  const upCol = (handle: string, patch: Partial<Collection>) =>
+    setState((x) => ({
+      ...x,
+      collections: x.collections.map((c) => (c.handle === handle ? { ...c, ...patch } : c)),
+    }));
   return (
     <>
       <div className="adm-top"><h1>Navigation, header & footer</h1>
