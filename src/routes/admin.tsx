@@ -22,7 +22,13 @@ export const Route = createFileRoute("/admin")({
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
-    links: [...FONTS, { rel: "stylesheet", href: adminCss }],
+    links: [
+      ...FONTS,
+      { rel: "stylesheet", href: adminCss },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "alternate icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "apple-touch-icon", href: "/favicon.png" },
+    ],
   }),
   component: AdminLayout,
 });
