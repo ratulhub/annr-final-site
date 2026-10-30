@@ -18,7 +18,7 @@ This folder (and its identical Supabase CLI mirror in `supabase/migrations/` and
 
 ## §2. Prerequisites
 
-- A PostgreSQL 15+ / Supabase / Lovable Cloud database with `auth` and `storage` schemas available.
+- A PostgreSQL 15+ / Supabase database with `auth` and `storage` schemas available.
 - Access to the SQL Editor as the database owner (`postgres`).
 
 ---
