@@ -54,9 +54,10 @@ function EditPage() {
 }
 
 function BlockEditor({ b, up, images }: { b: Block; up: (p: Record<string, unknown>) => void; images: { name: string; url: string }[] }) {
+  const rec = b as unknown as Record<string, string>;
   const t = (k: string, label: string, area = false) => <label className="adm-field" style={area ? { gridColumn: "1/-1" } : undefined}><span>{label}</span>
-    {area ? <textarea value={(b as any)[k]} onChange={(e) => up({ [k]: e.target.value })} /> : <input value={(b as any)[k]} onChange={(e) => up({ [k]: e.target.value })} />}</label>;
-  const sel = (k: string, label: string, opts: string[]) => <label className="adm-field"><span>{label}</span><select value={(b as any)[k]} onChange={(e) => up({ [k]: e.target.value })}>{opts.map((o) => <option key={o}>{o}</option>)}</select></label>;
+    {area ? <textarea value={rec[k] || ""} onChange={(e) => up({ [k]: e.target.value })} /> : <input value={rec[k] || ""} onChange={(e) => up({ [k]: e.target.value })} />}</label>;
+  const sel = (k: string, label: string, opts: string[]) => <label className="adm-field"><span>{label}</span><select value={rec[k] || ""} onChange={(e) => up({ [k]: e.target.value })}>{opts.map((o) => <option key={o}>{o}</option>)}</select></label>;
   switch (b.type) {
     case "heading": return <div className="adm-grid">{t("text", "Text")}{sel("level", "Size", ["h1", "h2", "h3"])}{sel("align", "Align", ["left", "center", "right"])}</div>;
     case "text": return <div className="adm-grid">{t("text", "Text", true)}{sel("align", "Align", ["left", "center", "right"])}</div>;
