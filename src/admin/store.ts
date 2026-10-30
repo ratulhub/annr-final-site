@@ -155,7 +155,19 @@ export function siteConfig(s: State) {
       if (Object.keys(d).length) out[sec][item.handle] = d;
     }
   }
-  return { ...out, site: s.site, defaults: base.site, catalog: s.products.map((p) => ({ handle: p.handle, title: p.title, price: p.price, image: p.images[0] || "", status: p.status })), publishedAt: new Date().toISOString() };
+  return {
+    ...out,
+    allCollections: s.collections.map((c) => ({
+      handle: c.handle,
+      title: c.title,
+      visible: c.visible !== false,
+      sort: c.sort,
+    })),
+    site: s.site,
+    defaults: base.site,
+    catalog: s.products.map((p) => ({ handle: p.handle, title: p.title, price: p.price, image: p.images[0] || "", status: p.status })),
+    publishedAt: new Date().toISOString(),
+  };
 }
 export type Published = ReturnType<typeof siteConfig>;
 function persist(s: State) {
