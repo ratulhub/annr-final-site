@@ -1,5 +1,5 @@
 -- =====================================================================================
--- 01 CORE SCHEMA — Shihiko store + admin
+-- 01 CORE SCHEMA — AnnR store + admin
 -- Run FIRST. Creates tables only (no data, no destructive statements).
 -- Safe to re-run: objects use IF NOT EXISTS / CREATE OR REPLACE.
 -- Run 01 → 07 in one sitting: tables are only reachable through the Data API after 04 sets grants.
