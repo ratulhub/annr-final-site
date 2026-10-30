@@ -15,7 +15,7 @@ function Seo() {
     ...s.products.map((p) => ({ kind: "products" as const, ...p })),
   ];
   const up = (r: Row, k: "seoTitle" | "seoDescription", v: string) =>
-    setState((x) => ({ ...x, [r.kind]: (x[r.kind] as any[]).map((y) => (y.handle === r.handle ? { ...y, [k]: v } : y)) }));
+    setState((x) => ({ ...x, [r.kind]: (x[r.kind] as Array<{ handle: string }>).map((y) => (y.handle === r.handle ? { ...y, [k]: v } : y)) } as Parameters<typeof setState>[0] extends (s: infer S) => infer S ? S : never));
   return (
     <>
       <div className="adm-top"><h1>SEO & discoverability</h1></div>
