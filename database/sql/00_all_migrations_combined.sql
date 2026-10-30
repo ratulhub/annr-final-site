@@ -1,12 +1,4 @@
--- =====================================================================================
--- ANNR COMPLETE PRODUCTION DATABASE SETUP (01 THROUGH 07 COMBINED)
--- Safe to run in Supabase SQL Editor in one click.
--- =====================================================================================
-
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
--- START OF FILE: 01_core_schema.sql
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
+-- >>> FILE: 01_core_schema.sql
 -- =====================================================================================
 -- 01 CORE SCHEMA — AnnR store + admin
 -- Run FIRST. Creates tables only (no data, no destructive statements).
@@ -45,6 +37,7 @@ create table if not exists public.collections (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+create index if not exists collections_status_idx on public.collections(status);
 
 create table if not exists public.products (
   id          uuid primary key default gen_random_uuid(),
@@ -99,6 +92,7 @@ create table if not exists public.collection_products (
   position      int not null default 0,
   primary key (collection_id, product_id)
 );
+create index if not exists collection_products_product_idx on public.collection_products(product_id);
 
 -- ---------- Website content ----------
 create table if not exists public.site_pages (
@@ -112,6 +106,7 @@ create table if not exists public.site_pages (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+create index if not exists site_pages_status_idx on public.site_pages(status);
 
 -- Draft vs published site configuration (header, footer, design, sections, SEO…). One row per version.
 create table if not exists public.site_config_versions (
@@ -158,6 +153,7 @@ create table if not exists public.saved_items (
   created_at  timestamptz not null default now(),
   primary key (user_id, product_id)
 );
+create index if not exists saved_items_product_idx on public.saved_items(product_id);
 
 -- ---------- Orders (money and payment fields written ONLY by trusted server code) ----------
 create table if not exists public.orders (
@@ -189,6 +185,7 @@ create table if not exists public.order_items (
   quantity    int not null check (quantity between 1 and 20)
 );
 create index if not exists order_items_order_idx on public.order_items(order_id);
+create index if not exists order_items_variant_idx on public.order_items(variant_id);
 
 -- ---------- Marketing ----------
 create table if not exists public.discounts (
@@ -249,10 +246,8 @@ revoke all on function public.handle_new_user() from public, anon, authenticated
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();
 
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
--- START OF FILE: 02_audit_log.sql
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+-- >>> FILE: 02_audit_log.sql
 -- =====================================================================================
 -- 02 SECURITY AUDIT LOG — run after 01.
 -- Lives in the private "security" schema: not reachable through the Data API.
@@ -311,10 +306,8 @@ do $$ declare t text; begin
   end loop;
 end $$;
 
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
--- START OF FILE: 03_rbac.sql
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+-- >>> FILE: 03_rbac.sql
 -- =====================================================================================
 -- 03 ROLES & PERMISSIONS (RBAC) — run after 02.
 -- Roles live in their own table, never on profiles. Mirrors src/admin/security/permissions.ts.
@@ -415,10 +408,8 @@ end $$;
 revoke all on function public.read_audit_log(int, bigint) from public, anon;
 grant execute on function public.read_audit_log(int, bigint) to authenticated;
 
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
--- START OF FILE: 04_grants.sql
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+-- >>> FILE: 04_grants.sql
 -- =====================================================================================
 -- 04 GRANTS & RLS ENABLEMENT — run after 03.
 -- Enables and forces Row Level Security on every public table and sets least-privilege
@@ -495,10 +486,8 @@ grant select on public.analytics_events to authenticated;
 -- RBAC tables: read-only for authenticated (RLS restricts who sees what); writes ONLY via grant_role/revoke_role (03).
 grant select on public.user_roles, public.role_permissions to authenticated;
 
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
--- START OF FILE: 05_rls_policies.sql
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+-- >>> FILE: 05_rls_policies.sql
 -- =====================================================================================
 -- 05 ROW LEVEL SECURITY POLICIES — run after 04.
 -- Deny-by-default: every table has RLS enabled and forced in 04.
@@ -511,18 +500,18 @@ grant select on public.user_roles, public.role_permissions to authenticated;
 drop policy if exists profiles_select_own_or_staff on public.profiles;
 create policy profiles_select_own_or_staff on public.profiles
   for select to authenticated
-  using (id = auth.uid() or public.has_permission('customers.read') or public.has_permission('users.manage'));
+  using (id = (select auth.uid()) or public.has_permission('customers.read') or public.has_permission('users.manage'));
 
 drop policy if exists profiles_insert_own on public.profiles;
 create policy profiles_insert_own on public.profiles
   for insert to authenticated
-  with check (id = auth.uid());
+  with check (id = (select auth.uid()));
 
 drop policy if exists profiles_update_own_or_staff on public.profiles;
 create policy profiles_update_own_or_staff on public.profiles
   for update to authenticated
-  using (id = auth.uid() or public.has_permission('customers.write'))
-  with check (id = auth.uid() or public.has_permission('customers.write'));
+  using (id = (select auth.uid()) or public.has_permission('customers.write'))
+  with check (id = (select auth.uid()) or public.has_permission('customers.write'));
 
 -- ---------- Collections ----------
 drop policy if exists collections_select_public on public.collections;
@@ -653,26 +642,26 @@ create policy media_assets_write_staff on public.media_assets
 drop policy if exists customer_addresses_select_own_or_staff on public.customer_addresses;
 create policy customer_addresses_select_own_or_staff on public.customer_addresses
   for select to authenticated
-  using (user_id = auth.uid() or public.has_permission('customers.read'));
+  using (user_id = (select auth.uid()) or public.has_permission('customers.read'));
 
 drop policy if exists customer_addresses_write_own on public.customer_addresses;
 create policy customer_addresses_write_own on public.customer_addresses
   for all to authenticated
-  using (user_id = auth.uid() or public.has_permission('customers.write'))
-  with check (user_id = auth.uid() or public.has_permission('customers.write'));
+  using (user_id = (select auth.uid()) or public.has_permission('customers.write'))
+  with check (user_id = (select auth.uid()) or public.has_permission('customers.write'));
 
 -- ---------- Saved Items / Wishlist (strict BOLA isolation) ----------
 drop policy if exists saved_items_own on public.saved_items;
 create policy saved_items_own on public.saved_items
   for all to authenticated
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
 
 -- ---------- Orders & Order Items ----------
 drop policy if exists orders_select_own_or_staff on public.orders;
 create policy orders_select_own_or_staff on public.orders
   for select to authenticated
-  using (user_id = auth.uid() or public.has_permission('orders.read'));
+  using (user_id = (select auth.uid()) or public.has_permission('orders.read'));
 
 drop policy if exists orders_update_staff on public.orders;
 create policy orders_update_staff on public.orders
@@ -692,7 +681,7 @@ create policy order_items_select_own_or_staff on public.order_items
   for select to authenticated
   using (
     public.has_permission('orders.read')
-    or exists (select 1 from public.orders o where o.id = order_id and o.user_id = auth.uid())
+    or exists (select 1 from public.orders o where o.id = order_id and o.user_id = (select auth.uid()))
   );
 
 -- ---------- Discounts (never public-listable; checked via 06 RPC) ----------
@@ -706,7 +695,7 @@ create policy discounts_staff on public.discounts
 drop policy if exists contact_submissions_insert_public on public.contact_submissions;
 create policy contact_submissions_insert_public on public.contact_submissions
   for insert to anon, authenticated
-  with check (status = 'new' and (user_id is null or user_id = auth.uid()));
+  with check (status = 'new' and (user_id is null or user_id = (select auth.uid())));
 
 drop policy if exists contact_submissions_select_staff on public.contact_submissions;
 create policy contact_submissions_select_staff on public.contact_submissions
@@ -734,17 +723,16 @@ create policy analytics_events_select_staff on public.analytics_events
 drop policy if exists user_roles_select_own_or_admin on public.user_roles;
 create policy user_roles_select_own_or_admin on public.user_roles
   for select to authenticated
-  using (user_id = auth.uid() or public.has_permission('users.manage') or public.has_permission('security.read'));
+  using (user_id = (select auth.uid()) or public.has_permission('users.manage') or public.has_permission('security.read'));
 
 drop policy if exists role_permissions_select_authenticated on public.role_permissions;
 create policy role_permissions_select_authenticated on public.role_permissions
   for select to authenticated
   using (true);
 
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
--- START OF FILE: 06_rpc_functions.sql
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+
+-- >>> FILE: 06_rpc_functions.sql
 -- =====================================================================================
 -- 06 SERVER RPC FUNCTIONS — run after 05.
 -- High-risk operations run inside SECURITY DEFINER functions with a fixed search_path,
@@ -979,10 +967,10 @@ end $$;
 revoke all on function public.create_validated_order(text, jsonb, text, jsonb, text) from public, anon;
 grant execute on function public.create_validated_order(text, jsonb, text, jsonb, text) to authenticated;
 
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
--- START OF FILE: 07_storage.sql
--- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+
+
+-- >>> FILE: 07_storage.sql
 -- =====================================================================================
 -- 07 STORAGE BUCKETS & POLICIES — run after 06.
 -- Creates two buckets:

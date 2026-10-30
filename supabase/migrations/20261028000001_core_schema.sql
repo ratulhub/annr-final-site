@@ -36,6 +36,7 @@ create table if not exists public.collections (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+create index if not exists collections_status_idx on public.collections(status);
 
 create table if not exists public.products (
   id          uuid primary key default gen_random_uuid(),
@@ -90,6 +91,7 @@ create table if not exists public.collection_products (
   position      int not null default 0,
   primary key (collection_id, product_id)
 );
+create index if not exists collection_products_product_idx on public.collection_products(product_id);
 
 -- ---------- Website content ----------
 create table if not exists public.site_pages (
@@ -103,6 +105,7 @@ create table if not exists public.site_pages (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+create index if not exists site_pages_status_idx on public.site_pages(status);
 
 -- Draft vs published site configuration (header, footer, design, sections, SEO…). One row per version.
 create table if not exists public.site_config_versions (
@@ -149,6 +152,7 @@ create table if not exists public.saved_items (
   created_at  timestamptz not null default now(),
   primary key (user_id, product_id)
 );
+create index if not exists saved_items_product_idx on public.saved_items(product_id);
 
 -- ---------- Orders (money and payment fields written ONLY by trusted server code) ----------
 create table if not exists public.orders (
@@ -180,6 +184,7 @@ create table if not exists public.order_items (
   quantity    int not null check (quantity between 1 and 20)
 );
 create index if not exists order_items_order_idx on public.order_items(order_id);
+create index if not exists order_items_variant_idx on public.order_items(variant_id);
 
 -- ---------- Marketing ----------
 create table if not exists public.discounts (

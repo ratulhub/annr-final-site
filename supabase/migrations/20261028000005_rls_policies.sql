@@ -10,18 +10,18 @@
 drop policy if exists profiles_select_own_or_staff on public.profiles;
 create policy profiles_select_own_or_staff on public.profiles
   for select to authenticated
-  using (id = auth.uid() or public.has_permission('customers.read') or public.has_permission('users.manage'));
+  using (id = (select auth.uid()) or public.has_permission('customers.read') or public.has_permission('users.manage'));
 
 drop policy if exists profiles_insert_own on public.profiles;
 create policy profiles_insert_own on public.profiles
   for insert to authenticated
-  with check (id = auth.uid());
+  with check (id = (select auth.uid()));
 
 drop policy if exists profiles_update_own_or_staff on public.profiles;
 create policy profiles_update_own_or_staff on public.profiles
   for update to authenticated
-  using (id = auth.uid() or public.has_permission('customers.write'))
-  with check (id = auth.uid() or public.has_permission('customers.write'));
+  using (id = (select auth.uid()) or public.has_permission('customers.write'))
+  with check (id = (select auth.uid()) or public.has_permission('customers.write'));
 
 -- ---------- Collections ----------
 drop policy if exists collections_select_public on public.collections;
@@ -152,26 +152,26 @@ create policy media_assets_write_staff on public.media_assets
 drop policy if exists customer_addresses_select_own_or_staff on public.customer_addresses;
 create policy customer_addresses_select_own_or_staff on public.customer_addresses
   for select to authenticated
-  using (user_id = auth.uid() or public.has_permission('customers.read'));
+  using (user_id = (select auth.uid()) or public.has_permission('customers.read'));
 
 drop policy if exists customer_addresses_write_own on public.customer_addresses;
 create policy customer_addresses_write_own on public.customer_addresses
   for all to authenticated
-  using (user_id = auth.uid() or public.has_permission('customers.write'))
-  with check (user_id = auth.uid() or public.has_permission('customers.write'));
+  using (user_id = (select auth.uid()) or public.has_permission('customers.write'))
+  with check (user_id = (select auth.uid()) or public.has_permission('customers.write'));
 
 -- ---------- Saved Items / Wishlist (strict BOLA isolation) ----------
 drop policy if exists saved_items_own on public.saved_items;
 create policy saved_items_own on public.saved_items
   for all to authenticated
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
 
 -- ---------- Orders & Order Items ----------
 drop policy if exists orders_select_own_or_staff on public.orders;
 create policy orders_select_own_or_staff on public.orders
   for select to authenticated
-  using (user_id = auth.uid() or public.has_permission('orders.read'));
+  using (user_id = (select auth.uid()) or public.has_permission('orders.read'));
 
 drop policy if exists orders_update_staff on public.orders;
 create policy orders_update_staff on public.orders
@@ -191,7 +191,7 @@ create policy order_items_select_own_or_staff on public.order_items
   for select to authenticated
   using (
     public.has_permission('orders.read')
-    or exists (select 1 from public.orders o where o.id = order_id and o.user_id = auth.uid())
+    or exists (select 1 from public.orders o where o.id = order_id and o.user_id = (select auth.uid()))
   );
 
 -- ---------- Discounts (never public-listable; checked via 06 RPC) ----------
@@ -205,7 +205,7 @@ create policy discounts_staff on public.discounts
 drop policy if exists contact_submissions_insert_public on public.contact_submissions;
 create policy contact_submissions_insert_public on public.contact_submissions
   for insert to anon, authenticated
-  with check (status = 'new' and (user_id is null or user_id = auth.uid()));
+  with check (status = 'new' and (user_id is null or user_id = (select auth.uid())));
 
 drop policy if exists contact_submissions_select_staff on public.contact_submissions;
 create policy contact_submissions_select_staff on public.contact_submissions
@@ -233,7 +233,7 @@ create policy analytics_events_select_staff on public.analytics_events
 drop policy if exists user_roles_select_own_or_admin on public.user_roles;
 create policy user_roles_select_own_or_admin on public.user_roles
   for select to authenticated
-  using (user_id = auth.uid() or public.has_permission('users.manage') or public.has_permission('security.read'));
+  using (user_id = (select auth.uid()) or public.has_permission('users.manage') or public.has_permission('security.read'));
 
 drop policy if exists role_permissions_select_authenticated on public.role_permissions;
 create policy role_permissions_select_authenticated on public.role_permissions
