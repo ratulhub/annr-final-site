@@ -88,8 +88,8 @@ function get(): State {
 }
 // Compare two states and describe every change (section, item, fields).
 type Change = Omit<Activity, "id" | "at" | "by">;
-const label = (o: Record<string, unknown>) => String(o?.title || o?.name || o?.code || o?.label || o?.id || o?.handle || "item");
-const keyOf = (o: Record<string, unknown>) => String(o?.handle ?? o?.id ?? "");
+const label = (o: Record<string, unknown>) => String(o["title"] || o["name"] || o["code"] || o["label"] || o["id"] || o["handle"] || "item");
+const keyOf = (o: Record<string, unknown>) => String(o["handle"] ?? o["id"] ?? "");
 function diffList(section: string, a: Record<string, unknown>[], b: Record<string, unknown>[], out: Change[]) {
   const am = new Map(a.map((x) => [keyOf(x), x])), bm = new Map(b.map((x) => [keyOf(x), x]));
   for (const [k, x] of bm) {

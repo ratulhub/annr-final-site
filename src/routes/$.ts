@@ -192,13 +192,14 @@ function buildPredictiveSearchHtml(query: string): string {
     const img = (typeof p["image"] === "string" ? p["image"] : "") || images[0] || "";
     const pTitle = esc(p["title"]);
     const price = String(p["price"] || "0").replace(/\.00$/, "");
+    const handle = String(p["handle"] || "");
     return `<div class="lazy-item product-card">
 	<div class="product-card-image">
-		<a href="/products/${esc(p.handle)}/index.html" class="product-card-image-wrapper" aria-label="${pTitle}">
+		<a href="/products/${esc(handle)}/index.html" class="product-card-image-wrapper" aria-label="${pTitle}">
 			<img src="${esc(img)}" alt="${pTitle}" loading="lazy">
 		</a>
 	</div>
-	<a href="/products/${esc(p.handle)}/index.html" class="product-card-title">
+	<a href="/products/${esc(handle)}/index.html" class="product-card-title">
 		${pTitle}
 	</a>
 	<div class="product-card-price">
