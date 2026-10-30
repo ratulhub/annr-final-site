@@ -314,30 +314,7 @@
     if (gridEl) {
       if (matches.length > 0) {
         gridEl.innerHTML = matches.map(function (p) {
-          var pr = String(p.price || "0").replace(/\.00$/, "");
-          var o = P[p.handle] || {};
-          var title = o.title || p.title;
-          var price = o.price != null ? o.price : pr;
-          var compareAt = o.compareAt != null ? o.compareAt : p.compareAt;
-          var img = (o.images && o.images[0]) || p.image;
-          var img2 = (o.images && o.images[1]) || p.image2 || img;
-          var badge = o.badge || p.badge;
-          var badgeHtml = badge ? "<div class='product-card-labels' style='background:#000;color:#fff'>" + esc(badge) + "</div>" : "";
-          var cmpHtml = compareAt ? "<span class='old-price money'>Tk " + esc(compareAt) + "<span class='money-currency-code'>BDT</span></span>" : "";
-
-          return "<div class='lazy-item product-card'>" +
-            "<div class='product-card-image'>" + badgeHtml +
-              "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(title) + "'>" +
-                "<img src='" + esc(safeImg(img)) + "' alt='" + esc(title) + "' loading='lazy'>" +
-                (img2 ? "<img src='" + esc(safeImg(img2)) + "' alt='" + esc(title) + "' loading='lazy'>" : "") +
-              "</a>" +
-            "</div>" +
-            "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(title) + "</a>" +
-            "<div class='product-card-price'>" +
-              "<span class='money'>Tk " + esc(price) + "<span class='money-currency-code'>BDT</span></span>" +
-              cmpHtml +
-            "</div>" +
-          "</div>";
+          return renderProductCardHtml(p, P && P[p.handle]);
         }).join("");
       } else if (q) {
         gridEl.innerHTML = "<div style='grid-column:1/-1;text-align:center;padding:60px 20px;font:12px/1.6 \"NB Architekt Std\",sans-serif;letter-spacing:1px;text-transform:uppercase;opacity:.8'>" +
@@ -352,7 +329,8 @@
       searchForm.__annrBound = true;
       searchForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var val = (document.getElementById("search")?.value || "").trim();
+        var searchInput = document.getElementById("search");
+        var val = (searchInput ? searchInput.value : "").trim();
         var newUrl = "/search/index.html?type=product&q=" + encodeURIComponent(val);
         history.pushState(null, "", newUrl);
         setupSearchPage();
