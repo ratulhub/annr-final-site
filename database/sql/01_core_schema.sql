@@ -55,7 +55,6 @@ create table if not exists public.products (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
-create index if not exists collections_status_idx on public.collections(status);
 create index if not exists products_status_idx on public.products(status);
 
 create table if not exists public.product_images (
