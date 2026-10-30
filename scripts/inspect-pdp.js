@@ -1,16 +1,6 @@
 import fs from "fs";
 const html = fs.readFileSync('public/products/aka-manto-longsleeve/index.html', 'utf8');
-const regex = /class=["']([^"']*product-info[^"']*)["']/g;
-const matches = new Set();
-let m;
-while ((m = regex.exec(html)) !== null) {
-  matches.add(m[1]);
-}
-console.log('Classes found:');
-console.log(Array.from(matches));
-
-const atcIdx = html.indexOf('product-info-submit');
-if (atcIdx !== -1) {
-  console.log('\nATC context:');
-  console.log(html.slice(atcIdx - 300, atcIdx + 400));
+const idx = html.indexOf('product-info-size-selector');
+if (idx !== -1) {
+  console.log(html.slice(idx, idx + 1500));
 }
