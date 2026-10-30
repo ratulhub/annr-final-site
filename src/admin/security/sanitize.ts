@@ -38,6 +38,7 @@ export function sanitizeCss(css: unknown): string {
     .replace(/<\/?\s*style/gi, "")
     .replace(/@import[^;]*;?/gi, "")
     .replace(/expression\s*\(/gi, "")
+    .replace(/(?:behavior|-moz-binding)\s*:[^;{}]*/gi, "")
     .replace(/javascript:/gi, "")
     .replace(/url\s*\(\s*(['"]?)\s*(?!\/(?!\/)|data:image\/(?!svg))[^)]*\)/gi, "none");
 }

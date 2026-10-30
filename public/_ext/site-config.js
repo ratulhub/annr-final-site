@@ -33,7 +33,7 @@
   function esc(t) { return String(t == null ? "" : t).replace(/[&<>"'`]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "`": "&#96;" }[c]; }); }
   function safeUrl(u) {
     var s = String(u == null ? "" : u).trim();
-    if (!s || s.length > 2048 || /[\u0000-\u001f\\]/.test(s)) return "#";
+    if (!s || s.length > 2048 || /[\u0000-\u001f\u007f-\u009f\\]/.test(s)) return "#";
     if (s.charAt(0) === "#") return s;
     if (s.charAt(0) === "/") return s.charAt(1) === "/" ? "#" : s;
     return /^(https?:\/\/|mailto:|tel:)/i.test(s) ? s : "#";
