@@ -5,6 +5,7 @@ import { getSession } from "../admin/store";
 import { authEvents, IDLE_MS, ABSOLUTE_MS, MAX_ATTEMPTS, LOCK_MS, reauthenticate } from "../admin/security/auth";
 import { PERMISSIONS, ROLES, ROLE_PERMISSIONS } from "../admin/security/permissions";
 import { backendStatus, leakedSecretInBrowserEnv } from "../lib/backend-status";
+import { supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/security")({
   head: () => ({ meta: [{ title: "Security Center · AnnR Admin" }, { name: "robots", content: "noindex" }] }),
