@@ -9,7 +9,7 @@ export function escapeHtml(t: unknown): string {
 // and backslash tricks. Returns "#" for anything else.
 export function safeUrl(u: unknown): string {
   const s = String(u ?? "").trim();
-  if (!s || s.length > 2048 || /[\u0000-\u001f\\]/.test(s)) return "#";
+  if (!s || s.length > 2048 || /[\u0000-\u001f\u007f-\u009f\\]/.test(s)) return "#";
   if (s.startsWith("#")) return s;
   if (s.startsWith("/")) return s.startsWith("//") ? "#" : s;
   if (/^(https?:\/\/|mailto:|tel:)/i.test(s)) return s;

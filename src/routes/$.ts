@@ -201,7 +201,7 @@ function buildPredictiveSearchHtml(query: string): string {
 		${pTitle}
 	</a>
 	<div class="product-card-price">
-		<span class="money">Tk ${price}<span class="money-currency-code">BDT</span></span>
+		<span class="money">Tk ${esc(price)}<span class="money-currency-code">BDT</span></span>
 	</div>
 </div>`;
   }).join("\n");
