@@ -7,14 +7,25 @@
   var framed = window.self !== window.top;
   if (qs.get("preview") === "1") { if (framed) window.name = "shihiko-preview"; else sessionStorage.setItem("shihiko-preview", "1"); }
   if (qs.get("preview") === "0") { window.name = ""; sessionStorage.removeItem("shihiko-preview"); }
-  var preview = framed ? window.name === "shihiko-preview" : sessionStorage.getItem("shihiko-preview") === "1";
-  var cfg;
-  try { cfg = JSON.parse(localStorage.getItem(preview ? "shihiko-site-draft" : "shihiko-site-config") || "null"); } catch (e) { return; }
-  if (!cfg) { if (preview) whenReady(previewBar); return; }
-  var P = cfg.products || {}, C = cfg.collections || {}, G = cfg.pages || {};
-  var S = cfg.site || {}, D = cfg.defaults || {};
+  var preview = false;
+  var cfg = null, P = {}, C = {}, G = {}, S = {}, D = {}, allCols = [];
   var path = location.pathname;
   var tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/home\.html$|^\/$/.test(path) ? "home" : "other";
+  function refreshState() {
+    var framed = window.self !== window.top;
+    preview = framed ? window.name === "shihiko-preview" : sessionStorage.getItem("shihiko-preview") === "1";
+    try { cfg = JSON.parse(localStorage.getItem(preview ? "shihiko-site-draft" : "shihiko-site-config") || "null"); } catch (e) { cfg = null; }
+    if (cfg) {
+      P = cfg.products || {}; C = cfg.collections || {}; G = cfg.pages || {};
+      S = cfg.site || {}; D = cfg.defaults || {};
+      allCols = cfg.allCollections || [];
+    }
+    path = location.pathname;
+    tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/home\.html$|^\/$/.test(path) ? "home" : "other";
+    return !!cfg;
+  }
+  refreshState();
+  if (!cfg && !preview) return;
   var J = JSON.stringify;
   function changed(k) { return J(S[k]) !== J(D[k]); }
   function diff(k, f) { return S[k] && D[k] && S[k][f] !== D[k][f]; }
