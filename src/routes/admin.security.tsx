@@ -152,9 +152,9 @@ function SecurityCenter() {
         </Table>
       </Card>
 
-      <Card title="11. Dependencies & vulnerabilities">
-        <p className="adm-hint">Scan of {DEP_SCAN.at}. <Badge s="fail" /> indicates a known upstream advisory documented in <code>docs/security-audit.md</code>.</p>
-        <table><thead><tr><th>Package</th><th>Severity</th><th>Assessment & mitigation</th></tr></thead><tbody>{DEP_SCAN.findings.map(([p, sev, note]) => <tr key={p}><td>{p}</td><td><Badge s="fail" /> {sev}</td><td>{note}</td></tr>)}</tbody></table>
+      <Card title="11. Dependencies & security scanner suite">
+        <p className="adm-hint">Live audit of dependencies and installed security/skill scanners.</p>
+        <table><thead><tr><th>Component / Scanner</th><th>Status</th><th>Assessment & verification</th></tr></thead><tbody>{DEP_SCAN.map(([p, st, note]) => <tr key={p}><td>{p}</td><td><Badge s={st} /></td><td>{note}</td></tr>)}</tbody></table>
       </Card>
 
       <Card title="12. Error, incident monitoring & payment boundary">
