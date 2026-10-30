@@ -140,7 +140,7 @@ export function resetState() { dataSource.clear(KEY); dataSource.clear(DRAFT_KEY
 const PUB_KEY = "shihiko-site-config", DRAFT_KEY = "shihiko-site-draft", HIST_KEY = "shihiko-site-history";
 let seedCache: State | null = null;
 const PUBLIC_FIELDS = {
-  products: ["title", "price", "compareAt", "status", "seoTitle", "seoDescription", "description", "badge", "images", "sizeChart", "variants", "trackStock", "allowBackorder"],
+  products: ["title", "price", "compareAt", "status", "seoTitle", "seoDescription", "description", "badge", "images", "sizeChart", "variants", "trackStock", "allowBackorder", "collections"],
   collections: ["title", "description", "image", "seoTitle", "seoDescription", "visible", "sort", "products"],
   pages: ["title", "seoTitle", "seoDescription", "visible", "body"],
 } as const;
@@ -155,6 +155,34 @@ export function siteConfig(s: State) {
       if (Object.keys(d).length) out[sec][item.handle] = d;
     }
   }
+
+  const currentProductHandles = new Set(s.products.map((p) => p.handle));
+  const deletedProducts: string[] = [];
+  for (const p of base.products) {
+    if (!currentProductHandles.has(p.handle)) {
+      deletedProducts.push(p.handle);
+      out.products[p.handle] = { deleted: true, status: "deleted" };
+    }
+  }
+
+  const currentColHandles = new Set(s.collections.map((c) => c.handle));
+  const deletedCollections: string[] = [];
+  for (const c of base.collections) {
+    if (!currentColHandles.has(c.handle)) {
+      deletedCollections.push(c.handle);
+      out.collections[c.handle] = { deleted: true, visible: false };
+    }
+  }
+
+  const currentPageHandles = new Set(s.pages.map((p) => p.handle));
+  const deletedPages: string[] = [];
+  for (const pg of base.pages) {
+    if (!currentPageHandles.has(pg.handle)) {
+      deletedPages.push(pg.handle);
+      out.pages[pg.handle] = { deleted: true, visible: false };
+    }
+  }
+
   return {
     ...out,
     allCollections: s.collections.map((c) => ({
@@ -171,9 +199,15 @@ export function siteConfig(s: State) {
       price: p.price,
       compareAt: p.compareAt || "",
       image: p.images[0] || "",
+      image2: p.images[1] || "",
       description: p.description || "",
+      badge: p.badge || "",
+      collections: p.collections || [],
       status: p.status,
     })),
+    deletedProducts,
+    deletedCollections,
+    deletedPages,
     publishedAt: new Date().toISOString(),
   };
 }
