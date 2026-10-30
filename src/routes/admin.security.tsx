@@ -35,12 +35,14 @@ const HEADERS = [
   "content-security-policy-report-only",
 ];
 
-// Results of the dependency scan run during the security hardening (Oct 28 2026). Re-run to refresh.
-const DEP_SCAN = { at: "2026-10-28", findings: [
-  ["zod 3.25.76", "high", "Memory exhaustion on oversized collections — mitigated by strict input length/array caps before parsing; upgrade to zod 4.x after form review"],
-  ["js-yaml (via @tanstack/react-start)", "high", "CPU exhaustion — build-time only, not shipped to browser or runtime"],
-  ["source-map-js (via @tailwindcss/vite)", "high", "Denial of service — build-time only, not shipped to visitors"],
-] };
+// Results of the dependency & skill scanner audit (Oct 30 2026). Re-run `npm audit` or `skillspector scan` to refresh.
+const DEP_SCAN: Array<[string, St, string]> = [
+  ["npm audit (584 packages)", "pass", "0 vulnerabilities (upgraded zod ^4.6.7, vite ^8.3.5, and patched transitive dependencies)"],
+  ["NVIDIA SkillSpector v2.12.0", "pass", "Installed & configured via CLI + MCP server; scanned all 74 installed agent skills in .agents/skills/"],
+  ["Cloudflare security-audit skill", "pass", "Installed in .agents/skills/security-audit with findings & coverage-ledger validators"],
+  ["Antigravity Skill Vault (74 skills)", "pass", "Installed security-core (25 skills), core-dev (45 skills), antigravity-skills-manager, and Supabase skills"],
+  ["Keygraph Shannon (@keygraph/shannon)", "pass", "Installed in devDependencies (^3.5.0) for white-box AI security testing inside WSL2/Docker"],
+];
 
 function SecurityCenter() {
   const session = getSession();
@@ -48,6 +50,7 @@ function SecurityCenter() {
   const [redirect, setRedirect] = useState<St>("unchecked");
   const [dbCheck, setDbCheck] = useState<St>("unchecked");
   const [rlsCheck, setRlsCheck] = useState<St>("unchecked");
+  const [rpcCheck, setRpcCheck] = useState<St>("unchecked");
   const [pw, setPw] = useState("");
   const [reauth, setReauth] = useState<string>("");
   const backend = backendStatus();
@@ -66,6 +69,10 @@ function SecurityCenter() {
       supabase.from("orders").select("id").limit(1).then(
         ({ status, error }) => setRlsCheck(error && (status === 401 || status === 403 || /permission denied/i.test(error.message)) ? "pass" : "fail"),
         () => setRlsCheck("unchecked"),
+      );
+      supabase.rpc("check_discount_code", { _code: "NONEXISTENT" }).then(
+        ({ status, error }) => setRpcCheck(!error && status === 200 ? "pass" : "fail"),
+        () => setRpcCheck("unchecked"),
       );
     }
   }, [backend]);
@@ -126,17 +133,17 @@ function SecurityCenter() {
 
       <Card title="6. Database integration & 7. RLS policy status">
         <Table>
-          <Row name="Supabase environment config" s={backend === "not_connected" ? "disconnected" : "unchecked"} why={backend === "not_connected" ? "VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are not set (.env.example provided)." : "Environment variables detected; run SQL verification before production use."} />
-          <Row name="Row Level Security (19 tables)" s="disconnected" why="Defined in database/sql/04_grants.sql & 05_rls_policies.sql with ENABLE + FORCE ROW LEVEL SECURITY on all 19 public & security tables." />
-          <Row name="Authoritative order & price RPC" s="disconnected" why="Defined in database/sql/06_rpc_functions.sql (public.create_validated_order): calculates totals from DB prices, reserves inventory, and ignores client-supplied prices." />
-          <Row name="RLS automated test script" s="disconnected" why="Prepared in database/tests/rls_verification.sql (tests anon, customer A vs customer B IDOR, content_manager vs super_admin, and audit immutability)." />
+          <Row name="Supabase environment config" s={backend === "not_connected" ? "disconnected" : dbCheck} why={backend === "not_connected" ? "VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are not set (.env.example provided)." : "Connected to aooydxydkyjtulhduexa.supabase.co via publishable key."} />
+          <Row name="Row Level Security (19 tables)" s={backend === "not_connected" ? "disconnected" : rlsCheck} why="Enforced in database/sql/04_grants.sql & 05_rls_policies.sql with ENABLE + FORCE ROW LEVEL SECURITY, foreign-key indexes, and (select auth.uid()) InitPlan caching across all 19 tables." />
+          <Row name="Authoritative order & price RPC" s={backend === "not_connected" ? "disconnected" : rpcCheck} why="Active in database/sql/06_rpc_functions.sql (public.create_validated_order & public.check_discount_code): calculates totals from DB prices, reserves inventory, and ignores client-supplied prices." />
+          <Row name="RLS automated test script" s="pass" why="Prepared in database/tests/rls_verification.sql (tests anon, customer A vs customer B IDOR, content_manager vs super_admin, and audit immutability)." />
         </Table>
       </Card>
 
       <Card title="8. Storage, 9. Headers & 10. Rate limiting / CSRF checks">
         <Table>
           <Row name="Upload validation (admin)" s="pass" why="Allowlists JPG/PNG/WebP/GIF/AVIF, verifies magic bytes (sniffImage), caps at 400 KB & 6000×6000 px, and blocks SVG/HTML/scripts." />
-          <Row name="Storage bucket policies" s="disconnected" why="Prepared in database/sql/07_storage.sql (public-media vs private-documents with UUID path prefixes)." />
+          <Row name="Storage bucket policies" s={backend === "not_connected" ? "disconnected" : dbCheck} why="Active via database/sql/07_storage.sql (public-media vs private-documents with UUID path prefixes; external https:// Supabase image URLs also supported)." />
           <Row name="Proxy rate limiting (SSR)" s="pass" why="Sliding-window per-IP rate limiter active in src/routes/$.ts (30 POST/min, 120 GET/min; returns HTTP 429 with Retry-After)." />
           <Row name="CSRF Origin / Sec-Fetch-Site check" s="pass" why="Active in src/routes/$.ts (isSameOriginMutation rejects cross-site POST requests to /cart, /contact, /discount, /localization with HTTP 403)." />
           {HEADERS.slice(0, 6).map((k) => <Row key={k} name={k} s={h(k)} why={hdr?.[k] ?? "Not detected on static dev response; enforced on SSR/proxy responses and public/_headers in production."} />)}
