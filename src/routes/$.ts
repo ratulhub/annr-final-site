@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import catalog from "../admin/catalog.json";
 
 // Same behaviour as the original mirror server: live Shopify features (cart, cart drawer,
-// search, recommendations, localization) are passed through to the real store; any other
+// recommendations, localization) are passed through to the real store; any other
 // clean page URL is sent to its static copy in /public.
 const LIVE = "https://shihiko.com";
 const DYNAMIC =
-  /^\/(cart|search|recommendations|localization|discount|contact)(?=[/.?]|$)/;
+  /^\/(cart|recommendations|localization|discount|contact)(?=[/.?]|$)/;
 const EXT_HOSTS = [
   "cdn.shopify.com", "extensions.shopifycdn.com", "cdn.jsdelivr.net", "unpkg.com",
   "static.klaviyo.com", "fonts.bunny.net", "widget.gotolstoy.com", "play.gotolstoy.com",
