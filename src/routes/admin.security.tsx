@@ -59,12 +59,14 @@ function SecurityCenter() {
     fetch("/home.html", { cache: "no-store" }).then((r) => setHdr(Object.fromEntries(HEADERS.map((h) => [h, r.headers.get(h)])))).catch(() => setHdr({}));
     fetch("/x//evil.example", { redirect: "manual" }).then((r) => setRedirect(r.type === "opaqueredirect" || r.status === 302 || r.status === 404 ? "pass" : "fail")).catch(() => setRedirect("unchecked"));
     if (backend !== "not_connected") {
-      supabase.from("products").select("id").limit(1).then(({ status, error }) => {
-        setDbCheck(!error && status === 200 ? "pass" : "fail");
-      }).catch(() => setDbCheck("fail"));
-      supabase.from("orders").select("id").limit(1).then(({ status, error }) => {
-        setRlsCheck(error && (status === 401 || status === 403 || /permission denied/i.test(error.message)) ? "pass" : "fail");
-      }).catch(() => setRlsCheck("unchecked"));
+      supabase.from("products").select("id").limit(1).then(
+        ({ status, error }) => setDbCheck(!error && status === 200 ? "pass" : "fail"),
+        () => setDbCheck("fail"),
+      );
+      supabase.from("orders").select("id").limit(1).then(
+        ({ status, error }) => setRlsCheck(error && (status === 401 || status === 403 || /permission denied/i.test(error.message)) ? "pass" : "fail"),
+        () => setRlsCheck("unchecked"),
+      );
     }
   }, [backend]);
   const h = (k: string): St => (hdr === null ? "unchecked" : hdr[k] ? "pass" : "fail");
