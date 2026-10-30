@@ -165,7 +165,15 @@ export function siteConfig(s: State) {
     })),
     site: s.site,
     defaults: base.site,
-    catalog: s.products.map((p) => ({ handle: p.handle, title: p.title, price: p.price, image: p.images[0] || "", status: p.status })),
+    catalog: s.products.map((p) => ({
+      handle: p.handle,
+      title: p.title,
+      price: p.price,
+      compareAt: p.compareAt || "",
+      image: p.images[0] || "",
+      description: p.description || "",
+      status: p.status,
+    })),
     publishedAt: new Date().toISOString(),
   };
 }
