@@ -40,6 +40,7 @@ export const TEMPLATES: Record<string, { label: string; sample: string; sections
 };
 
 // Block types allowed on new pages, with a blank value and validation for each.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export const BLOCKS: Record<Block["type"], { label: string; blank: () => Omit<Block, "id">; validate: (b: any) => string | null }> = {
   heading: { label: "Heading", blank: () => ({ type: "heading", text: "New heading", level: "h2", align: "left" }), validate: (b) => (b.text.trim() ? null : "Heading text is required") },
   text: { label: "Paragraph", blank: () => ({ type: "text", text: "", align: "left" }), validate: () => null },
