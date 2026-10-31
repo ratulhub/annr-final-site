@@ -78,24 +78,30 @@ function WebsitePagesManager() {
       canToggle: false,
       editLink: "/admin/sections",
     },
-    ...s.pages.map((p) => ({
-      category: "pages" as const,
-      title: p.title,
-      url: `/pages/${p.handle}/index.html`,
-      key: p.handle,
-      visible: p.visible !== false && !hidden.includes(`/pages/${p.handle}/index.html`),
-      canToggle: true,
-      editLink: "/admin/pages",
-    })),
-    ...s.collections.map((c) => ({
-      category: "collections" as const,
-      title: `Collection: ${c.title}`,
-      url: `/collections/${c.handle}/index.html`,
-      key: `col-${c.handle}`,
-      visible: c.visible !== false && !hidden.includes(`/collections/${c.handle}/index.html`),
-      canToggle: true,
-      editLink: "/admin/collections",
-    })),
+    ...s.pages.map((p) => {
+      const isHidden = p.visible === false || hidden.includes(`/pages/${p.handle}`) || hidden.includes(`/pages/${p.handle}/index.html`);
+      return {
+        category: "pages" as const,
+        title: p.title,
+        url: `/pages/${p.handle}/index.html`,
+        key: p.handle,
+        visible: !isHidden,
+        canToggle: true,
+        editLink: "/admin/pages",
+      };
+    }),
+    ...s.collections.map((c) => {
+      const isHidden = c.visible === false || hidden.includes(`/collections/${c.handle}`) || hidden.includes(`/collections/${c.handle}/index.html`);
+      return {
+        category: "collections" as const,
+        title: `Collection: ${c.title}`,
+        url: `/collections/${c.handle}/index.html`,
+        key: `col-${c.handle}`,
+        visible: !isHidden,
+        canToggle: true,
+        editLink: "/admin/collections",
+      };
+    }),
     {
       category: "store",
       title: "VIP Account Login",
@@ -147,22 +153,24 @@ function WebsitePagesManager() {
     // If it's in catalog s.pages:
     const pageItem = s.pages.find((p) => p.handle === item.key);
     if (pageItem) {
+      const nextVisible = !item.visible;
       setState((prev) => ({
         ...prev,
-        pages: prev.pages.map((p) => (p.handle === item.key ? { ...p, visible: !p.visible } : p)),
+        pages: prev.pages.map((p) => (p.handle === item.key ? { ...p, visible: nextVisible } : p)),
       }));
-      toggleHidden(item.url);
+      setHiddenBatch([`/pages/${item.key}`, `/pages/${item.key}/index.html`], !nextVisible);
       return;
     }
 
     // If it's a collection:
     if (item.key.startsWith("col-")) {
       const colHandle = item.key.replace("col-", "");
+      const nextVisible = !item.visible;
       setState((prev) => ({
         ...prev,
-        collections: prev.collections.map((c) => (c.handle === colHandle ? { ...c, visible: !c.visible } : c)),
+        collections: prev.collections.map((c) => (c.handle === colHandle ? { ...c, visible: nextVisible } : c)),
       }));
-      toggleHidden(item.url);
+      setHiddenBatch([`/collections/${colHandle}`, `/collections/${colHandle}/index.html`], !nextVisible);
       return;
     }
 
