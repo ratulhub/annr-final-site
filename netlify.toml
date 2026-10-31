@@ -27,6 +27,12 @@
   status = 302
   force = true
 
+[[redirects]]
+  from = "/index.html"
+  to = "/home.html"
+  status = 302
+  force = true
+
 # Security headers enforced across all routes (verified by /admin/security)
 [[headers]]
   for = "/*"
