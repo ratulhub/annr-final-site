@@ -69,6 +69,7 @@ export type CampaignEvent = {
   giftValue: string;
   giftImage: string;
   giftDescription: string;
+  showPdpPerk?: boolean;
   showTopBar: boolean;
   topBarText: string;
   topBarUrl: string;
