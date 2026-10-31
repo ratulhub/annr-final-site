@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAdmin } from "../admin/store";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { BarList, DataTable, Funnel, LineChart, MetricCard, csv } from "../admin/analytics/charts";
 import { presetRange, previousPeriod, savedPresets, savePresets, useFilters, type Filters, type Saved } from "../admin/analytics/filters";
 import { EVENT_NAMES, EVENTS_KEY, funnel, provider, readEvents, type EventName, type Source } from "../admin/analytics/provider";
@@ -17,8 +17,20 @@ function Analytics() {
   const custom = ["funnels", "seo", "reports", "settings"].includes(report);
   return (
     <>
-      <div className="adm-top"><div><h1>{meta.title}</h1><p className="adm-hint" style={{ marginTop: 6 }}>{meta.purpose}</p></div>
-        <span className="adm-tag" style={{ background: src === "demo" ? "#000" : "#fff", color: src === "demo" ? "#fff" : "#000" }}>{src === "demo" ? "DEMO DATA — not real visitors" : "LOCAL — this browser only"}</span></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {report !== "overview" ? (
+            <BackBtn to="/admin/analytics/overview" label="← Reports" />
+          ) : (
+            <BackBtn to="/admin" label="← Dashboard" />
+          )}
+          <div>
+            <h1>{meta.title}</h1>
+            <p className="adm-hint" style={{ marginTop: 6 }}>{meta.purpose}</p>
+          </div>
+        </div>
+        <span className="adm-tag" style={{ background: src === "demo" ? "#000" : "#fff", color: src === "demo" ? "#fff" : "#000" }}>{src === "demo" ? "DEMO DATA — not real visitors" : "LOCAL — this browser only"}</span>
+      </div>
       {report !== "settings" && report !== "seo" && <FilterBar f={f} update={update} src={src} setSource={setSource} />}
       {!custom && <StandardReport id={report} f={f} src={src} />}
       {report === "funnels" && <Funnels f={f} src={src} />}
