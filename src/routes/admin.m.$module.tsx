@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { MODULES } from "../admin/config/navigation";
+import { BackBtn } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/m/$module")({ component: ModulePage });
 
