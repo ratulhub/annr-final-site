@@ -140,33 +140,24 @@ function SectionsManager() {
                 setDrag(null);
               }}
               style={{
-                opacity: s.visible ? 1 : 0.6,
-                borderLeft: s.visible ? "4px solid #050505" : "4px solid #bbb",
-                transition: "opacity 0.2s ease",
+                opacity: s.visible ? 1 : 0.65,
+                borderLeft: s.visible ? "4px solid var(--emerald)" : "4px solid var(--amber)",
+                transition: "all 0.2s ease",
               }}
             >
               <div className="adm-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ cursor: "grab", opacity: 0.5 }}>⋮⋮</span>
+                  <span style={{ cursor: "grab", opacity: 0.6, fontSize: 16 }}>⋮⋮</span>
                   <input
                     value={s.label}
                     onChange={(e) => up(i, { label: e.target.value })}
-                    style={{ width: 260, fontWeight: 600, fontSize: 14 }}
+                    style={{ width: 260, fontWeight: 700, fontSize: 14 }}
                     aria-label="Section name"
                   />
-                  <span
-                    style={{
-                      fontSize: 9,
-                      fontFamily: "'FK Grotesk SemiMono', monospace",
-                      padding: "2px 6px",
-                      borderRadius: 2,
-                      background: s.visible ? "#050505" : "#ddd",
-                      color: s.visible ? "#fff" : "#444",
-                    }}
-                  >
+                  <span className={`adm-tag ${s.visible ? "active" : "draft"}`} style={{ fontSize: 10, padding: "2px 8px" }}>
                     {s.visible ? "VISIBLE" : "HIDDEN"}
                   </span>
-                  <span className="adm-tag">
+                  <span className="adm-tag info">
                     {s.added ? `added · ${SECTION_KINDS[s.added.kind]}` : s.copyOf ? "copy" : s.type}
                   </span>
                 </div>
