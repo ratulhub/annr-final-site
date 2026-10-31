@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { setSite, uid } from "../admin/store";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { SCOPES } from "../admin/site/registry";
 import { Big, Chk, ColorF, F, Obj, Pick, UrlF, move, OrderBtns, useSite } from "../admin/site/fields";
 import type { ImageRule, TextRule } from "../admin/site/types";
@@ -13,7 +13,12 @@ function Content() {
   const setI = (l: ImageRule[]) => setSite("images", l);
   return (
     <>
-      <div className="adm-top"><h1>Content</h1></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Content</h1>
+        </div>
+      </div>
       <Card title="Announcement bar"><Obj k="announcement">{(a, set) => <div className="adm-grid">
         <Chk label="Show announcement" value={a.on} onChange={(on) => set({ on })} />
         <F label="Text" value={a.text} onChange={(text) => set({ text })} validate={(v) => (a.on && !v.trim() ? "Text is required when shown" : null)} />
