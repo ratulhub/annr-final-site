@@ -541,8 +541,8 @@ function EventsManager() {
                           fontFamily: "'Druk Wide', sans-serif",
                           fontSize: 12,
                           letterSpacing: 1.5,
-                          borderLeft: `4px solid ${selectedEvent.accentColor || "#e10600"}`,
-                          borderRadius: 2,
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          borderRadius: 4,
                         }}
                       >
                         {selectedEvent.tickerText || "ANNR EVENT MARQUEE TICKER"} ·{" "}
