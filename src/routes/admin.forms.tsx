@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { setSite, uid } from "../admin/store";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { F, move, OrderBtns, useSite } from "../admin/site/fields";
 import type { FormCfg, FormField } from "../admin/site/types";
 
@@ -20,7 +20,12 @@ function Forms() {
   const save = (f: FormCfg) => setSite("forms", site.forms.map((x) => (x.id === f.id ? f : x)));
   return (
     <>
-      <div className="adm-top"><h1>Forms & submissions</h1></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Forms & submissions</h1>
+        </div>
+      </div>
       <div className="adm-row" style={{ marginBottom: 14 }}>{site.forms.map((f) => <button key={f.id} className={`adm-btn ${open === f.id ? "" : "ghost"}`} onClick={() => setOpen(f.id)}>{f.name}</button>)}</div>
       {site.forms.filter((f) => f.id === open).map((f) => {
         const setF = (fields: FormField[]) => save({ ...f, fields });
