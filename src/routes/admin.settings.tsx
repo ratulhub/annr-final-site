@@ -41,7 +41,12 @@ function Settings() {
   };
   return (
     <>
-      <div className="adm-top"><h1>Settings</h1></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Settings</h1>
+        </div>
+      </div>
       <Card title="General"><Obj k="general">{(g, set) => <div className="adm-grid">
         <F label="Site name" value={g.siteName} onChange={(siteName) => set({ siteName })} validate={(v) => (v.trim() ? null : "Required")} />
         <F label="Tagline" value={g.tagline} onChange={(tagline) => set({ tagline })} />
