@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { setSite, uid, useAdmin } from "../admin/store";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { BLOCKS } from "../admin/site/registry";
 import { move, OrderBtns } from "../admin/site/fields";
 import type { Block, CustomPage } from "../admin/site/types";
