@@ -70,7 +70,7 @@ function AdminLayout() {
   const query = q.trim().toLowerCase();
   const filteredGroups = NAV_GROUPS.map((g) => {
     const items = g.items.filter((i) => !query || i.label.toLowerCase().includes(query) || g.group.toLowerCase().includes(query));
-    return { group: g.group, items };
+    return { group: g.group, icon: g.icon, items };
   }).filter((g) => g.items.length > 0);
 
   return (
