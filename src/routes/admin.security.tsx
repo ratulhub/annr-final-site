@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Card } from "../admin/ui";
+import { Card, BackBtn } from "../admin/ui";
 import { getSession } from "../admin/store";
 import { authEvents, IDLE_MS, ABSOLUTE_MS, MAX_ATTEMPTS, LOCK_MS, reauthenticate } from "../admin/security/auth";
 import { PERMISSIONS, ROLES, ROLE_PERMISSIONS } from "../admin/security/permissions";
