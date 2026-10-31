@@ -76,11 +76,14 @@ function SectionsManager() {
   return (
     <>
       <div className="adm-top">
-        <div>
-          <h1>Page Sections & Layout</h1>
-          <p className="adm-hint" style={{ marginTop: 4 }}>
-            Control which full sections are shown or hidden on every page. Drag to reorder, duplicate, add custom banners, countdowns, and gift spotlights.
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <div>
+            <h1>Page Sections & Layout</h1>
+            <p className="adm-hint" style={{ marginTop: 4 }}>
+              Control which full sections are shown or hidden on every page. Drag to reorder, duplicate, add custom banners, countdowns, and gift spotlights.
+            </p>
+          </div>
         </div>
         <div className="adm-row" style={{ gap: 8 }}>
           <select value={tpl} onChange={(e) => setTpl(e.target.value)} style={{ width: 220, fontWeight: 600 }}>
