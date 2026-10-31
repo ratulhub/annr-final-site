@@ -17,7 +17,8 @@ begin
       'profiles','collections','products','product_images','product_variants','inventory',
       'collection_products','site_pages','site_config_versions','media_assets',
       'customer_addresses','saved_items','orders','order_items','discounts',
-      'contact_submissions','analytics_events','user_roles','role_permissions'
+      'contact_submissions','analytics_events','user_roles','role_permissions',
+      'campaign_events','hidden_pages'
     ]) as t
     left join pg_class c on c.relname = t and c.relnamespace = 'public'::regnamespace
    where c.oid is null or not c.relrowsecurity or not c.relforcerowsecurity;
