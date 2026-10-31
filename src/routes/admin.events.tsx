@@ -36,7 +36,7 @@ const blankEvent = (): CampaignEvent => ({
   topBarUrl: "/collections/all/index.html",
   showTicker: false,
   tickerText: "ANNR GIFT CAMPAIGN · FREE GIFT WITH ORDERS OVER ৳5,000 · SHOP NOW",
-  showFloatingGiftPill: true,
+  showFloatingGiftPill: false,
   pillText: "🎁 FREE GIFT WITH ৳5,000+",
   showCartReward: true,
   cartRewardMessage: "Add ৳{remaining} more to claim your FREE AnnR Gift!",
