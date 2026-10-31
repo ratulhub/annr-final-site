@@ -10,7 +10,13 @@ function ModulePage() {
   if (!m) return <div className="adm-card"><h2>Section not found</h2><Link className="link" to="/admin">Back to dashboard</Link></div>;
   return (
     <>
-      <div className="adm-top"><h1>{m.title}</h1><span className="adm-tag on">Active · {m.part}</span></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>{m.title}</h1>
+        </div>
+        <span className="adm-tag on">Active · {m.part}</span>
+      </div>
       <section className="adm-card">
         <h2>Module capabilities</h2>
         <ul style={{ margin: "10px 0 0 18px" }}>{m.plan.map((p) => <li key={p}>{p}</li>)}</ul>
