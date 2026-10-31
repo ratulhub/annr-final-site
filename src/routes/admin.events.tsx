@@ -391,36 +391,36 @@ function EventsManager() {
                   Storefront Placements & Display
                 </h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 18 }}>
-                  {/* Recommended Modern Luxury Placements */}
-                  <div style={{ border: "1px solid #10b981", borderRadius: 6, padding: "14px", background: "rgba(16, 185, 129, 0.04)" }}>
+                  {/* Authentic Streetwear Placements */}
+                  <div style={{ border: "1px solid #111827", borderRadius: 6, padding: "14px", background: "#f9fafb" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
-                      <strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", color: "#065f46" }}>
-                        Luxury Floating HUD & PDP Perks (Recommended · Zero UI Glitches)
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#111827", display: "inline-block" }} />
+                      <strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", color: "#111827" }}>
+                        Native Brand Navigation & Product Features (Zero AI Feel · Authentic Streetwear)
                       </strong>
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       <Chk
-                        label="Floating Screen HUD Capsule (Bottom-right luxury glass badge with glowing beacon)"
+                        label="Header Action Link (Displays cleanly in desktop & mobile header navigation alongside Vault & VIP)"
                         value={selectedEvent.showFloatingGiftPill}
                         onChange={(v) => updateEvent(selectedEvent.id, { showFloatingGiftPill: v })}
                       />
                       {selectedEvent.showFloatingGiftPill && (
                         <div style={{ marginTop: 4, marginLeft: 24 }}>
                           <label className="adm-field">
-                            <span>HUD pill badge label</span>
+                            <span>Navigation tag label</span>
                             <input
-                              value={selectedEvent.pillText}
+                              value={selectedEvent.pillText || selectedEvent.tag || "GIFT DROP"}
                               onChange={(e) => updateEvent(selectedEvent.id, { pillText: e.target.value })}
-                              placeholder="e.g. FREE GIFT // ৳5,000+ ORDERS"
+                              placeholder="e.g. GIFT DROP or SPECIAL EVENT"
                             />
                           </label>
                         </div>
                       )}
 
                       <Chk
-                        label="Product Page (PDP) Integrated Perk Chip (Directly above Add-to-Cart button)"
+                        label="Native Product Page (PDP) Feature Bullet (Blends directly into the product info feature list)"
                         value={selectedEvent.showPdpPerk ?? true}
                         onChange={(v) => updateEvent(selectedEvent.id, { showPdpPerk: v })}
                       />
@@ -444,58 +444,32 @@ function EventsManager() {
                     </div>
                   </div>
 
-                  {/* Legacy Header Bars (Optional) */}
-                  <details style={{ border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, padding: "10px 14px" }}>
-                    <summary style={{ cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--p-text-subdued)" }}>
-                      Legacy Header Bars (Disabled by default to preserve clean floating header)
-                    </summary>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-                      <div>
-                        <Chk
-                          label="Show Top Announcement Bar (Header Bar)"
-                          value={selectedEvent.showTopBar}
-                          onChange={(v) => updateEvent(selectedEvent.id, { showTopBar: v })}
-                        />
-                        {selectedEvent.showTopBar && (
-                          <div className="adm-grid" style={{ marginTop: 8 }}>
-                            <label className="adm-field" style={{ gridColumn: "1/-1" }}>
-                              <span>Top bar message text</span>
-                              <input
-                                value={selectedEvent.topBarText}
-                                onChange={(e) => updateEvent(selectedEvent.id, { topBarText: e.target.value })}
-                              />
-                            </label>
-                            <label className="adm-field" style={{ gridColumn: "1/-1" }}>
-                              <span>Top bar link URL</span>
-                              <input
-                                value={selectedEvent.topBarUrl}
-                                onChange={(e) => updateEvent(selectedEvent.id, { topBarUrl: e.target.value })}
-                              />
-                            </label>
-                          </div>
-                        )}
+                  {/* Header Announcement Bar (Optional) */}
+                  <div style={{ border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, padding: "10px 14px" }}>
+                    <Chk
+                      label="Show Single Top Announcement Bar (Header Bar)"
+                      value={selectedEvent.showTopBar}
+                      onChange={(v) => updateEvent(selectedEvent.id, { showTopBar: v })}
+                    />
+                    {selectedEvent.showTopBar && (
+                      <div className="adm-grid" style={{ marginTop: 8 }}>
+                        <label className="adm-field" style={{ gridColumn: "1/-1" }}>
+                          <span>Top bar message text</span>
+                          <input
+                            value={selectedEvent.topBarText}
+                            onChange={(e) => updateEvent(selectedEvent.id, { topBarText: e.target.value })}
+                          />
+                        </label>
+                        <label className="adm-field" style={{ gridColumn: "1/-1" }}>
+                          <span>Top bar link URL</span>
+                          <input
+                            value={selectedEvent.topBarUrl}
+                            onChange={(e) => updateEvent(selectedEvent.id, { topBarUrl: e.target.value })}
+                          />
+                        </label>
                       </div>
-
-                      <div>
-                        <Chk
-                          label="Show Infinite Marquee Ticker Banner (Sub-Header Bar)"
-                          value={selectedEvent.showTicker}
-                          onChange={(v) => updateEvent(selectedEvent.id, { showTicker: v })}
-                        />
-                        {selectedEvent.showTicker && (
-                          <div style={{ marginTop: 8 }}>
-                            <label className="adm-field">
-                              <span>Marquee scrolling text</span>
-                              <input
-                                value={selectedEvent.tickerText}
-                                onChange={(e) => updateEvent(selectedEvent.id, { tickerText: e.target.value })}
-                              />
-                            </label>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </details>
+                    )}
+                  </div>
                 </div>
 
                 {/* 5. Banner Colors */}
