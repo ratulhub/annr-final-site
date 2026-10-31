@@ -31,15 +31,15 @@ function Dashboard() {
   // Active events from site config
   const activeEvents = s.site.events ? s.site.events.filter((e) => e.status === "active").length : 0;
 
-  const stats: { k: string; v: string | number; sub: string; to: string; accent: string }[] = [
-    { k: "Active Products", v: `${activeProducts}/${s.products.length}`, sub: `${s.products.length - activeProducts} drafts`, to: "/admin/products", accent: "accent-emerald" },
-    { k: "Total Revenue", v: `৳${totalRevenue}`, sub: `${s.orders.length} orders placed`, to: "/admin/orders", accent: "accent-indigo" },
-    { k: "Units in Stock", v: stock.toLocaleString(), sub: "Across all sizes", to: "/admin/products", accent: "accent-sky" },
-    { k: "Low Stock Items", v: low.length, sub: low.length > 0 ? "Requires restock" : "All healthy", to: "/admin/products", accent: low.length > 0 ? "accent-rose" : "accent-emerald" },
-    { k: "Active Campaigns", v: activeEvents, sub: "Gifts & flash events", to: "/admin/events", accent: "accent-purple" },
-    { k: "Customers", v: s.customers.length, sub: `${vipCount} VIP members`, to: "/admin/customers", accent: "accent-indigo" },
-    { k: "Security Score", v: "100%", sub: "OWASP ASVS Passed", to: "/admin/security", accent: "accent-emerald" },
-    { k: "Custom Pages", v: s.site.customPages.length, sub: `${s.site.hiddenPages.length} hidden`, to: "/admin/website", accent: "accent-sky" },
+  const stats: { k: string; v: string | number; sub: string; to: string }[] = [
+    { k: "Active products", v: `${activeProducts} of ${s.products.length}`, sub: `${s.products.length - activeProducts} drafts`, to: "/admin/products" },
+    { k: "Total revenue", v: `৳${totalRevenue}`, sub: `${s.orders.length} orders placed`, to: "/admin/orders" },
+    { k: "Inventory units", v: stock.toLocaleString(), sub: "Across all sizes", to: "/admin/products" },
+    { k: "Low stock items", v: low.length, sub: low.length > 0 ? "Requires restock" : "All variants stocked", to: "/admin/products" },
+    { k: "Active campaigns", v: activeEvents, sub: "Live store drops", to: "/admin/events" },
+    { k: "Total customers", v: s.customers.length, sub: `${vipCount} VIP members`, to: "/admin/customers" },
+    { k: "Security status", v: "Verified", sub: "OWASP ASVS & RLS ready", to: "/admin/security" },
+    { k: "Custom pages", v: s.site.customPages.length, sub: `${s.site.hiddenPages.length} hidden`, to: "/admin/website" },
   ];
 
   const [cfg, setCfg] = useState<CardCfg>({ order: [], hidden: [] });
@@ -98,74 +98,91 @@ function Dashboard() {
       {/* Top Banner / Heading */}
       <div className="adm-top">
         <div>
-          <h1 style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span>Dashboard</span>
-            <span className="adm-tag active" style={{ fontSize: 10 }}>LIVE READY</span>
-          </h1>
-          <p className="adm-hint" style={{ marginTop: 4, fontSize: 12 }}>
-            Real-time management center for AnnR streetwear fashion.
+          <h1>Dashboard</h1>
+          <p className="adm-hint" style={{ marginTop: 2 }}>
+            Store overview and operational management
           </p>
         </div>
         <div className="adm-row">
           <button className="adm-btn ghost" onClick={() => setEditing(!editing)}>
-            {editing ? "Done Editing" : "⚙️ Customise Cards"}
+            {editing ? "Done" : "Customize metrics"}
           </button>
-          <button className="adm-btn ghost" onClick={handleExportData} title="Download a complete JSON snapshot of all products, pages, and settings">
-            📥 {downloadSuccess ? "Downloaded!" : "Export Store JSON"}
+          <button className="adm-btn ghost" onClick={handleExportData}>
+            {downloadSuccess ? "Downloaded backup" : "Export store data (JSON)"}
           </button>
           <a className="adm-btn ghost" href="/home.html" target="_blank" rel="noreferrer">
-            👁️ Preview Store ↗
+            View live store ↗
           </a>
-          <Link className="adm-btn" to="/admin/products" style={{ background: "var(--red)", borderColor: "var(--red)" }}>
-            ➕ Products
+          <Link className="adm-btn primary" to="/admin/products">
+            Add product
           </Link>
         </div>
       </div>
 
-      {/* Quick Action Navigation Bar */}
-      <div
-        className="adm-card"
-        style={{
-          padding: "16px 20px",
-          marginBottom: 24,
-          background: "linear-gradient(90deg, #0b0f19 0%, #151d2f 100%)",
-          color: "#ffffff",
-          borderColor: "#1e293b",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 16 }}>⚡</span>
-            <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase" }}>Quick Actions:</span>
-          </div>
-          <div className="adm-row" style={{ gap: 8 }}>
-            <Link to="/admin/events" className="adm-btn ghost sm" style={{ background: "#222f46", color: "#fff", borderColor: "#37496d" }}>
-              🎁 Campaigns & Gifts
+      {/* Quick Action Bar (Shopify Style) */}
+      <div className="adm-card" style={{ padding: "12px 18px", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--p-text)" }}>
+            Quick shortcuts:
+          </span>
+          <div className="adm-row" style={{ gap: 6 }}>
+            <Link to="/admin/events" className="adm-btn ghost sm">
+              Campaigns & gifts
             </Link>
-            <Link to="/admin/sections" className="adm-btn ghost sm" style={{ background: "#222f46", color: "#fff", borderColor: "#37496d" }}>
-              🧩 Page Sections
+            <Link to="/admin/sections" className="adm-btn ghost sm">
+              Page sections
             </Link>
-            <Link to="/admin/theme" className="adm-btn ghost sm" style={{ background: "#222f46", color: "#fff", borderColor: "#37496d" }}>
-              🎨 Appearance & Fonts
+            <Link to="/admin/theme" className="adm-btn ghost sm">
+              Theme & styling
             </Link>
-            <Link to="/admin/security" className="adm-btn ghost sm" style={{ background: "#222f46", color: "#10b981", borderColor: "#10b981" }}>
-              🛡️ Security Center
+            <Link to="/admin/security" className="adm-btn ghost sm">
+              Security center
             </Link>
-            <Link to="/admin/publish" className="adm-btn ghost sm" style={{ background: "#222f46", color: "#f59e0b", borderColor: "#f59e0b" }}>
-              🚀 Publish Center
+            <Link to="/admin/publish" className="adm-btn ghost sm">
+              Publish center
             </Link>
           </div>
         </div>
       </div>
 
+      {/* Low Stock Warning Alert (Shopify Polaris Banner) */}
+      {low.length > 0 && (
+        <div className="adm-banner warning">
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 13.5 }}>
+              Inventory warning: {low.length} item{low.length === 1 ? "" : "s"} low on stock
+            </div>
+            <div style={{ fontSize: 13, marginTop: 4 }}>
+              The following products have 2 or fewer units left in inventory:
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+              {low.map((p) => (
+                <Link
+                  key={p.handle}
+                  to="/admin/products/$handle"
+                  params={{ handle: p.handle }}
+                  className="adm-btn ghost sm"
+                  style={{ background: "#ffffff", borderColor: "#fed287" }}
+                >
+                  {p.title} ({p.variants.reduce((n, v) => n + (Number(v.stock) || 0), 0)} left) →
+                </Link>
+              ))}
+            </div>
+          </div>
+          <Link className="adm-btn ghost sm" to="/admin/products" style={{ alignSelf: "flex-start", background: "#ffffff" }}>
+            Manage inventory
+          </Link>
+        </div>
+      )}
+
       {/* Card Customization Panel */}
       {editing && (
-        <section className="adm-card" style={{ borderLeft: "4px solid var(--indigo)" }}>
-          <h2>Summary Cards Configuration</h2>
-          <p className="adm-hint">Toggle visibility and arrange card order to match your daily workflow.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10, margin: "14px 0" }}>
+        <section className="adm-card">
+          <h2>Summary metrics customization</h2>
+          <p className="adm-hint">Toggle visibility and arrange metric order to fit your dashboard.</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8, margin: "14px 0" }}>
             {ordered.map((x, i) => (
-              <div key={x.k} className="adm-row" style={{ padding: "8px 12px", background: "var(--soft)", borderRadius: 6 }}>
+              <div key={x.k} className="adm-row" style={{ padding: "8px 12px", background: "var(--p-background)", borderRadius: 6, border: "1px solid var(--p-border-subdued)" }}>
                 <input
                   type="checkbox"
                   checked={!cfg.hidden.includes(x.k)}
@@ -176,26 +193,26 @@ function Dashboard() {
                     })
                   }
                 />
-                <span style={{ flex: 1, fontWeight: 700, fontSize: 12 }}>{x.k}</span>
+                <span style={{ flex: 1, fontWeight: 500, fontSize: 13 }}>{x.k}</span>
                 <button className="adm-btn ghost sm" disabled={i === 0} onClick={() => shift(i, -1)}>↑</button>
                 <button className="adm-btn ghost sm" disabled={i === ordered.length - 1} onClick={() => shift(i, 1)}>↓</button>
               </div>
             ))}
           </div>
           <button className="adm-btn ghost sm" onClick={() => saveCfg({ order: [], hidden: [] })}>
-            Reset to Default
+            Reset to default
           </button>
         </section>
       )}
 
-      {/* Colorful Metric Cards */}
+      {/* Shopify Clean Metric Cards */}
       <div className="adm-stats">
         {ordered
           .filter((x) => !cfg.hidden.includes(x.k))
           .map((x) => (
             <Link
               to={x.to}
-              className={`adm-stat ${x.accent}`}
+              className="adm-stat"
               key={x.k}
               style={{ textDecoration: "none", color: "inherit" }}
             >
@@ -207,122 +224,70 @@ function Dashboard() {
       </div>
 
       {/* Analytics & System Health Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 20, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, marginBottom: 16 }}>
         {/* Visitors Chart */}
         <section className="adm-card" style={{ margin: 0 }}>
-          <div className="adm-top" style={{ marginBottom: 12, paddingBottom: 10 }}>
+          <div className="adm-top" style={{ marginBottom: 10, paddingBottom: 8 }}>
             <div>
-              <h2>Store Traffic Overview</h2>
-              <span className="adm-tag info" style={{ marginTop: 4 }}>Weekly Trends</span>
+              <h2>Store sessions</h2>
+              <span className="adm-hint" style={{ margin: 0 }}>Visitors by day this week</span>
             </div>
-            <Link className="adm-btn ghost sm" to="/admin/analytics/$report" params={{ report: "overview" }}>
-              Full Report →
+            <Link className="link" to="/admin/analytics/$report" params={{ report: "overview" }}>
+              Analytics report →
             </Link>
           </div>
-          <div className="adm-bars" style={{ marginTop: 20, marginBottom: 28 }}>
+          <div className="adm-bars" style={{ marginTop: 16, marginBottom: 24 }}>
             {DEMO_VISITS.map((v, i) => (
               <div key={i} style={{ height: `${(v / max) * 100}%` }} title={`${DAYS[i]}: ${v} visitors`}>
                 <span>{DAYS[i]}</span>
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>
-            <span>Weekly Average: <b>65 visits/day</b></span>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "var(--p-text-subdued)" }}>
+            <span>Weekly average: <b>65 sessions/day</b></span>
             <span>Peak: <b>Saturday ({max})</b></span>
           </div>
         </section>
 
         {/* Live Launch & System Status */}
         <section className="adm-card" style={{ margin: 0 }}>
-          <div className="adm-top" style={{ marginBottom: 12, paddingBottom: 10 }}>
+          <div className="adm-top" style={{ marginBottom: 10, paddingBottom: 8 }}>
             <div>
-              <h2>System & Launch Health</h2>
-              <span className="adm-tag active" style={{ marginTop: 4 }}>100% Operational</span>
+              <h2>Store status</h2>
+              <span className="adm-hint" style={{ margin: 0 }}>Live configuration & environment</span>
             </div>
-            <Link className="adm-btn ghost sm" to="/admin/settings">
-              Settings ⚙️
+            <Link className="link" to="/admin/settings">
+              Settings →
             </Link>
           </div>
           <div className="adm-status">
-            <span>Storefront Online</span>
-            <span className="adm-tag active">● Live</span>
+            <span>Storefront visibility</span>
+            <span className="adm-tag active">Online</span>
           </div>
           <div className="adm-status">
-            <span>Supabase RLS Database</span>
-            <span className="adm-tag active">● 8 Migrations Ready</span>
+            <span>Supabase database</span>
+            <span className="adm-tag active">8 migrations ready</span>
           </div>
           <div className="adm-status">
-            <span>Maintenance Mode</span>
-            <span className="adm-tag info">{s.site.technical.maintenance ? "Enabled (Store Locked)" : "Disabled (Open)"}</span>
+            <span>Maintenance mode</span>
+            <span className="adm-tag">{s.site.technical.maintenance ? "Enabled (locked)" : "Disabled (open)"}</span>
           </div>
           <div className="adm-status">
-            <span>Data Sync Mode</span>
-            <span className="adm-tag info">Live Browser Draft + Static Sync</span>
+            <span>Storage mode</span>
+            <span className="adm-tag">Browser draft + Static mirror</span>
           </div>
           <div className="adm-status">
-            <span>OWASP ASVS Security</span>
-            <span className="adm-tag active">Verified & Audited</span>
+            <span>Security audit</span>
+            <span className="adm-tag active">OWASP ASVS passed</span>
           </div>
         </section>
       </div>
 
-      {/* Low Stock Warning Alert if items exist */}
-      {low.length > 0 && (
-        <section className="adm-card" style={{ borderLeft: "4px solid var(--rose)", background: "#fffafb" }}>
-          <div className="adm-top" style={{ marginBottom: 12, paddingBottom: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 18 }}>⚠️</span>
-              <h2 style={{ color: "var(--rose)" }}>Inventory Alert: {low.length} Low Stock Item(s)</h2>
-            </div>
-            <Link className="adm-btn danger sm" to="/admin/products">
-              Manage Inventory
-            </Link>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
-            {low.map((p) => (
-              <div
-                key={p.handle}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 14px",
-                  background: "#ffffff",
-                  border: "1px solid var(--line)",
-                  borderRadius: 6,
-                }}
-              >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <Link
-                    to="/admin/products/$handle"
-                    params={{ handle: p.handle }}
-                    style={{ fontWeight: 700, color: "var(--ink)", textDecoration: "none" }}
-                  >
-                    {p.title}
-                  </Link>
-                  <div style={{ fontSize: 11, color: "var(--rose)", fontWeight: 700, marginTop: 2 }}>
-                    Only {p.variants.reduce((n, v) => n + (Number(v.stock) || 0), 0)} left in stock
-                  </div>
-                </div>
-                <Link
-                  to="/admin/products/$handle"
-                  params={{ handle: p.handle }}
-                  className="adm-btn ghost sm"
-                  style={{ fontSize: 10 }}
-                >
-                  Restock
-                </Link>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* Recent Orders with Interactive Status Tabs */}
       <section className="adm-card">
-        <div className="adm-top" style={{ marginBottom: 16, paddingBottom: 12 }}>
+        <div className="adm-top" style={{ marginBottom: 14, paddingBottom: 10 }}>
           <div>
-            <h2>Recent Orders</h2>
+            <h2>Recent orders</h2>
             <div className="adm-row" style={{ marginTop: 8, gap: 6 }}>
               <button
                 className={`adm-btn sm ${orderFilter === "all" ? "" : "ghost"}`}
@@ -351,33 +316,33 @@ function Dashboard() {
             </div>
           </div>
           <Link className="adm-btn ghost" to="/admin/orders">
-            View All Orders →
+            View all orders
           </Link>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th>Order ID</th>
-              <th>Customer</th>
+              <th>Order</th>
               <th>Date</th>
+              <th>Customer</th>
               <th>Items</th>
               <th>Total</th>
-              <th>Payment</th>
-              <th>Fulfillment</th>
+              <th>Payment status</th>
+              <th>Fulfillment status</th>
             </tr>
           </thead>
           <tbody>
             {filteredOrders.slice(-6).reverse().map((o) => (
               <tr key={o.id}>
-                <td><b style={{ color: "var(--ink)" }}>{o.id}</b></td>
-                <td>
-                  <div style={{ fontWeight: 700 }}>{o.customer}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted)" }}>{o.email}</div>
-                </td>
+                <td><b>{o.id}</b></td>
                 <td>{o.date}</td>
+                <td>
+                  <div style={{ fontWeight: 500 }}>{o.customer}</div>
+                  <div style={{ fontSize: 12, color: "var(--p-text-subdued)" }}>{o.email}</div>
+                </td>
                 <td>{o.items}</td>
-                <td><b style={{ color: "var(--ink)" }}>৳{o.total}</b></td>
+                <td>৳{o.total}</td>
                 <td>
                   <span className={`adm-tag ${o.payment.toLowerCase() === "paid" ? "paid" : "pending"}`}>
                     {o.payment}
@@ -396,46 +361,46 @@ function Dashboard() {
 
       {/* Recent Activity Log */}
       <section className="adm-card">
-        <div className="adm-top" style={{ marginBottom: 14, paddingBottom: 10 }}>
+        <div className="adm-top" style={{ marginBottom: 10, paddingBottom: 8 }}>
           <div>
-            <h2>Audit & Activity Trail</h2>
-            <span className="adm-hint" style={{ margin: 0 }}>Automatic tracking of every admin operation</span>
+            <h2>Audit log</h2>
+            <span className="adm-hint" style={{ margin: 0 }}>Recorded admin events and updates</span>
           </div>
-          <Link className="adm-btn ghost sm" to="/admin/activity">
-            Full Audit Log →
+          <Link className="link" to="/admin/activity">
+            View full log →
           </Link>
         </div>
         {s.activity.length ? (
           <table>
             <thead>
               <tr>
-                <th>Timestamp</th>
+                <th>Date & Time</th>
                 <th>Section</th>
                 <th>Action</th>
                 <th>Target Item</th>
-                <th>Admin Operator</th>
+                <th>Staff</th>
               </tr>
             </thead>
             <tbody>
               {s.activity.slice(0, 5).map((a) => (
                 <tr key={a.id}>
-                  <td style={{ fontSize: 12, color: "var(--muted)" }}>{new Date(a.at).toLocaleString()}</td>
+                  <td style={{ fontSize: 12.5, color: "var(--p-text-subdued)" }}>{new Date(a.at).toLocaleString()}</td>
                   <td>
-                    <span className="adm-tag info">{a.section}</span>
+                    <span className="adm-tag">{a.section}</span>
                   </td>
                   <td>
                     <span className={`adm-tag ${a.action === "added" ? "active" : a.action === "deleted" ? "danger" : "warning"}`}>
                       {a.action}
                     </span>
                   </td>
-                  <td><b>{a.item}</b> {a.fields && <small style={{ color: "var(--muted)" }}>({a.fields})</small>}</td>
-                  <td style={{ fontSize: 12, fontWeight: 600 }}>{a.by}</td>
+                  <td><b>{a.item}</b> {a.fields && <small style={{ color: "var(--p-text-subdued)" }}>({a.fields})</small>}</td>
+                  <td style={{ fontSize: 12.5 }}>{a.by}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p style={{ color: "var(--muted)", margin: "10px 0" }}>
+          <p style={{ color: "var(--p-text-subdued)", margin: "10px 0" }}>
             No recent changes yet. Modifying products, pages, or campaigns will log activities here.
           </p>
         )}
