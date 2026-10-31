@@ -102,6 +102,7 @@ export function siteDefaults(): SiteConfig {
         giftValue: "৳800",
         giftImage: "/cdn/shop/files/clocked-out-tamagotchi-flight-tag.jpg",
         giftDescription: "Limited edition vault release with exclusive collector flight tag for the first 100 orders.",
+        showPdpPerk: false,
         showTopBar: false,
         topBarText: "⚡ MIDNIGHT VAULT CAPSULE DROP IS NOW LIVE · LIMITED QUANTITIES",
         topBarUrl: "/collections/vault/index.html",
