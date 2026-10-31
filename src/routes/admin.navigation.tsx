@@ -1,6 +1,6 @@
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router";
 import { setSite, uid, useAdmin, setState, type Collection } from "../admin/store";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { Chk, F, Obj, UrlF, isUrl, move, OrderBtns, useSite } from "../admin/site/fields";
 import { siteDefaults } from "../admin/site/defaults";
 import type { FooterColumn, HeaderItem, Link } from "../admin/site/types";
@@ -28,8 +28,13 @@ function Navigation() {
     }));
   return (
     <>
-      <div className="adm-top"><h1>Navigation, header & footer</h1>
-        <button className="adm-btn ghost" onClick={() => confirm("Reset header and footer to the original?") && (setSite("header", siteDefaults().header), setSite("footer", siteDefaults().footer))}>Reset to original</button></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Navigation, header & footer</h1>
+        </div>
+        <button className="adm-btn ghost" onClick={() => confirm("Reset header and footer to the original?") && (setSite("header", siteDefaults().header), setSite("footer", siteDefaults().footer))}>Reset to original</button>
+      </div>
       <Card title="Header menu" action={<button className="adm-btn" onClick={() => setItems([...h.items, { id: uid(), label: "New link", url: "/collections/all/index.html", newTab: false, visible: true, original: null, device: "all" }])}>+ Add link</button>}>
         <p className="adm-hint">“Shop” and “Collections” keep their original drop-down menus; you can rename, hide or move them.</p>
         <table><thead><tr><th /><th>Label</th><th>Link</th><th>New tab</th><th>Show on</th><th>Visible</th><th /></tr></thead><tbody>
