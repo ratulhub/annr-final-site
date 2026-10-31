@@ -1,63 +1,49 @@
 import { REPORTS } from "../analytics/reports";
 // Admin sidebar structure. Items with `to` are working pages; items with `module`
 // open the module overview page and are labelled with the part that completes them.
-export type NavItem = { label: string; to?: string; module?: string; soon?: string; report?: string; badge?: string; badgeColor?: string };
-export type NavGroup = { group: string; icon?: string; items: NavItem[] };
+export type NavItem = { label: string; to?: string; module?: string; soon?: string; report?: string; badge?: string };
+export type NavGroup = { group: string; items: NavItem[] };
 
 export const NAV_GROUPS: NavGroup[] = [
-  { group: "Overview", icon: "📊", items: [
+  { group: "Overview", items: [
     { label: "Dashboard", to: "/admin" },
     { label: "Preview & publish", to: "/admin/publish" },
   ] },
-  { group: "Store", icon: "🛍️", items: [
-    { label: "Products", to: "/admin/products" },
-    { label: "Collections", to: "/admin/collections" },
-    { label: "Campaigns & Events", to: "/admin/events", badge: "NEW", badgeColor: "#ec4899" },
+  { group: "Orders & Sales", items: [
     { label: "Orders", to: "/admin/orders" },
     { label: "Customers", to: "/admin/customers" },
-    { label: "Discounts", to: "/admin/discounts" },
   ] },
-  { group: "Website & Pages", icon: "🌐", items: [
-    { label: "Website pages", to: "/admin/website" },
-    { label: "Page sections", to: "/admin/sections" },
+  { group: "Products & Catalog", items: [
+    { label: "Products", to: "/admin/products" },
+    { label: "Collections", to: "/admin/collections" },
+    { label: "Discounts & Coupons", to: "/admin/discounts" },
   ] },
-  { group: "Content Management", icon: "📝", items: [
-    { label: "Page text & policies", to: "/admin/pages" },
-    { label: "Banners, popups & replacements", to: "/admin/content" },
+  { group: "Marketing & Drops", items: [
+    { label: "Campaigns & Events", to: "/admin/events" },
+    { label: "Promotional Banners", to: "/admin/content" },
   ] },
-  { group: "Design & Appearance", icon: "🎨", items: [
-    { label: "Appearance", to: "/admin/theme" },
+  { group: "Online Store", items: [
+    { label: "Theme & Design", to: "/admin/theme" },
+    { label: "Page Sections", to: "/admin/sections" },
+    { label: "Website Pages", to: "/admin/website" },
+    { label: "Navigation Menus", to: "/admin/navigation" },
+    { label: "Policy & Text Pages", to: "/admin/pages" },
   ] },
-  { group: "Media Library", icon: "🖼️", items: [
-    { label: "Media", to: "/admin/media" },
+  { group: "Content & Assets", items: [
+    { label: "Media Library", to: "/admin/media" },
+    { label: "Forms & Inquiries", to: "/admin/forms" },
+    { label: "SEO & Discoverability", to: "/admin/seo" },
   ] },
-  { group: "Navigation & Footer", icon: "🧭", items: [
-    { label: "Header & footer", to: "/admin/navigation" },
-  ] },
-  { group: "Forms & Submissions", icon: "📋", items: [
-    { label: "Forms", to: "/admin/forms" },
-  ] },
-  { group: "SEO & Discoverability", icon: "🚀", items: [
-    { label: "SEO", to: "/admin/seo" },
-  ] },
-  { group: "Website Settings", icon: "⚙️", items: [
-    { label: "Settings", to: "/admin/settings" },
-  ] },
-  { group: "Integrations", icon: "🔌", items: [
-    { label: "Integrations", to: "/admin/integrations" },
-  ] },
-  { group: "Analytics", icon: "📈", items: REPORTS.map((r) => ({
+  { group: "Analytics & Reports", items: REPORTS.map((r) => ({
     label: r.title.replace("Analytics overview", "Overview").replace("Analytics settings", "Settings"),
     report: r.id,
   })) },
-  { group: "Users & Permissions", icon: "👥", items: [
-    { label: "Users & roles", to: "/admin/users" },
-  ] },
-  { group: "Activity & Audit History", icon: "📜", items: [
+  { group: "Settings & Security", items: [
+    { label: "Store Settings", to: "/admin/settings" },
+    { label: "Integrations", to: "/admin/integrations" },
+    { label: "Users & Roles", to: "/admin/users" },
     { label: "Activity Log", to: "/admin/activity" },
-  ] },
-  { group: "Security", icon: "🛡️", items: [
-    { label: "Security Center", to: "/admin/security", badge: "PROTECTED", badgeColor: "#10b981" },
+    { label: "Security Center", to: "/admin/security" },
   ] },
 ];
 
