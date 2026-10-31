@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { setState, useAdmin } from "../admin/store";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { Big, Chk, F, Obj, UrlF } from "../admin/site/fields";
 
 export const Route = createFileRoute("/admin/seo")({ component: Seo });
@@ -18,7 +18,12 @@ function Seo() {
     setState((x) => ({ ...x, [r.kind]: (x[r.kind] as Array<{ handle: string }>).map((y) => (y.handle === r.handle ? { ...y, [k]: v } : y)) } as Parameters<typeof setState>[0] extends (s: infer S) => infer S ? S : never));
   return (
     <>
-      <div className="adm-top"><h1>SEO & discoverability</h1></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>SEO & discoverability</h1>
+        </div>
+      </div>
       <Card title="Site defaults"><Obj k="seo">{(v, set) => <div className="adm-grid">
         <F label="Home page title" value={v.homeTitle} onChange={(homeTitle) => set({ homeTitle })} placeholder="Original title" />
         <F label="Title pattern" value={v.titlePattern} onChange={(titlePattern) => set({ titlePattern })} placeholder="{title} | AnnR" validate={(t) => (!t || t.includes("{title}") ? null : "Must include {title}")} />
