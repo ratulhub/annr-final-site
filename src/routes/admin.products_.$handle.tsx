@@ -20,7 +20,10 @@ function Edit() {
   return (
     <>
       <div className="adm-top">
-        <h1>{p.title}</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin/products" label="← Products" />
+          <h1>{p.title}</h1>
+        </div>
         <div className="adm-row">
           <span className="adm-saved">Auto-saved</span>
           <a className="adm-btn ghost" href={`/products/${p.handle}/index.html`} target="_blank" rel="noreferrer">View</a>
