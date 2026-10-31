@@ -290,26 +290,26 @@
 .adm-stat span {
   display: block;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--p-text-subdued);
+  font-weight: 600;
+  color: #4b5563;
   margin-bottom: 4px;
 }
 
 .adm-stat b {
   display: block;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--p-text);
-  letter-spacing: -0.01em;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-size: 26px;
+  font-weight: 750;
+  color: #111827;
+  letter-spacing: -0.02em;
 }
 
 .adm-stat small {
   display: block;
   font-size: 12px;
-  margin-top: 4px;
-  color: var(--p-text-subdued);
-  font-weight: 400;
+  margin-top: 5px;
+  color: #6b7280;
+  font-weight: 450;
 }
 
 .adm-stat.click {
