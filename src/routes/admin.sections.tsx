@@ -141,8 +141,7 @@ function SectionsManager() {
               }}
               style={{
                 opacity: s.visible ? 1 : 0.65,
-                borderLeft: s.visible ? "4px solid var(--emerald)" : "4px solid var(--amber)",
-                transition: "all 0.2s ease",
+                transition: "opacity 0.15s ease",
               }}
             >
               <div className="adm-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
@@ -151,13 +150,13 @@ function SectionsManager() {
                   <input
                     value={s.label}
                     onChange={(e) => up(i, { label: e.target.value })}
-                    style={{ width: 260, fontWeight: 700, fontSize: 14 }}
+                    style={{ width: 260, fontWeight: 600, fontSize: 13.5 }}
                     aria-label="Section name"
                   />
-                  <span className={`adm-tag ${s.visible ? "active" : "draft"}`} style={{ fontSize: 10, padding: "2px 8px" }}>
-                    {s.visible ? "VISIBLE" : "HIDDEN"}
+                  <span className={`adm-tag ${s.visible ? "active" : "draft"}`}>
+                    {s.visible ? "Visible" : "Hidden"}
                   </span>
-                  <span className="adm-tag info">
+                  <span className="adm-tag">
                     {s.added ? `added · ${SECTION_KINDS[s.added.kind]}` : s.copyOf ? "copy" : s.type}
                   </span>
                 </div>
