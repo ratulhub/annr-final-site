@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { clearActivity, useAdmin } from "../admin/store";
+import { BackBtn } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/activity")({ component: ActivityLog });
 
