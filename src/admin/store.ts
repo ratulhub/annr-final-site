@@ -217,7 +217,9 @@ export function siteConfig(s: State) {
 export type Published = ReturnType<typeof siteConfig>;
 function persist(s: State) {
   dataSource.write(KEY, s);
-  dataSource.write(DRAFT_KEY, siteConfig(s));
+  const cfg = siteConfig(s);
+  dataSource.write(DRAFT_KEY, cfg);
+  dataSource.write(PUB_KEY, cfg);
 }
 export const getPublished = () => dataSource.read<Published>(PUB_KEY);
 export const getHistory = () => dataSource.read<{ at: string; state: State }[]>(HIST_KEY) || [];

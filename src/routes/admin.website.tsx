@@ -17,10 +17,24 @@ function WebsitePagesManager() {
   const [search, setSearch] = useState("");
 
   const setCps = (l: CustomPage[]) => setSite("customPages", l);
-  const toggleHidden = (path: string) => {
-    const isHidden = hidden.includes(path);
-    const next = isHidden ? hidden.filter((x) => x !== path) : [...hidden, path];
+  const setHiddenBatch = (paths: string[], hide: boolean) => {
+    let next = [...hidden];
+    paths.forEach((p) => {
+      const variants = [p, p.replace(/\/index\.html$/, ""), p.replace(/\/index\.html$/, "") + "/index.html", p.replace(/\/index\.html$/, "") + "/"];
+      variants.forEach((v) => {
+        if (hide) {
+          if (!next.includes(v)) next.push(v);
+        } else {
+          next = next.filter((x) => x !== v);
+        }
+      });
+    });
     setSite("hiddenPages", next);
+  };
+
+  const toggleHidden = (path: string) => {
+    const isHidden = hidden.includes(path) || hidden.includes(path.replace(/\/index\.html$/, ""));
+    setHiddenBatch([path], !isHidden);
   };
 
   const slugOk = (slug: string, id: string) =>
