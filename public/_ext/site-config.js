@@ -205,6 +205,47 @@
   }
   var FULL = "position:fixed;inset:0;z-index:99999;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font:28px/1.4 'Druk Wide',sans-serif;text-transform:uppercase;padding:20px";
 
+  function showUnavailable(title, subtitle) {
+    document.title = "AnnR — " + (title || "Unavailable");
+    var earlyStyle = document.getElementById("adm-early-hide");
+    if (earlyStyle) earlyStyle.remove();
+    var t = title || "PAGE UNAVAILABLE";
+    var s = subtitle || "This page or collection is currently offline or unavailable.";
+    var html = "<div style='position:fixed;inset:0;z-index:999999;background:#050505;color:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;box-sizing:border-box'>" +
+      "<div style='font:9px \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#e10600;margin-bottom:12px'>[ 404 / OFFLINE ]</div>" +
+      "<h1 style='font:28px/1.2 \"Druk Wide\",sans-serif;letter-spacing:2px;text-transform:uppercase;margin:0 0 16px;color:#fff'>" + esc(t) + "</h1>" +
+      "<p style='font:12px/1.6 \"NB Architekt Std\",sans-serif;letter-spacing:1px;max-width:480px;opacity:.7;margin:0 0 28px;text-transform:uppercase'>" + esc(s) + "</p>" +
+      "<a href='/home.html' style='display:inline-block;background:#ffffff;color:#000000;text-decoration:none;padding:14px 32px;font:11px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;border-radius:2px;box-shadow:0 4px 14px rgba(0,0,0,.4)'>RETURN TO STORE</a>" +
+    "</div>";
+    if (document.body) {
+      document.body.innerHTML = html;
+    } else {
+      document.write(html);
+    }
+  }
+
+  // Early protection: suppress flash of hidden pages/collections before DOM rendering
+  (function earlyHideCheck() {
+    refreshState();
+    var norm = path.toLowerCase().replace(/\/index\.html$/, "").replace(/\/$/, "");
+    if (!norm) norm = "/";
+    var colH = handleOf(path, "collections");
+    var pgH = pageHandle(path);
+    var hideNow = false;
+    if (S.hiddenPages && S.hiddenPages.some(function(hp) {
+      var nhp = String(hp).toLowerCase().replace(/\/index\.html$/, "").replace(/\/$/, "");
+      return nhp && (norm === nhp || norm.indexOf(nhp + "/") === 0);
+    })) hideNow = true;
+    if (colH && ((C[colH] && C[colH].visible === false) || (allCols.some(function(c) { return c && c.handle === colH && c.visible === false; })))) hideNow = true;
+    if (pgH && G[pgH] && G[pgH].visible === false) hideNow = true;
+    if (hideNow && !preview) {
+      var s = document.createElement("style");
+      s.id = "adm-early-hide";
+      s.textContent = "body, #MainContent, .main-content, .shopify-section, main { display: none !important; }";
+      (document.head || document.documentElement).appendChild(s);
+    }
+  })();
+
   // Design tokens go in early so there is no flash.
   (function design() {
     var d = S.design || {}, o = D.design || {}, r = [];
