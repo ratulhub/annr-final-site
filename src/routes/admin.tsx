@@ -70,7 +70,7 @@ function AdminLayout() {
   const query = q.trim().toLowerCase();
   const filteredGroups = NAV_GROUPS.map((g) => {
     const items = g.items.filter((i) => !query || i.label.toLowerCase().includes(query) || g.group.toLowerCase().includes(query));
-    return { group: g.group, icon: g.icon, items };
+    return { group: g.group, items };
   }).filter((g) => g.items.length > 0);
 
   return (
@@ -78,7 +78,7 @@ function AdminLayout() {
       <aside className="adm-side">
         <div className="adm-logo">AnnR<small>Admin Panel</small></div>
         {path !== "/admin" && path !== "/admin/" && (
-          <div style={{ margin: "0 16px 12px" }}>
+          <div style={{ margin: "0 10px 10px" }}>
             <button
               type="button"
               className="adm-btn ghost sm"
@@ -88,15 +88,13 @@ function AdminLayout() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 6,
-                padding: "7px 10px",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
+                padding: "6px 10px",
+                fontSize: 12,
+                fontWeight: 500,
                 cursor: "pointer",
-                background: "#181818",
-                border: "1px solid #444",
-                color: "var(--paper)",
+                background: "#262626",
+                border: "1px solid #3d3d3d",
+                color: "#ffffff",
               }}
               onClick={() => {
                 if (window.history.length > 1) {
@@ -111,7 +109,7 @@ function AdminLayout() {
             </button>
           </div>
         )}
-        <div style={{ position: "relative", margin: "0 16px 14px" }}>
+        <div style={{ position: "relative", margin: "0 10px 12px" }}>
           <input
             type="search"
             id="admin-menu-search-input"
@@ -149,7 +147,7 @@ function AdminLayout() {
                 transform: "translateY(-50%)",
                 background: "transparent",
                 border: "none",
-                color: "var(--paper)",
+                color: "#ffffff",
                 cursor: "pointer",
                 padding: "2px 6px",
                 fontSize: 12,
@@ -165,38 +163,24 @@ function AdminLayout() {
         </div>
         <nav className="adm-nav">
           {filteredGroups.length === 0 && query ? (
-            <div style={{ padding: "16px", margin: "0 16px 16px", background: "#161616", border: "1px dashed #333", fontSize: 11, textAlign: "center" }}>
-              <div style={{ color: "var(--muted)", marginBottom: 8 }}>No menu items match "{q}"</div>
+            <div style={{ padding: "16px", margin: "0 10px 12px", background: "#262626", border: "1px dashed #444", fontSize: 12, textAlign: "center", borderRadius: 6 }}>
+              <div style={{ color: "#9ca3af", marginBottom: 8 }}>No menu items match "{q}"</div>
               <button
                 type="button"
                 className="adm-btn ghost sm"
-                style={{ width: "100%", fontSize: 10, padding: "5px 8px" }}
+                style={{ width: "100%", fontSize: 11, padding: "4px 8px" }}
                 onClick={() => setQ("")}
               >
-                Show All Menus
+                Show all menus
               </button>
             </div>
           ) : (
             filteredGroups.map((g) => (
               <div key={g.group} className="adm-group">
-                <div className="adm-group-title">
-                  {g.icon && <span style={{ fontSize: 13 }}>{g.icon}</span>}
-                  <span>{g.group}</span>
-                </div>
+                <div className="adm-group-title">{g.group}</div>
                 {g.items.map((i) => {
                   const badgeElement = i.badge ? (
-                    <span
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 800,
-                        padding: "2px 6px",
-                        borderRadius: 9999,
-                        background: i.badgeColor ? `${i.badgeColor}25` : "rgba(225,6,0,0.2)",
-                        color: i.badgeColor || "#ff4d4d",
-                        border: `1px solid ${i.badgeColor ? `${i.badgeColor}60` : "rgba(225,6,0,0.4)"}`,
-                        letterSpacing: "0.05em",
-                      }}
-                    >
+                    <span className="adm-tag" style={{ fontSize: 10, padding: "1px 6px" }}>
                       {i.badge}
                     </span>
                   ) : null;
@@ -227,15 +211,13 @@ function AdminLayout() {
               </div>
             ))
           )}
-          <div className="adm-group" style={{ borderTop: "1px solid #1e293b", paddingTop: 14, marginTop: 16 }}>
-            <a href="/home.html" target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, color: "#10b981", fontWeight: 700 }}>
-              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }} />
-              <span>View Live Store ↗</span>
+          <div className="adm-group" style={{ borderTop: "1px solid #2d2d2d", paddingTop: 12, marginTop: 12 }}>
+            <a href="/home.html" target="_blank" rel="noreferrer" style={{ color: "#4ade80" }}>
+              Online Store ↗
             </a>
-            <a href="#" onClick={(e) => { e.preventDefault(); logout(); setAuthed(false); }} style={{ color: "#ef4444" }}>Log out</a>
-            <div style={{ padding: "10px 20px 0", fontSize: 10, color: "#64748b", display: "flex", flexDirection: "column", gap: 3 }}>
-              <span>OWASP ASVS · Security Verified</span>
-              <a href="https://ratul.site" target="_blank" rel="noopener noreferrer" style={{ padding: 0, margin: 0, fontSize: 10, color: "#94a3b8" }}>created by Ratul ↗</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); logout(); setAuthed(false); }}>Log out</a>
+            <div style={{ padding: "8px 12px 0", fontSize: 11, color: "#8c9196" }}>
+              <a href="https://ratul.site" target="_blank" rel="noopener noreferrer" style={{ padding: 0, margin: 0, fontSize: 11, color: "#9ca3af" }}>created by Ratul ↗</a>
             </div>
           </div>
         </nav>
@@ -252,11 +234,9 @@ function AdminLayout() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 5,
-                padding: "7px 14px",
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
+                padding: "6px 12px",
+                fontSize: 12.5,
+                fontWeight: 500,
                 cursor: "pointer",
                 flexShrink: 0,
               }}
@@ -272,12 +252,12 @@ function AdminLayout() {
               ← Back
             </button>
           )}
-          <div className="adm-crumbs" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <Link to="/admin" style={{ fontWeight: 800, color: "var(--ink)" }}>Admin</Link>
+          <div className="adm-crumbs" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <Link to="/admin" style={{ fontWeight: 600, color: "var(--p-text)" }}>Admin</Link>
             {crumbs.map((c, idx) => (
-              <span key={idx} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                <span style={{ opacity: 0.4, fontWeight: 700 }}>/</span>
-                {c.to ? <Link to={c.to} style={{ textDecoration: "underline", fontWeight: 600 }}>{c.label}</Link> : <span style={{ fontWeight: 700, color: "var(--ink)" }}>{c.label}</span>}
+              <span key={idx} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span style={{ opacity: 0.4 }}>/</span>
+                {c.to ? <Link to={c.to} style={{ textDecoration: "none" }}>{c.label}</Link> : <span style={{ fontWeight: 600, color: "var(--p-text)" }}>{c.label}</span>}
               </span>
             ))}
           </div>
@@ -286,15 +266,12 @@ function AdminLayout() {
               href="/home.html"
               target="_blank"
               rel="noreferrer"
-              className="adm-tag online"
-              style={{ textDecoration: "none", cursor: "pointer", fontWeight: 700 }}
+              className="adm-tag active"
+              style={{ textDecoration: "none", cursor: "pointer", fontWeight: 500 }}
               title="View the live AnnR store in a new tab"
             >
-              Store Online ↗
+              Online Store ↗
             </a>
-            <span className="adm-tag info" title="Supabase SQL migrations 00-08 prepared and verified">
-              Supabase Ready
-            </span>
             <PublishButton />
             <Notifications />
             <AccountMenu onLogout={() => { logout(); setAuthed(false); }} />
