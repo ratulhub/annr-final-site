@@ -1,5 +1,31 @@
 import type { ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 import { uid } from "./store";
+
+export function BackBtn({ to = "/admin", label = "← Back" }: { to?: string; label?: string }) {
+  return (
+    <Link
+      to={to}
+      className="adm-btn ghost sm"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "6px 12px",
+        fontSize: 10,
+        fontWeight: 700,
+        textDecoration: "none",
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+        whiteSpace: "nowrap",
+        flexShrink: 0,
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </Link>
+  );
+}
 
 export function Card({ title, children, action }: { title?: string; children: ReactNode; action?: ReactNode }) {
   return (
