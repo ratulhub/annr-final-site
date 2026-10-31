@@ -29,7 +29,7 @@ function Dashboard() {
   }, 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   // Active events from site config
-  const activeEvents = s.site.events ? s.site.events.filter((e) => e.active !== false).length : 1;
+  const activeEvents = s.site.events ? s.site.events.filter((e) => e.status === "active").length : 0;
 
   const stats: { k: string; v: string | number; sub: string; to: string; accent: string }[] = [
     { k: "Active Products", v: `${activeProducts}/${s.products.length}`, sub: `${s.products.length - activeProducts} drafts`, to: "/admin/products", accent: "accent-emerald" },
