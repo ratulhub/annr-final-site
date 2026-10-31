@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { setState, useAdmin, type Order } from "../admin/store";
-import { Card, RowList } from "../admin/ui";
+import { BackBtn, Card, RowList } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/orders")({ component: Orders });
 
