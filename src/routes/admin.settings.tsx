@@ -4,7 +4,7 @@ import { useState } from "react";
 import { replaceState, resetState, setState, useAdmin, type State } from "../admin/store";
 import { confirmReauth, getSession, logAuthEvent } from "../admin/security/auth";
 import { can, ROLES } from "../admin/security/permissions";
-import { Card, KeyValueEditor } from "../admin/ui";
+import { BackBtn, Card, KeyValueEditor } from "../admin/ui";
 import { Big, Chk, F, Obj, UrlF } from "../admin/site/fields";
 
 export const Route = createFileRoute("/admin/settings")({ component: Settings });
