@@ -8,7 +8,12 @@ function Discounts() {
   const s = useAdmin();
   return (
     <>
-      <div className="adm-top"><h1>Discounts</h1></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Discounts</h1>
+        </div>
+      </div>
       <Card>
         <RowList<Discount> rows={s.discounts} onChange={(r) => setState((x) => ({ ...x, discounts: r }))}
           blank={{ code: "", type: "percentage", value: "", minOrder: "0", uses: 0, limit: "", active: true, starts: "", ends: "" }}
