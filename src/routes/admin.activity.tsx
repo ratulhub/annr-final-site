@@ -14,7 +14,11 @@ function ActivityLog() {
   const list = log.filter((a) => (sec === "all" || a.section === sec) && (a.item + " " + a.fields).toLowerCase().includes(q.toLowerCase()));
   return (
     <>
-      <div className="adm-top"><h1>Activity Log ({log.length})</h1>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Activity Log ({log.length})</h1>
+        </div>
         <button className="adm-btn danger" onClick={() => confirm("Clear the whole activity log?") && clearActivity()}>Clear log</button>
       </div>
       <p className="adm-hint" style={{ marginBottom: 10 }}>Demo history saved in this browser. It can be cleared, so it is not a tamper-proof security audit trail.</p>
