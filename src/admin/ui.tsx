@@ -17,12 +17,10 @@ export function BackBtn({
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        padding: "7px 14px",
-        fontSize: 11,
-        fontWeight: 700,
+        padding: "6px 12px",
+        fontSize: 13,
+        fontWeight: 500,
         textDecoration: "none",
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
         whiteSpace: "nowrap",
         flexShrink: 0,
         cursor: "pointer",
@@ -48,7 +46,6 @@ export function Card({
   title,
   children,
   action,
-  accent,
   subtitle,
 }: {
   title?: string;
@@ -58,15 +55,12 @@ export function Card({
   subtitle?: string;
 }) {
   return (
-    <section
-      className="adm-card"
-      style={accent ? { borderTop: `4px solid ${accent}` } : undefined}
-    >
+    <section className="adm-card">
       {(title || action || subtitle) && (
-        <div className="adm-top" style={{ marginBottom: 16, paddingBottom: 12 }}>
+        <div className="adm-top" style={{ marginBottom: 14, paddingBottom: 10 }}>
           <div>
             {title && <h2>{title}</h2>}
-            {subtitle && <p className="adm-hint" style={{ margin: "4px 0 0" }}>{subtitle}</p>}
+            {subtitle && <p className="adm-hint" style={{ margin: "2px 0 0" }}>{subtitle}</p>}
           </div>
           {action}
         </div>
