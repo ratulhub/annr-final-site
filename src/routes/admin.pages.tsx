@@ -26,17 +26,21 @@ function Pages() {
   return (
     <>
       <div className="adm-top">
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <BackBtn to="/admin" label="← Dashboard" />
-          <h1>Pages</h1>
+          <div>
+            <h1>Store Pages & Policies ({s.pages.length})</h1>
+            <p className="adm-hint" style={{ margin: "2px 0 0" }}>Manage FAQ, Terms, Shipping & Privacy policies</p>
+          </div>
         </div>
-        <button className="adm-btn" onClick={() => setState((x) => ({ ...x, pages: [{ handle: "page-" + uid(), title: "New page", body: "", visible: false, seoTitle: "", seoDescription: "" }, ...x.pages] }))}>+ Add page</button>
+        <button className="adm-btn" onClick={() => setState((x) => ({ ...x, pages: [{ handle: "page-" + uid(), title: "New page", body: "", visible: true, seoTitle: "", seoDescription: "" }, ...x.pages] }))} style={{ background: "var(--red)", borderColor: "var(--red)" }}>+ Add page</button>
       </div>
       {s.pages.map((p) => (
-        <Card key={p.handle} title={p.title} action={<div className="adm-row">
-          <span className={"adm-tag" + (p.visible ? " on" : "")}>{p.visible ? "visible" : "hidden"}</span>
-          <button className={"adm-btn" + (p.visible ? " ghost" : "")} onClick={() => up(p.handle, { visible: !p.visible })}>{p.visible ? "Hide" : "Show"}</button>
-          <button className="adm-btn danger" onClick={() => confirm("Delete?") && setState((x) => ({ ...x, pages: x.pages.filter((y) => y.handle !== p.handle) }))}>Delete</button>
+        <Card key={p.handle} title={p.title} subtitle={`/pages/${p.handle}`} action={<div className="adm-row">
+          <span className={`adm-tag ${p.visible ? "active" : "draft"}`}>{p.visible ? "Visible" : "Hidden"}</span>
+          <button className={`adm-btn sm ${p.visible ? "ghost" : ""}`} onClick={() => up(p.handle, { visible: !p.visible })}>{p.visible ? "Hide" : "Show"}</button>
+          <a href={`/pages/${p.handle}/index.html`} target="_blank" rel="noreferrer" className="adm-btn ghost sm">Preview ↗</a>
+          <button className="adm-btn danger sm" onClick={() => confirm(`Delete page "${p.title}"?`) && setState((x) => ({ ...x, pages: x.pages.filter((y) => y.handle !== p.handle) }))}>Delete</button>
         </div>}>
           <div className="adm-grid">
             <Text label="Title" value={p.title} onChange={(v) => up(p.handle, { title: v })} />
