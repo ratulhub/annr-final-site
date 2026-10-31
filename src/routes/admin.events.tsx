@@ -167,31 +167,31 @@ function EventsManager() {
                     key={ev.id}
                     onClick={() => setSelectedId(ev.id)}
                     style={{
-                      border: isSelected ? "2px solid var(--red)" : "1px solid var(--line)",
-                      borderRadius: 6,
+                      border: isSelected ? "2px solid #202223" : "1px solid var(--p-border-subdued)",
+                      borderRadius: 8,
                       padding: "14px 16px",
                       cursor: "pointer",
-                      background: isSelected ? "#fffbfb" : "#fff",
-                      boxShadow: isSelected ? "0 4px 14px rgba(225, 6, 0, 0.12)" : "0 1px 3px rgba(0,0,0,0.03)",
-                      transition: "all 0.15s ease",
+                      background: isSelected ? "#f9fafb" : "#ffffff",
+                      boxShadow: isSelected ? "0 0 0 1px #202223" : "0 1px 3px rgba(0,0,0,0.05)",
+                      transition: "all 0.12s ease",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                      <span className={`adm-tag ${isActive ? "active" : "draft"}`} style={{ fontSize: 10, padding: "2px 8px" }}>
-                        {isActive ? "LIVE" : "PAUSED"}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <span className={`adm-tag ${isActive ? "active" : "draft"}`}>
+                        {isActive ? "Active" : "Paused"}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--indigo)" }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: "var(--p-text-subdued)" }}>
                         {EVENT_TYPES[ev.type].split(" ")[0]}
                       </span>
                     </div>
 
-                    <div style={{ fontWeight: 600, fontSize: 14, color: "#000", marginBottom: 4 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--p-text)", marginBottom: 4 }}>
                       {ev.title}
                     </div>
 
-                    <div style={{ fontSize: 11, color: "#666", marginBottom: 10, lineHeight: 1.4 }}>
+                    <div style={{ fontSize: 12.5, color: "var(--p-text-subdued)", marginBottom: 10, lineHeight: 1.4 }}>
                       {ev.type === "gift_with_purchase" ? (
-                        <>🎁 Free: <strong>{ev.giftItem || "Gift Item"}</strong> {ev.minSpend ? `(Orders > ৳${ev.minSpend})` : ""}</>
+                        <>Free gift: <strong>{ev.giftItem || "Gift item"}</strong> {ev.minSpend ? `(Orders over ৳${ev.minSpend})` : ""}</>
                       ) : (
                         <>{ev.badgeText || ev.tag} · {ev.continuous ? "Continuous" : `${ev.startsAt} to ${ev.endsAt}`}</>
                       )}
