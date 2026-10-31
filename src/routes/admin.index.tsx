@@ -214,9 +214,16 @@ function Dashboard() {
               to={x.to}
               className="adm-stat"
               key={x.k}
-              style={{ textDecoration: "none", color: "inherit" }}
+              style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
             >
-              <span>{x.k}</span>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <span>{x.k}</span>
+                {x.chip && (
+                  <span className={`adm-tag ${x.chip.tone}`} style={{ fontSize: 11, padding: "2px 7px" }}>
+                    {x.chip.text}
+                  </span>
+                )}
+              </div>
               <b>{x.v}</b>
               <small>{x.sub}</small>
             </Link>
