@@ -524,11 +524,104 @@ function EventsManager() {
               {/* Live Storefront Component Preview */}
               <Card title="Live Storefront Component Preview">
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {/* Top Bar Preview */}
+                  {/* Floating HUD Capsule Preview */}
+                  {selectedEvent.showFloatingGiftPill && (
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, textTransform: "uppercase", color: "var(--p-text-subdued)" }}>
+                        1. Floating Screen HUD Badge (Bottom-Right Capsule):
+                      </div>
+                      <div style={{ display: "inline-flex", background: "#1a1a1a", padding: 16, borderRadius: 8, width: "100%", justifyContent: "center" }}>
+                        <div
+                          style={{
+                            background: "rgba(10, 10, 14, 0.95)",
+                            border: "1px solid rgba(255, 255, 255, 0.22)",
+                            borderRadius: 999,
+                            padding: "7px 14px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 10,
+                            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.6)",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: "50%",
+                              background: "#00e676",
+                              display: "inline-block",
+                              boxShadow: "0 0 8px #00e676",
+                            }}
+                          />
+                          <span
+                            style={{
+                              fontFamily: "'NB Architekt Std', sans-serif",
+                              fontSize: 10.5,
+                              letterSpacing: 1,
+                              textTransform: "uppercase",
+                              color: "#ffffff",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {selectedEvent.tag || "FREE GIFT"} // {Number(selectedEvent.minSpend) > 0 ? `৳${selectedEvent.minSpend}+` : "ALL"} ORDERS
+                          </span>
+                          <span
+                            style={{
+                              background: "#ffffff",
+                              color: "#000000",
+                              padding: "3px 8px",
+                              borderRadius: 999,
+                              fontFamily: "'NB Architekt Std', sans-serif",
+                              fontSize: 9,
+                              fontWeight: 800,
+                              letterSpacing: 1,
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            VIEW
+                          </span>
+                          <span style={{ color: "#ffffff", opacity: 0.5, fontSize: 12, marginLeft: 2 }}>✕</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PDP Integrated Perk Preview */}
+                  {(selectedEvent.showPdpPerk ?? true) && (
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, textTransform: "uppercase", color: "var(--p-text-subdued)" }}>
+                        2. Product Page (PDP) Integrated Perk Chip:
+                      </div>
+                      <div
+                        style={{
+                          background: "rgba(0, 230, 118, 0.08)",
+                          border: "1px solid rgba(0, 230, 118, 0.4)",
+                          borderRadius: 4,
+                          padding: "10px 14px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          fontFamily: "'NB Architekt Std', sans-serif",
+                          fontSize: 11,
+                          letterSpacing: 0.8,
+                          color: "#111",
+                        }}
+                      >
+                        <span style={{ fontWeight: 700 }}>
+                          🎁 FREE GIFT: {Number(selectedEvent.minSpend) > 0 ? `ORDERS OVER ৳${selectedEvent.minSpend}` : "ALL ORDERS"} RECEIVE {selectedEvent.giftItem || "EXCLUSIVE GIFT"}
+                        </span>
+                        <span style={{ textDecoration: "underline", fontWeight: 700, marginLeft: 8, fontSize: 10, cursor: "pointer" }}>
+                          DETAILS →
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top Bar Preview (If explicitly enabled) */}
                   {selectedEvent.showTopBar && (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>
-                        Top Bar Preview:
+                        Legacy Top Bar:
                       </div>
                       <div
                         style={{
@@ -548,11 +641,11 @@ function EventsManager() {
                     </div>
                   )}
 
-                  {/* Ticker Preview */}
+                  {/* Ticker Preview (If explicitly enabled) */}
                   {selectedEvent.showTicker && (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>
-                        Marquee Ticker Banner Preview:
+                        Legacy Marquee Ticker:
                       </div>
                       <div
                         style={{
@@ -568,36 +661,7 @@ function EventsManager() {
                           borderRadius: 4,
                         }}
                       >
-                        {selectedEvent.tickerText || "ANNR EVENT MARQUEE TICKER"} ·{" "}
                         {selectedEvent.tickerText || "ANNR EVENT MARQUEE TICKER"}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Floating Pill Preview */}
-                  {selectedEvent.showFloatingGiftPill && (
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>
-                        Floating Trigger Pill Preview:
-                      </div>
-                      <div style={{ display: "inline-flex" }}>
-                        <div
-                          style={{
-                            background: selectedEvent.bg || "#000",
-                            color: selectedEvent.textColor || "#fff",
-                            padding: "8px 16px",
-                            borderRadius: 999,
-                            fontFamily: "'NB Architekt Std', sans-serif",
-                            fontSize: 11,
-                            letterSpacing: 1,
-                            fontWeight: 700,
-                            boxShadow: "0 4px 14px rgba(0,0,0,0.3)",
-                            border: `1px solid ${selectedEvent.accentColor || "#e10600"}`,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {selectedEvent.pillText || "🎁 Free Gift"}
-                        </div>
                       </div>
                     </div>
                   )}
