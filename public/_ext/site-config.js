@@ -395,9 +395,18 @@
     var colHandle = handleOf(path, "collections");
     var col = tpl === "collection" && (C[colHandle] || colsMap[colHandle]);
     if (hidden || (pg && pg.visible === false) || (col && col.visible === false))
-      return overlay("adm-404", "<div>" + esc(tech.notFoundTitle || "Page not found") + "<br><small style='font-size:11px'>" + esc(tech.notFoundText || "This collection is currently unavailable.") + "<br><a href='/home.html' style='color:#fff'>HOME</a></small></div>", FULL);
+      return overlay("adm-404", "<div>" + esc(tech.notFoundTitle || "Page not found") + "<br><small style='font-size:11px'>" + esc(tech.notFoundText || "This page or collection is currently unavailable.") + "<br><a href='/home.html' style='color:#fff'>HOME</a></small></div>", FULL);
     if (tech.maintenance)
       return overlay("adm-maint", "<div>" + esc(tech.maintenanceTitle || gen.siteName) + "<br><small style='font-size:11px;letter-spacing:1px'>" + esc(tech.maintenanceText) + "</small></div>", FULL);
+
+    // Dynamic Navigation cleanup for hidden pages
+    (S.hiddenPages || []).forEach(function (hp) {
+      if (!hp) return;
+      document.querySelectorAll("a[href*='" + hp + "']").forEach(function (a) {
+        var pItem = a.closest(".header-menu-item, .header-new__mega-section, .collection-menu__item, .footer-menu-list-item, .mobile-menu-sublinks-item, .header-new__mobile-section");
+        if (pItem) pItem.style.setProperty("display", "none", "important");
+      });
+    });
 
     // Dynamic Collections reference synchronization in Navbar:
     // 1. Desktop header mega-menu dropdown under Collections
@@ -800,12 +809,43 @@
         el = src.cloneNode(true);
       } else {
         var a = s.added; el = document.createElement("section");
-        var img = a.kind === "image" && a.image ? "<img src='" + esc(safeUrl(a.image)) + "' alt='" + esc(a.alt) + "' style='width:100%;display:block;margin-bottom:20px'>" : "";
-        var btn = a.kind !== "text" && a.button ? "<a href='" + esc(safeUrl(a.url)) + "' style='display:inline-block;margin-top:16px;background:#000;color:#fff;padding:12px 20px;text-decoration:none;text-transform:uppercase;font:10px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1px'>" + esc(a.button) + "</a>" : "";
-        el.innerHTML = "<div style='padding:48px 20px;max-width:1440px;margin:0 auto'>" + img + (a.heading ? "<h2 style='font-family:\"Druk Wide\",sans-serif;text-transform:uppercase;font-size:24px;margin:0 0 12px'>" + esc(a.heading) + "</h2>" : "") + (a.text ? "<p style='font-family:\"NB Architekt Std\",sans-serif;font-size:12px;line-height:1.6;white-space:pre-line;margin:0'>" + esc(a.text) + "</p>" : "") + btn + "</div>";
+        var img = (a.kind === "image" || a.kind === "gift_banner") && a.image ? "<img src='" + esc(safeUrl(a.image)) + "' alt='" + esc(a.alt || a.heading || "") + "' style='width:100%;max-height:480px;object-fit:cover;display:block;margin-bottom:20px'>" : "";
+        var btn = a.button ? "<a href='" + esc(safeUrl(a.url || "/collections/all/index.html")) + "' style='display:inline-block;margin-top:16px;background:#000;color:#fff;padding:12px 24px;text-decoration:none;text-transform:uppercase;font:11px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1px;font-weight:700'>" + esc(a.button) + "</a>" : "";
+        var extraHtml = "";
+        if (a.kind === "countdown") {
+          extraHtml = "<div data-countdown-end='" + esc(a.endDate || "") + "' style='margin:16px 0'><div class='adm-countdown-digits' style='font-family:\"Druk Wide\",sans-serif;font-size:26px;letter-spacing:2px;color:currentColor;margin:12px 0'>00D : 00H : 00M : 00S</div></div>";
+        } else if (a.kind === "products") {
+          var prods = getFullCatalog().filter(function(p) { return !a.collection || a.collection === "all" || (p.collections && p.collections.indexOf(a.collection) >= 0); }).slice(0, Number(a.limit) || 4);
+          extraHtml = "<div class='collection-product-grid' style='display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px;margin-top:24px'>" + prods.map(function(p) { return renderProductCardHtml(p, P && P[p.handle]); }).join("") + "</div>";
+        }
+        el.innerHTML = "<div style='padding:48px 20px;max-width:1440px;margin:0 auto'>" + img + (a.heading ? "<h2 style='font-family:\"Druk Wide\",sans-serif;text-transform:uppercase;font-size:24px;margin:0 0 12px'>" + esc(a.heading) + "</h2>" : "") + (a.text ? "<p style='font-family:\"NB Architekt Std\",sans-serif;font-size:12px;line-height:1.6;white-space:pre-line;margin:0'>" + esc(a.text) + "</p>" : "") + extraHtml + btn + "</div>";
       }
       el.id = "shopify-section-adm__" + s.key;
       if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor); else document.body.appendChild(el);
+    });
+
+    // Realtime countdown clock ticker
+    document.querySelectorAll("[data-countdown-end]").forEach(function (el) {
+      if (el.__annrTimer) return;
+      var endStr = el.getAttribute("data-countdown-end");
+      if (!endStr) return;
+      var target = new Date(endStr).getTime();
+      if (isNaN(target)) return;
+      function tick() {
+        var diff = Math.max(0, target - Date.now());
+        var d = Math.floor(diff / 86400000);
+        var h = Math.floor((diff % 86400000) / 3600000);
+        var m = Math.floor((diff % 3600000) / 60000);
+        var s = Math.floor((diff % 60000) / 1000);
+        var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+        var disp = el.querySelector(".adm-countdown-digits");
+        if (disp) {
+          disp.textContent = pad(d) + "D : " + pad(h) + "H : " + pad(m) + "M : " + pad(s) + "S";
+        }
+        if (diff <= 0 && el.__annrTimer) clearInterval(el.__annrTimer);
+      }
+      tick();
+      el.__annrTimer = setInterval(tick, 1000);
     });
     // Section order
     if (secs && dsecs && J(secs.map(function (s) { return s.key; })) !== J(dsecs.map(function (s) { return s.key; }))) {
@@ -836,6 +876,102 @@
       var cb = overlay("adm-cookie", esc(ck.text) + (ck.policyUrl ? " <a href='" + esc(safeUrl(ck.policyUrl)) + "' style='color:#fff'>Policy</a>" : "") + " <button type='button' style='margin-left:10px;background:#fff;color:#000;border:0;padding:6px 12px;cursor:pointer'>" + esc(ck.button || "OK") + "</button>",
         "position:fixed;left:16px;right:16px;bottom:16px;z-index:99980;background:#000;color:#fff;padding:14px;font:11px 'NB Architekt Std',sans-serif;text-align:center");
       if (cb) cb.querySelector("button").onclick = function () { localStorage.setItem("shihiko-cookie-ok", "1"); cb.remove(); };
+    }
+
+    // Gift Campaigns & Events Engine
+    (function applyCampaignsAndEvents() {
+      var events = S.events || [];
+      var now = new Date().toISOString().slice(0, 10);
+      var activeEvent = events.find(function (ev) {
+        if (!ev || ev.status === "paused") return false;
+        if (ev.status === "active") return true;
+        if (ev.status === "scheduled") {
+          return (!ev.startsAt || ev.startsAt <= now) && (!ev.endsAt || ev.endsAt >= now);
+        }
+        return false;
+      });
+
+      // 1. Top Announcement Bar for Active Event
+      var topBarEl = document.getElementById("adm-event-topbar");
+      if (activeEvent && activeEvent.showTopBar && activeEvent.topBarText) {
+        if (!topBarEl) {
+          topBarEl = document.createElement(activeEvent.topBarUrl ? "a" : "div");
+          topBarEl.id = "adm-event-topbar";
+          document.body.insertBefore(topBarEl, document.body.firstChild);
+        }
+        if (activeEvent.topBarUrl) topBarEl.href = safeUrl(activeEvent.topBarUrl);
+        topBarEl.textContent = activeEvent.topBarText;
+        topBarEl.style.cssText = "display:block;text-decoration:none;background:" + (cv(activeEvent.bg) || "#050505") + ";color:" + (cv(activeEvent.textColor) || "#ffffff") + ";text-align:center;font:10px/1 'NB Architekt Std',sans-serif;letter-spacing:1px;text-transform:uppercase;padding:10px 12px;position:relative;z-index:10002;border-bottom:1px solid " + (cv(activeEvent.accentColor) || "#e10600");
+      } else if (topBarEl) {
+        topBarEl.remove();
+      }
+
+      // 2. Marquee Scrolling Ticker
+      var tickerEl = document.getElementById("adm-event-ticker");
+      if (activeEvent && activeEvent.showTicker && activeEvent.tickerText) {
+        if (!tickerEl) {
+          tickerEl = document.createElement("div");
+          tickerEl.id = "adm-event-ticker";
+          var headerEl = document.querySelector(".header") || document.querySelector('[id$="__main-header"]');
+          if (headerEl && headerEl.nextSibling) {
+            headerEl.parentNode.insertBefore(tickerEl, headerEl.nextSibling);
+          } else {
+            document.body.insertBefore(tickerEl, document.body.firstChild);
+          }
+          css("@keyframes admMarqueeScroll{0%{transform:translateX(0%)}100%{transform:translateX(-50%)}}");
+        }
+        var msg = esc(activeEvent.tickerText);
+        var repeated = "<span>" + msg + " &nbsp; // &nbsp; " + msg + " &nbsp; // &nbsp; " + msg + " &nbsp; // &nbsp; </span>";
+        tickerEl.style.cssText = "overflow:hidden;white-space:nowrap;background:" + (cv(activeEvent.bg) || "#000") + ";color:" + (cv(activeEvent.textColor) || "#fff") + ";font:10px/1 'Druk Wide',sans-serif;letter-spacing:1.5px;text-transform:uppercase;padding:8px 0;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1)";
+        tickerEl.innerHTML = "<div style='display:inline-block;animation:admMarqueeScroll 25s linear infinite;min-width:200%'>" + repeated + repeated + "</div>";
+      } else if (tickerEl) {
+        tickerEl.remove();
+      }
+
+      // 3. Floating Gift Trigger Pill
+      var pillEl = document.getElementById("adm-floating-gift-pill");
+      if (activeEvent && activeEvent.showFloatingGiftPill) {
+        if (!pillEl) {
+          pillEl = document.createElement("button");
+          pillEl.id = "adm-floating-gift-pill";
+          pillEl.type = "button";
+          pillEl.setAttribute("aria-label", "View Free Gift Campaign");
+          document.body.appendChild(pillEl);
+          pillEl.addEventListener("click", function () {
+            openGiftModal(activeEvent);
+          });
+        }
+        pillEl.textContent = activeEvent.pillText || "🎁 Free Gift";
+        pillEl.style.cssText = "position:fixed;right:20px;bottom:24px;z-index:99990;background:" + (cv(activeEvent.bg) || "#050505") + ";color:" + (cv(activeEvent.textColor) || "#ffffff") + ";border:1px solid " + (cv(activeEvent.accentColor) || "#e10600") + ";border-radius:999px;padding:10px 18px;font:11px/1 'NB Architekt Std',sans-serif;letter-spacing:1px;font-weight:700;text-transform:uppercase;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35);transition:transform .2s ease";
+      } else if (pillEl) {
+        pillEl.remove();
+      }
+    })();
+
+    function openGiftModal(ev) {
+      var modal = document.getElementById("adm-gift-modal");
+      if (modal) modal.remove();
+      var img = ev.giftImage ? "<img src='" + esc(safeImg(ev.giftImage)) + "' alt='" + esc(ev.giftItem) + "' style='width:100%;max-height:240px;object-fit:cover;border-radius:4px;margin-bottom:16px;background:#111'>" : "";
+      var cond = Number(ev.minSpend) > 0 ? "Qualified on all orders over ৳" + esc(ev.minSpend) : "Qualified on all orders";
+      var codeHtml = ev.discountCode ? "<div style='font-size:11px;opacity:.8;margin-top:6px'>Code: <strong style='color:" + (cv(ev.accentColor) || "#e10600") + "'>" + esc(ev.discountCode) + "</strong></div>" : "";
+      modal = overlay("adm-gift-modal",
+        "<div style='background:#050505;color:#fff;max-width:440px;width:90%;padding:28px;border:1px solid " + (cv(ev.accentColor) || "#e10600") + ";font:12px/1.5 \"NB Architekt Std\",sans-serif;position:relative;border-radius:4px'>" +
+          "<button type='button' data-close style='position:absolute;top:12px;right:14px;background:none;border:0;color:#fff;font-size:18px;cursor:pointer;line-height:1'>✕</button>" +
+          "<div style='font:9px \"FK Grotesk SemiMono\",monospace;letter-spacing:1.5px;color:" + (cv(ev.accentColor) || "#e10600") + ";margin-bottom:6px'>" + esc(ev.tag || "FREE GIFT") + " · " + esc(ev.badgeText || "PROMOTION") + "</div>" +
+          "<div style='font:20px \"Druk Wide\",sans-serif;text-transform:uppercase;margin-bottom:8px'>" + esc(ev.title) + "</div>" +
+          img +
+          "<div style='font-size:14px;font-weight:700;margin-bottom:4px'>" + esc(ev.giftItem) + " <span style='font-size:12px;opacity:.7;font-weight:400'>(" + esc(ev.giftValue || "FREE") + ")</span></div>" +
+          "<p style='opacity:.8;font-size:12px;margin:0 0 10px'>" + esc(ev.giftDescription || "") + "</p>" +
+          "<div style='background:rgba(255,255,255,.08);padding:10px 14px;border-radius:4px;margin-bottom:16px;font-size:11px'>" + cond + codeHtml + "</div>" +
+          "<a href='/collections/all/index.html' style='display:block;text-align:center;background:#fff;color:#000;padding:12px 20px;text-decoration:none;text-transform:uppercase;font:11px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1px;font-weight:700;border-radius:2px'>SHOP NOW &amp; CLAIM GIFT</a>" +
+        "</div>",
+        "position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px"
+      );
+      if (modal) {
+        modal.addEventListener("click", function (e) {
+          if (e.target === modal || e.target.hasAttribute("data-close")) modal.remove();
+        });
+      }
     }
   }
   window.shihikoApply = apply;

@@ -1,4 +1,4 @@
-import type { Block, SectionCfg } from "./types";
+import type { Block, SectionCfg, AddedSection } from "./types";
 
 // Every store page template and the real sections it contains (found in the saved pages).
 // Keys match the end of each section's id on the page, so settings survive across pages.
@@ -37,6 +37,20 @@ export const TEMPLATES: Record<string, { label: string; sample: string; sections
     sec("template-faq", "Page content", "text"),
     sec("main-footer", "Footer", "footer"),
   ] },
+  search: { label: "Search results page", sample: "/search/index.html", sections: [
+    sec("main-header", "Header", "header"),
+    sec("search-results", "Search filter & product grid", "products"),
+    sec("main-footer", "Footer", "footer"),
+  ] },
+};
+
+export const SECTION_KINDS: Record<AddedSection["kind"], string> = {
+  text: "Text block",
+  image: "Image banner",
+  cta: "Call to action",
+  gift_banner: "Gift & campaign banner",
+  countdown: "Launch / event countdown",
+  products: "Featured products showcase",
 };
 
 // Block types allowed on new pages, with a blank value and validation for each.
@@ -57,4 +71,4 @@ export const SPACING = ["", "0", "16px", "32px", "48px", "64px", "96px", "128px"
 export const SCALE = ["", "90%", "100%", "110%", "120%"];
 export const RADIUS = ["", "0", "2px", "4px", "8px", "999px"];
 export const WIDTHS = ["", "1200px", "1440px", "1600px", "100%"];
-export const SCOPES = ["all", "home", "product", "collection", "page"];
+export const SCOPES = ["all", "home", "product", "collection", "page", "search"];

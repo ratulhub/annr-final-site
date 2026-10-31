@@ -44,12 +44,13 @@ export function canAssignRole(actorRole: Role | null, actorId: string, targetId:
 // Which permission each admin page needs (prefix match on the path).
 export const ROUTE_PERMISSION: [string, Permission][] = [
   ["/admin/security", "security.read"], ["/admin/users", "users.manage"], ["/admin/activity", "audit.read"],
-  ["/admin/products", "catalog.read"], ["/admin/collections", "catalog.read"], ["/admin/orders", "orders.read"],
-  ["/admin/customers", "customers.read"], ["/admin/discounts", "marketing.write"], ["/admin/analytics", "analytics.read"],
-  ["/admin/settings", "settings.write"], ["/admin/integrations", "integrations.write"], ["/admin/publish", "site.publish"],
-  ["/admin/media", "media.write"], ["/admin/seo", "content.write"], ["/admin/forms", "content.read"],
-  ["/admin/website", "content.read"], ["/admin/sections", "content.read"], ["/admin/content", "content.read"],
-  ["/admin/pages", "content.read"], ["/admin/navigation", "content.read"], ["/admin/theme", "content.read"],
+  ["/admin/products", "catalog.read"], ["/admin/collections", "catalog.read"], ["/admin/events", "marketing.write"],
+  ["/admin/orders", "orders.read"], ["/admin/customers", "customers.read"], ["/admin/discounts", "marketing.write"],
+  ["/admin/analytics", "analytics.read"], ["/admin/settings", "settings.write"], ["/admin/integrations", "integrations.write"],
+  ["/admin/publish", "site.publish"], ["/admin/media", "media.write"], ["/admin/seo", "content.write"],
+  ["/admin/forms", "content.read"], ["/admin/website", "content.read"], ["/admin/sections", "content.read"],
+  ["/admin/content", "content.read"], ["/admin/pages", "content.read"], ["/admin/navigation", "content.read"],
+  ["/admin/theme", "content.read"],
 ];
 export function permissionForPath(path: string): Permission | null {
   return ROUTE_PERMISSION.find(([p]) => path === p || path.startsWith(p + "/"))?.[1] ?? null;

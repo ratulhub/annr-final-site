@@ -8,6 +8,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { group: "Overview", items: [{ label: "Dashboard", to: "/admin" }, { label: "Preview & publish", to: "/admin/publish" }] },
   { group: "Store", items: [
     { label: "Products", to: "/admin/products" }, { label: "Collections", to: "/admin/collections" },
+    { label: "Campaigns & Events", to: "/admin/events" },
     { label: "Orders", to: "/admin/orders" }, { label: "Customers", to: "/admin/customers" }, { label: "Discounts", to: "/admin/discounts" },
   ] },
   { group: "Website & Pages", items: [{ label: "Website pages", to: "/admin/website" }, { label: "Page sections", to: "/admin/sections" }] },

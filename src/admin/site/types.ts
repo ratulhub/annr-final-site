@@ -2,12 +2,42 @@
 export type Link = { id: string; label: string; url: string; newTab: boolean; visible: boolean };
 export type HeaderItem = Link & { original: number | null; device: "all" | "desktop" | "mobile" };
 export type FooterColumn = { id: string; title: string; visible: boolean; links: Link[] };
-export type SectionCfg = { key: string; label: string; type: string; visible: boolean; padTop: string; padBottom: string; background: string; align: "" | "left" | "center" | "right"; width: "" | "full" | "contained"; device: "all" | "desktop" | "mobile";
-  /** Copy of an original store section (its key). */ copyOf?: string | undefined;
-  /** Section added in the admin (not in the original page). */ added?: { kind: "text" | "image" | "cta"; heading: string; text: string; image: string; alt: string; button: string; url: string } | undefined };
+
+export type AddedSection = {
+  kind: "text" | "image" | "cta" | "gift_banner" | "countdown" | "products";
+  heading: string;
+  text: string;
+  image: string;
+  alt: string;
+  button: string;
+  url: string;
+  endDate?: string | undefined;
+  collection?: string | undefined;
+  limit?: string | undefined;
+  eventId?: string | undefined;
+};
+
+export type SectionCfg = {
+  key: string;
+  label: string;
+  type: string;
+  visible: boolean;
+  padTop: string;
+  padBottom: string;
+  background: string;
+  align: "" | "left" | "center" | "right";
+  width: "" | "full" | "contained";
+  device: "all" | "desktop" | "mobile";
+  /** Copy of an original store section (its key). */
+  copyOf?: string | undefined;
+  /** Section added in the admin (not in the original page). */
+  added?: AddedSection | undefined;
+};
+
 export type TextRule = { id: string; find: string; replace: string; scope: string; enabled: boolean };
 export type ImageRule = { id: string; from: string; to: string; alt: string; position: "" | "top" | "center" | "bottom"; scope: string; enabled: boolean };
 export type MediaItem = { id: string; name: string; url: string; alt: string; caption: string; type: string; size: number; source: "store" | "upload" | "link"; addedAt: string };
+
 export type Block =
   | { id: string; type: "heading"; text: string; level: "h1" | "h2" | "h3"; align: string }
   | { id: string; type: "text"; text: string; align: string }
@@ -17,9 +47,41 @@ export type Block =
   | { id: string; type: "products"; title: string; handles: string; limit: string }
   | { id: string; type: "gallery"; images: string; columns: string }
   | { id: string; type: "spacer"; size: string };
+
 export type CustomPage = { id: string; slug: string; title: string; status: "draft" | "published"; showInNav: boolean; seoTitle: string; seoDescription: string; blocks: Block[] };
 export type FormField = { id: string; key: string; label: string; placeholder: string; required: boolean; enabled: boolean };
 export type FormCfg = { id: string; name: string; where: string; title: string; button: string; success: string; error: string; consent: string; fields: FormField[] };
+
+export type CampaignEvent = {
+  id: string;
+  title: string;
+  type: "gift_with_purchase" | "event" | "flash_sale" | "countdown";
+  status: "active" | "paused" | "scheduled";
+  tag: string;
+  badgeText: string;
+  startsAt: string;
+  endsAt: string;
+  continuous: boolean;
+  minSpend: string;
+  targetCollection: string;
+  discountCode: string;
+  giftItem: string;
+  giftValue: string;
+  giftImage: string;
+  giftDescription: string;
+  showTopBar: boolean;
+  topBarText: string;
+  topBarUrl: string;
+  showTicker: boolean;
+  tickerText: string;
+  showFloatingGiftPill: boolean;
+  pillText: string;
+  showCartReward: boolean;
+  cartRewardMessage: string;
+  bg: string;
+  textColor: string;
+  accentColor: string;
+};
 
 export type SiteConfig = {
   general: { siteName: string; tagline: string; description: string; logoUrl: string; logoAlt: string; secondaryLogo: string; favicon: string; contactEmail: string; contactLabel: string; phone: string; address: string; locale: string; timezone: string; copyright: string };
@@ -40,4 +102,5 @@ export type SiteConfig = {
   integrations: { id: string; name: string; kind: string; status: "not connected"; note: string }[];
   hiddenPages: string[];
   customPages: CustomPage[];
+  events: CampaignEvent[];
 };

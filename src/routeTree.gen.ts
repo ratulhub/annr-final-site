@@ -18,6 +18,7 @@ import { Route as AdminCollectionsRouteImport } from './routes/admin.collections
 import { Route as AdminContentRouteImport } from './routes/admin.content'
 import { Route as AdminCustomersRouteImport } from './routes/admin.customers'
 import { Route as AdminDiscountsRouteImport } from './routes/admin.discounts'
+import { Route as AdminEventsRouteImport } from './routes/admin.events'
 import { Route as AdminFormsRouteImport } from './routes/admin.forms'
 import { Route as AdminIntegrationsRouteImport } from './routes/admin.integrations'
 import { Route as AdminMediaRouteImport } from './routes/admin.media'
@@ -82,6 +83,11 @@ const AdminCustomersRoute = AdminCustomersRouteImport.update({
 const AdminDiscountsRoute = AdminDiscountsRouteImport.update({
   id: '/discounts',
   path: '/discounts',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminEventsRoute = AdminEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminFormsRoute = AdminFormsRouteImport.update({
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
   '/admin/discounts': typeof AdminDiscountsRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/forms': typeof AdminFormsRoute
   '/admin/integrations': typeof AdminIntegrationsRoute
   '/admin/media': typeof AdminMediaRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
   '/admin/discounts': typeof AdminDiscountsRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/forms': typeof AdminFormsRoute
   '/admin/integrations': typeof AdminIntegrationsRoute
   '/admin/media': typeof AdminMediaRoute
@@ -256,6 +264,7 @@ export interface FileRoutesById {
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
   '/admin/discounts': typeof AdminDiscountsRoute
+  '/admin/events': typeof AdminEventsRoute
   '/admin/forms': typeof AdminFormsRoute
   '/admin/integrations': typeof AdminIntegrationsRoute
   '/admin/media': typeof AdminMediaRoute
@@ -289,6 +298,7 @@ export interface FileRouteTypes {
     | '/admin/content'
     | '/admin/customers'
     | '/admin/discounts'
+    | '/admin/events'
     | '/admin/forms'
     | '/admin/integrations'
     | '/admin/media'
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/admin/content'
     | '/admin/customers'
     | '/admin/discounts'
+    | '/admin/events'
     | '/admin/forms'
     | '/admin/integrations'
     | '/admin/media'
@@ -350,6 +361,7 @@ export interface FileRouteTypes {
     | '/admin/content'
     | '/admin/customers'
     | '/admin/discounts'
+    | '/admin/events'
     | '/admin/forms'
     | '/admin/integrations'
     | '/admin/media'
@@ -443,6 +455,13 @@ declare module '@tanstack/react-router' {
       path: '/discounts'
       fullPath: '/admin/discounts'
       preLoaderRoute: typeof AdminDiscountsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/events': {
+      id: '/admin/events'
+      path: '/events'
+      fullPath: '/admin/events'
+      preLoaderRoute: typeof AdminEventsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/forms': {
@@ -594,6 +613,7 @@ interface AdminRouteChildren {
   AdminContentRoute: typeof AdminContentRoute
   AdminCustomersRoute: typeof AdminCustomersRoute
   AdminDiscountsRoute: typeof AdminDiscountsRoute
+  AdminEventsRoute: typeof AdminEventsRoute
   AdminFormsRoute: typeof AdminFormsRoute
   AdminIntegrationsRoute: typeof AdminIntegrationsRoute
   AdminMediaRoute: typeof AdminMediaRoute
@@ -622,6 +642,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminContentRoute: AdminContentRoute,
   AdminCustomersRoute: AdminCustomersRoute,
   AdminDiscountsRoute: AdminDiscountsRoute,
+  AdminEventsRoute: AdminEventsRoute,
   AdminFormsRoute: AdminFormsRoute,
   AdminIntegrationsRoute: AdminIntegrationsRoute,
   AdminMediaRoute: AdminMediaRoute,
