@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { setState, useAdmin, type Customer } from "../admin/store";
-import { Card, RowList } from "../admin/ui";
+import { BackBtn, Card, RowList } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/customers")({ component: Customers });
 
@@ -8,7 +8,12 @@ function Customers() {
   const s = useAdmin();
   return (
     <>
-      <div className="adm-top"><h1>Customers ({s.customers.length})</h1></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Customers ({s.customers.length})</h1>
+        </div>
+      </div>
       <Card>
         <RowList<Customer> rows={s.customers} onChange={(r) => setState((x) => ({ ...x, customers: r }))}
           blank={{ name: "", email: "", phone: "", orders: 0, points: 0, tier: "Bronze", tags: "", blocked: false }}
