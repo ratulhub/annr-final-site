@@ -10,11 +10,11 @@
 -- Safe to re-run: uses IF NOT EXISTS, ALTER COLUMN SET DEFAULT, and idempotent updates.
 -- =====================================================================================
 
--- ---------- 1. Ensure column defaults prevent intrusive header sandwich ----------
+-- ---------- 1. Ensure column defaults prevent intrusive header bars or floating widgets ----------
 alter table if exists public.campaign_events
   alter column show_top_bar set default false,
   alter column show_ticker set default false,
-  alter column show_floating_gift_pill set default true;
+  alter column show_floating_gift_pill set default false;
 
 -- ---------- 2. Add show_pdp_perk column if not exists ----------
 do $$ begin
@@ -31,9 +31,9 @@ update public.campaign_events
 set
   show_top_bar = false,
   show_ticker = false,
-  show_floating_gift_pill = true,
+  show_floating_gift_pill = false,
   updated_at = now()
-where show_top_bar = true or show_ticker = true;
+where show_top_bar = true or show_ticker = true or show_floating_gift_pill = true;
 
 -- Log migration in audit trail
 do $$ begin
