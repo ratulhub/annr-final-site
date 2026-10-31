@@ -24,29 +24,29 @@ function Customers() {
 
       {/* Customer Insights */}
       <div className="adm-stats">
-        <div className="adm-stat accent-indigo">
-          <span>Registered Customers</span>
+        <div className="adm-stat">
+          <span>Customers</span>
           <b>{s.customers.length}</b>
-          <small>Active shopper database</small>
+          <small>Registered shopper accounts</small>
         </div>
-        <div className="adm-stat accent-purple">
-          <span>VIP Loyalty Members</span>
+        <div className="adm-stat">
+          <span>VIP members</span>
           <b>{vipCount}</b>
           <small>Silver, Gold & Diamond</small>
         </div>
-        <div className="adm-stat accent-amber">
-          <span>Total Reward Points</span>
+        <div className="adm-stat">
+          <span>Reward points</span>
           <b>{totalPoints.toLocaleString()}</b>
           <small>Points in circulation</small>
         </div>
-        <div className="adm-stat accent-rose">
-          <span>Blocked Accounts</span>
+        <div className="adm-stat">
+          <span>Blocked accounts</span>
           <b>{blockedCount}</b>
           <small>{blockedCount > 0 ? "Restricted from ordering" : "No blocked users"}</small>
         </div>
       </div>
 
-      <Card title="Customer Directory & VIP Tiers" subtitle="Edit customer attributes, award loyalty points, change VIP tiers, or restrict abusive accounts">
+      <Card title="Customers" subtitle="Manage customer contact info, loyalty points, VIP tiers, and status">
         <RowList<Customer>
           rows={s.customers}
           onChange={(r) => setState((x) => ({ ...x, customers: r }))}
