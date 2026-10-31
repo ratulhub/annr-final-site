@@ -124,3 +124,4 @@ create policy hidden_pages_write_staff on public.hidden_pages
   for all to authenticated
   using (public.has_permission('content.write') or public.has_permission('site.publish'))
   with check (public.has_permission('content.write') or public.has_permission('site.publish'));
+
