@@ -152,6 +152,9 @@ export function siteConfig(s: State) {
     for (const item of s[sec] as Array<Record<string, unknown>>) {
       const o = orig.get(item["handle"] as string); const d: Record<string, unknown> = {};
       for (const f of PUBLIC_FIELDS[sec]) if (!o || JSON.stringify(o[f]) !== JSON.stringify(item[f])) d[f] = item[f];
+      if (sec === "collections" || sec === "pages") {
+        d["visible"] = item["visible"] !== false;
+      }
       if (Object.keys(d).length) out[sec][item["handle"] as string] = d;
     }
   }
