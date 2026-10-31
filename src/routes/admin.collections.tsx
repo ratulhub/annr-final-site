@@ -28,7 +28,13 @@ function Collections() {
   const add = () => { const h = "new-collection-" + uid(); setState((x) => ({ ...x, collections: [{ handle: h, title: "New collection", description: "", image: "", visible: false, sort: "manual", products: [], seoTitle: "", seoDescription: "" }, ...x.collections] })); setOpen(h); };
   return (
     <>
-      <div className="adm-top"><h1>Collections ({s.collections.length})</h1><button className="adm-btn" onClick={add}>+ Add collection</button></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Collections ({s.collections.length})</h1>
+        </div>
+        <button className="adm-btn" onClick={add}>+ Add collection</button>
+      </div>
       {s.collections.map((c) => (
         <Card key={c.handle} title={c.title} action={<div className="adm-row">
           <span className={"adm-tag" + (c.visible ? " on" : "")}>{c.visible ? "visible" : "hidden"}</span>

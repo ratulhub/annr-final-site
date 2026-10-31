@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { setState, uid, useAdmin, type Page } from "../admin/store";
-import { Area, Card, Text, Toggle } from "../admin/ui";
+import { Area, BackBtn, Card, Text, Toggle } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/pages")({ component: Pages });
 
