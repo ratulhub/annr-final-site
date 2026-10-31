@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { setSite } from "../admin/store";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { FONT_OPTIONS, RADIUS, SCALE, WIDTHS } from "../admin/site/registry";
 import { siteDefaults } from "../admin/site/defaults";
 import { Big, Chk, ColorF, DevicePreview, F, Obj, Pick, UrlF } from "../admin/site/fields";
@@ -10,8 +10,13 @@ export const Route = createFileRoute("/admin/theme")({ component: Theme });
 function Theme() {
   return (
     <>
-      <div className="adm-top"><h1>Appearance & design</h1>
-        <button className="adm-btn ghost" onClick={() => confirm("Reset all design settings to the original look?") && setSite("design", siteDefaults().design)}>Reset to original</button></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Appearance & design</h1>
+        </div>
+        <button className="adm-btn ghost" onClick={() => confirm("Reset all design settings to the original look?") && setSite("design", siteDefaults().design)}>Reset to original</button>
+      </div>
       <p className="adm-hint">Empty values keep the original AnnR design. Choices are limited to safe values so the layout can't break.</p>
       <Obj k="design">{(d, set) => <>
         <Card title="Colours"><div className="adm-grid">
