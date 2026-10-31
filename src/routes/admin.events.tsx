@@ -498,94 +498,50 @@ function EventsManager() {
               {/* Live Storefront Component Preview */}
               <Card title="Live Storefront Component Preview">
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {/* Floating HUD Capsule Preview */}
+                  {/* Header Navigation Link Preview */}
                   {selectedEvent.showFloatingGiftPill && (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, textTransform: "uppercase", color: "var(--p-text-subdued)" }}>
-                        1. Floating Screen HUD Badge (Bottom-Right Capsule):
+                        1. Native Header Action (Appears alongside Vault &amp; VIP in navigation):
                       </div>
-                      <div style={{ display: "inline-flex", background: "#1a1a1a", padding: 16, borderRadius: 8, width: "100%", justifyContent: "center" }}>
-                        <div
-                          style={{
-                            background: "rgba(10, 10, 14, 0.95)",
-                            border: "1px solid rgba(255, 255, 255, 0.22)",
-                            borderRadius: 999,
-                            padding: "7px 14px",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 10,
-                            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.6)",
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: 7,
-                              height: 7,
-                              borderRadius: "50%",
-                              background: "#00e676",
-                              display: "inline-block",
-                              boxShadow: "0 0 8px #00e676",
-                            }}
-                          />
-                          <span
-                            style={{
-                              fontFamily: "'NB Architekt Std', sans-serif",
-                              fontSize: 10.5,
-                              letterSpacing: 1,
-                              textTransform: "uppercase",
-                              color: "#ffffff",
-                              fontWeight: 700,
-                            }}
-                          >
-                            {selectedEvent.tag || "FREE GIFT"} // {Number(selectedEvent.minSpend) > 0 ? `৳${selectedEvent.minSpend}+` : "ALL"} ORDERS
+                      <div style={{ background: "#0a0a0a", padding: "14px 20px", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between", color: "#fff" }}>
+                        <div style={{ fontFamily: "Rockybilly, cursive", fontSize: 20 }}>AnnR</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 16, fontFamily: "'NB Architekt Std', sans-serif", fontSize: 11, letterSpacing: 1 }}>
+                          <span style={{ opacity: 0.6 }}>SEARCH</span>
+                          <span style={{ opacity: 0.6 }}>VAULT</span>
+                          <span style={{ color: "#ffffff", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 4, cursor: "pointer" }}>
+                            {selectedEvent.pillText || selectedEvent.tag || "GIFT DROP"}
                           </span>
-                          <span
-                            style={{
-                              background: "#ffffff",
-                              color: "#000000",
-                              padding: "3px 8px",
-                              borderRadius: 999,
-                              fontFamily: "'NB Architekt Std', sans-serif",
-                              fontSize: 9,
-                              fontWeight: 800,
-                              letterSpacing: 1,
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            VIEW
-                          </span>
-                          <span style={{ color: "#ffffff", opacity: 0.5, fontSize: 12, marginLeft: 2 }}>✕</span>
+                          <span style={{ opacity: 0.6 }}>VIP</span>
+                          <span style={{ opacity: 0.6 }}>[BAG]</span>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* PDP Integrated Perk Preview */}
+                  {/* PDP Feature Bullet Preview */}
                   {(selectedEvent.showPdpPerk ?? true) && (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, textTransform: "uppercase", color: "var(--p-text-subdued)" }}>
-                        2. Product Page (PDP) Integrated Perk Chip:
+                        2. Native Product Page Feature List Bullet:
                       </div>
                       <div
                         style={{
-                          background: "rgba(0, 230, 118, 0.08)",
-                          border: "1px solid rgba(0, 230, 118, 0.4)",
-                          borderRadius: 4,
-                          padding: "10px 14px",
+                          background: "#ffffff",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 6,
+                          padding: "12px 16px",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "space-between",
-                          fontFamily: "'NB Architekt Std', sans-serif",
-                          fontSize: 11,
-                          letterSpacing: 0.8,
-                          color: "#111",
+                          gap: 10,
+                          fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+                          fontSize: 13,
+                          color: "#111827",
                         }}
                       >
-                        <span style={{ fontWeight: 700 }}>
-                          🎁 FREE GIFT: {Number(selectedEvent.minSpend) > 0 ? `ORDERS OVER ৳${selectedEvent.minSpend}` : "ALL ORDERS"} RECEIVE {selectedEvent.giftItem || "EXCLUSIVE GIFT"}
-                        </span>
-                        <span style={{ textDecoration: "underline", fontWeight: 700, marginLeft: 8, fontSize: 10, cursor: "pointer" }}>
-                          DETAILS →
+                        <span style={{ fontSize: 16 }}>🎁</span>
+                        <span style={{ fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", fontSize: 12 }}>
+                          {selectedEvent.giftItem ? `FREE ${selectedEvent.giftItem.toUpperCase()}${Number(selectedEvent.minSpend) > 0 ? ` ON ORDERS OVER ৳${selectedEvent.minSpend}` : ""}` : "FREE GIFT WITH PURCHASE"}
                         </span>
                       </div>
                     </div>
@@ -595,17 +551,17 @@ function EventsManager() {
                   {selectedEvent.showTopBar && (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>
-                        Legacy Top Bar:
+                        3. Top Announcement Bar:
                       </div>
                       <div
                         style={{
-                          background: selectedEvent.bg || "#050505",
-                          color: selectedEvent.textColor || "#ffffff",
-                          padding: "10px 14px",
+                          background: "#000000",
+                          color: "#ffffff",
+                          padding: "9px 12px",
                           textAlign: "center",
                           fontFamily: "'NB Architekt Std', sans-serif",
-                          fontSize: 11,
-                          letterSpacing: 1,
+                          fontSize: 10,
+                          letterSpacing: 2,
                           textTransform: "uppercase",
                           borderRadius: 2,
                         }}
