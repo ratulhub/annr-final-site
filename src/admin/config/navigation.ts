@@ -1,29 +1,64 @@
 import { REPORTS } from "../analytics/reports";
 // Admin sidebar structure. Items with `to` are working pages; items with `module`
 // open the module overview page and are labelled with the part that completes them.
-export type NavItem = { label: string; to?: string; module?: string; soon?: string; report?: string };
-export type NavGroup = { group: string; items: NavItem[] };
+export type NavItem = { label: string; to?: string; module?: string; soon?: string; report?: string; badge?: string; badgeColor?: string };
+export type NavGroup = { group: string; icon?: string; items: NavItem[] };
 
 export const NAV_GROUPS: NavGroup[] = [
-  { group: "Overview", items: [{ label: "Dashboard", to: "/admin" }, { label: "Preview & publish", to: "/admin/publish" }] },
-  { group: "Store", items: [
-    { label: "Products", to: "/admin/products" }, { label: "Collections", to: "/admin/collections" },
-    { label: "Campaigns & Events", to: "/admin/events" },
-    { label: "Orders", to: "/admin/orders" }, { label: "Customers", to: "/admin/customers" }, { label: "Discounts", to: "/admin/discounts" },
+  { group: "Overview", icon: "📊", items: [
+    { label: "Dashboard", to: "/admin" },
+    { label: "Preview & publish", to: "/admin/publish" },
   ] },
-  { group: "Website & Pages", items: [{ label: "Website pages", to: "/admin/website" }, { label: "Page sections", to: "/admin/sections" }] },
-  { group: "Content Management", items: [{ label: "Page text & policies", to: "/admin/pages" }, { label: "Banners, popups & replacements", to: "/admin/content" }] },
-  { group: "Design & Appearance", items: [{ label: "Appearance", to: "/admin/theme" }] },
-  { group: "Media Library", items: [{ label: "Media", to: "/admin/media" }] },
-  { group: "Navigation & Footer", items: [{ label: "Header & footer", to: "/admin/navigation" }] },
-  { group: "Forms & Submissions", items: [{ label: "Forms", to: "/admin/forms" }] },
-  { group: "SEO & Discoverability", items: [{ label: "SEO", to: "/admin/seo" }] },
-  { group: "Website Settings", items: [{ label: "Settings", to: "/admin/settings" }] },
-  { group: "Integrations", items: [{ label: "Integrations", to: "/admin/integrations" }] },
-  { group: "Analytics", items: REPORTS.map((r) => ({ label: r.title.replace("Analytics overview", "Overview").replace("Analytics settings", "Settings"), report: r.id })) },
-  { group: "Users & Permissions", items: [{ label: "Users & roles", to: "/admin/users" }] },
-  { group: "Activity & Audit History", items: [{ label: "Activity Log", to: "/admin/activity" }] },
-  { group: "Security", items: [{ label: "Security Center", to: "/admin/security" }] },
+  { group: "Store", icon: "🛍️", items: [
+    { label: "Products", to: "/admin/products" },
+    { label: "Collections", to: "/admin/collections" },
+    { label: "Campaigns & Events", to: "/admin/events", badge: "NEW", badgeColor: "#ec4899" },
+    { label: "Orders", to: "/admin/orders" },
+    { label: "Customers", to: "/admin/customers" },
+    { label: "Discounts", to: "/admin/discounts" },
+  ] },
+  { group: "Website & Pages", icon: "🌐", items: [
+    { label: "Website pages", to: "/admin/website" },
+    { label: "Page sections", to: "/admin/sections" },
+  ] },
+  { group: "Content Management", icon: "📝", items: [
+    { label: "Page text & policies", to: "/admin/pages" },
+    { label: "Banners, popups & replacements", to: "/admin/content" },
+  ] },
+  { group: "Design & Appearance", icon: "🎨", items: [
+    { label: "Appearance", to: "/admin/theme" },
+  ] },
+  { group: "Media Library", icon: "🖼️", items: [
+    { label: "Media", to: "/admin/media" },
+  ] },
+  { group: "Navigation & Footer", icon: "🧭", items: [
+    { label: "Header & footer", to: "/admin/navigation" },
+  ] },
+  { group: "Forms & Submissions", icon: "📋", items: [
+    { label: "Forms", to: "/admin/forms" },
+  ] },
+  { group: "SEO & Discoverability", icon: "🚀", items: [
+    { label: "SEO", to: "/admin/seo" },
+  ] },
+  { group: "Website Settings", icon: "⚙️", items: [
+    { label: "Settings", to: "/admin/settings" },
+  ] },
+  { group: "Integrations", icon: "🔌", items: [
+    { label: "Integrations", to: "/admin/integrations" },
+  ] },
+  { group: "Analytics", icon: "📈", items: REPORTS.map((r) => ({
+    label: r.title.replace("Analytics overview", "Overview").replace("Analytics settings", "Settings"),
+    report: r.id,
+  })) },
+  { group: "Users & Permissions", icon: "👥", items: [
+    { label: "Users & roles", to: "/admin/users" },
+  ] },
+  { group: "Activity & Audit History", icon: "📜", items: [
+    { label: "Activity Log", to: "/admin/activity" },
+  ] },
+  { group: "Security", icon: "🛡️", items: [
+    { label: "Security Center", to: "/admin/security", badge: "PROTECTED", badgeColor: "#10b981" },
+  ] },
 ];
 
 export const MODULES: Record<string, { title: string; part: string; plan: string[]; now?: { label: string; to: string } }> = {
