@@ -136,15 +136,53 @@ function AdminLayout() {
   );
 }
 
-function findCrumbs(path: string): string[] {
-  for (const g of NAV_GROUPS) for (const i of g.items) {
-    const to = i.report ? `/admin/analytics/${i.report}` : i.module ? `/admin/m/${i.module}` : i.to!;
-    if (to === "/admin" ? path === "/admin" || path === "/admin/" : path.startsWith(to)) {
-      const extra = path.startsWith("/admin/products/") ? ["Edit product"] : [];
-      return to === "/admin" ? [] : [g.group, i.label, ...extra];
+type Crumb = { label: string; to?: string };
+
+function findCrumbs(path: string): Crumb[] {
+  if (path === "/admin" || path === "/admin/") return [];
+
+  if (path.startsWith("/admin/products/")) {
+    return [
+      { label: "Store", to: "/admin/products" },
+      { label: "Products", to: "/admin/products" },
+      { label: "Edit Product" },
+    ];
+  }
+  if (path.startsWith("/admin/website/")) {
+    return [
+      { label: "Website & Pages", to: "/admin/website" },
+      { label: "Website Pages", to: "/admin/website" },
+      { label: "Block Editor" },
+    ];
+  }
+  if (path.startsWith("/admin/analytics/")) {
+    const reportId = path.split("/").pop();
+    return [
+      { label: "Analytics", to: "/admin/analytics/overview" },
+      { label: reportId ? reportId.toUpperCase() : "Report" },
+    ];
+  }
+
+  for (const g of NAV_GROUPS) {
+    for (const i of g.items) {
+      const to = i.report ? `/admin/analytics/${i.report}` : i.module ? `/admin/m/${i.module}` : i.to!;
+      if (to === path) {
+        return [{ label: g.group }, { label: i.label, to }];
+      }
     }
   }
-  return [];
+
+  for (const g of NAV_GROUPS) {
+    for (const i of g.items) {
+      const to = i.report ? `/admin/analytics/${i.report}` : i.module ? `/admin/m/${i.module}` : i.to!;
+      if (to !== "/admin" && path.startsWith(to)) {
+        return [{ label: g.group }, { label: i.label, to }];
+      }
+    }
+  }
+
+  const slug = path.replace("/admin/", "").replace(/[-_]/g, " ");
+  return [{ label: slug.charAt(0).toUpperCase() + slug.slice(1) }];
 }
 
 function Login({ onDone }: { onDone: () => void }) {
