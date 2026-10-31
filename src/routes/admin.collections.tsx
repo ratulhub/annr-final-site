@@ -8,7 +8,23 @@ export const Route = createFileRoute("/admin/collections")({ component: Collecti
 function Collections() {
   const s = useAdmin();
   const [open, setOpen] = useState<string | null>(null);
-  const up = (h: string, patch: Partial<Collection>) => setState((x) => ({ ...x, collections: x.collections.map((c) => (c.handle === h ? { ...c, ...patch } : c)) }));
+  const up = (h: string, patch: Partial<Collection>) =>
+    setState((x) => {
+      let hidden = x.site.hiddenPages || [];
+      if (patch.visible !== undefined) {
+        const paths = [`/collections/${h}`, `/collections/${h}/index.html`, `/collections/${h}/`];
+        if (patch.visible === false) {
+          paths.forEach((p) => { if (!hidden.includes(p)) hidden = [...hidden, p]; });
+        } else {
+          hidden = hidden.filter((p) => !paths.includes(p));
+        }
+      }
+      return {
+        ...x,
+        site: { ...x.site, hiddenPages: hidden },
+        collections: x.collections.map((c) => (c.handle === h ? { ...c, ...patch } : c)),
+      };
+    });
   const add = () => { const h = "new-collection-" + uid(); setState((x) => ({ ...x, collections: [{ handle: h, title: "New collection", description: "", image: "", visible: false, sort: "manual", products: [], seoTitle: "", seoDescription: "" }, ...x.collections] })); setOpen(h); };
   return (
     <>
@@ -16,6 +32,7 @@ function Collections() {
       {s.collections.map((c) => (
         <Card key={c.handle} title={c.title} action={<div className="adm-row">
           <span className={"adm-tag" + (c.visible ? " on" : "")}>{c.visible ? "visible" : "hidden"}</span>
+          <button className={"adm-btn" + (c.visible ? " ghost" : "")} onClick={() => up(c.handle, { visible: !c.visible })}>{c.visible ? "Hide" : "Show"}</button>
           <button className="adm-btn ghost" onClick={() => setOpen(open === c.handle ? null : c.handle)}>{open === c.handle ? "Close" : "Edit"}</button>
           <button className="adm-btn danger" onClick={() => confirm("Delete?") && setState((x) => ({ ...x, collections: x.collections.filter((y) => y.handle !== c.handle) }))}>Delete</button>
         </div>}>
