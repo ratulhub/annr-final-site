@@ -2,3 +2,4 @@
 # Root path redirects to the storefront home page
 /           /home.html   302!
 /index.html /home.html   302!
+
