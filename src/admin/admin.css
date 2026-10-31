@@ -33,13 +33,13 @@
 }
 
 .adm {
-  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: var(--p-text);
   background: var(--p-background);
   min-height: 100vh;
   display: flex;
-  font-size: 13.5px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -50,24 +50,22 @@
 
 /* Typography: Clean, executive, modern e-commerce */
 .adm h1, .adm h2, .adm h3 {
-  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", Roboto, sans-serif;
-  color: var(--p-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #111827;
   margin: 0;
-  font-weight: 600;
-  letter-spacing: -0.01em;
   text-transform: none;
 }
 
-.adm h1 { font-size: 20px; line-height: 28px; font-weight: 700; }
-.adm h2 { font-size: 15px; line-height: 20px; font-weight: 600; }
-.adm h3 { font-size: 13.5px; line-height: 18px; font-weight: 600; }
+.adm h1 { font-size: 24px; line-height: 32px; font-weight: 750; letter-spacing: -0.02em; }
+.adm h2 { font-size: 17px; line-height: 24px; font-weight: 700; letter-spacing: -0.01em; color: #1f2937; }
+.adm h3 { font-size: 14.5px; line-height: 20px; font-weight: 650; color: #374151; }
 
 /* Sidebar: Shopify Modern Dark Navigation */
 .adm-side {
   width: 240px;
-  background: #1a1a1a;
+  background: #111213;
   color: #ffffff;
-  padding: 18px 0 24px;
+  padding: 16px 0 24px;
   position: sticky;
   top: 0;
   height: 100vh;
@@ -82,7 +80,7 @@
 .adm-logo {
   font-family: "Rockybilly", cursive, sans-serif;
   font-size: 32px;
-  padding: 0 16px 14px;
+  padding: 4px 16px 14px;
   color: #ffffff;
   line-height: 1;
 }
@@ -107,10 +105,10 @@
 }
 
 .adm-group-title {
-  padding: 10px 16px 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #8c9196;
+  padding: 10px 14px 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #9ca3af;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -123,14 +121,14 @@
   margin: 1px 8px;
   color: #d1d5db;
   text-decoration: none;
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 13.5px;
+  font-weight: 500;
   border-radius: 6px;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 
 .adm-nav a:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
   color: #ffffff;
 }
 
