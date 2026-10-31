@@ -22,24 +22,24 @@ function Discounts() {
       </div>
 
       <div className="adm-stats">
-        <div className="adm-stat accent-emerald">
-          <span>Active Promo Codes</span>
+        <div className="adm-stat">
+          <span>Active discount codes</span>
           <b>{activeCount}</b>
           <small>{s.discounts.length - activeCount} inactive / expired</small>
         </div>
-        <div className="adm-stat accent-indigo">
-          <span>Total Redemptions</span>
+        <div className="adm-stat">
+          <span>Total redemptions</span>
           <b>{totalUses}</b>
           <small>Times discounts applied</small>
         </div>
-        <div className="adm-stat accent-purple">
-          <span>Supported Types</span>
+        <div className="adm-stat">
+          <span>Supported types</span>
           <b>4</b>
-          <small>% Off, ৳ Flat, Free Shipping, BOGO</small>
+          <small>% Off, ৳ Flat, Free shipping, BOGO</small>
         </div>
       </div>
 
-      <Card title="Coupon & Voucher Management" subtitle="Manage active promo codes, set minimum order values, and schedule expiration dates">
+      <Card title="Discounts" subtitle="Manage active coupon codes, set minimum order values, and schedule expiration dates">
         <RowList<Discount>
           rows={s.discounts}
           onChange={(r) => setState((x) => ({ ...x, discounts: r }))}
