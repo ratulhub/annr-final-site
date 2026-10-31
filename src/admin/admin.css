@@ -59,7 +59,16 @@
 @media (max-width: 800px) { .adm { flex-direction: column; } .adm-side { width: 100%; height: auto; position: static; } .adm-main { padding: 18px; } }
 /* Shell: grouped sidebar, header, collapse, mobile */
 .adm-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.adm-navsearch.adm-navsearch { margin: 0 16px 14px; width: calc(100% - 32px); background: #111; color: var(--paper); border-color: #333; font-size: 11px; padding: 7px 9px; }
+.adm-navsearch.adm-navsearch { margin: 0 16px 14px; width: calc(100% - 32px); background: #111; color: var(--paper); border-color: #333; font-size: 11px; padding: 7px 9px; box-sizing: border-box; }
+.adm-navsearch:-webkit-autofill,
+.adm-navsearch:-webkit-autofill:hover, 
+.adm-navsearch:-webkit-autofill:focus,
+.adm-navsearch:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--paper) !important;
+  -webkit-box-shadow: 0 0 0px 1000px #111 inset !important;
+  box-shadow: 0 0 0px 1000px #111 inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
 .adm-group { margin-bottom: 10px; }
 .adm-group-title { padding: 6px 22px 4px; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; opacity: .45; }
 .adm-nav a em { font-style: normal; font-size: 8px; opacity: .5; margin-left: 6px; border: 1px solid #555; padding: 1px 4px; }
