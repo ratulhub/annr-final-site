@@ -270,17 +270,7 @@ function WebsitePagesManager() {
                   </a>
                 </td>
                 <td>
-                  <span
-                    style={{
-                      fontSize: 9,
-                      fontFamily: "'FK Grotesk SemiMono', monospace",
-                      padding: "2px 6px",
-                      borderRadius: 2,
-                      background: item.visible ? "#050505" : "#e5e5e5",
-                      color: item.visible ? "#fff" : "#666",
-                      fontWeight: 600,
-                    }}
-                  >
+                  <span className={`adm-tag ${item.visible ? "active" : "draft"}`} style={{ fontSize: 10, padding: "2px 8px" }}>
                     {item.visible ? "VISIBLE" : "HIDDEN"}
                   </span>
                 </td>
