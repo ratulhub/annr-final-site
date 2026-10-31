@@ -167,31 +167,20 @@ function EventsManager() {
                     key={ev.id}
                     onClick={() => setSelectedId(ev.id)}
                     style={{
-                      border: isSelected ? "2px solid #000" : "1px solid rgba(0,0,0,0.15)",
-                      borderRadius: 4,
+                      border: isSelected ? "2px solid var(--red)" : "1px solid var(--line)",
+                      borderRadius: 6,
                       padding: "14px 16px",
                       cursor: "pointer",
-                      background: isSelected ? "#fafafa" : "#fff",
+                      background: isSelected ? "#fffbfb" : "#fff",
+                      boxShadow: isSelected ? "0 4px 14px rgba(225, 6, 0, 0.12)" : "0 1px 3px rgba(0,0,0,0.03)",
                       transition: "all 0.15s ease",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                      <span
-                        style={{
-                          display: "inline-block",
-                          fontSize: 9,
-                          fontFamily: "'FK Grotesk SemiMono', monospace",
-                          padding: "2px 6px",
-                          borderRadius: 2,
-                          background: isActive ? "#050505" : "#e5e5e5",
-                          color: isActive ? "#fff" : "#555",
-                          fontWeight: 600,
-                          letterSpacing: "0.08em",
-                        }}
-                      >
-                        {isActive ? "● LIVE" : "○ STOPPED"}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                      <span className={`adm-tag ${isActive ? "active" : "draft"}`} style={{ fontSize: 10, padding: "2px 8px" }}>
+                        {isActive ? "LIVE" : "PAUSED"}
                       </span>
-                      <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "'FK Grotesk SemiMono', monospace" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--indigo)" }}>
                         {EVENT_TYPES[ev.type].split(" ")[0]}
                       </span>
                     </div>
