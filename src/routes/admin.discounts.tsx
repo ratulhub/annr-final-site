@@ -6,23 +6,66 @@ export const Route = createFileRoute("/admin/discounts")({ component: Discounts 
 
 function Discounts() {
   const s = useAdmin();
+  const activeCount = s.discounts.filter((d) => d.active).length;
+  const totalUses = s.discounts.reduce((sum, d) => sum + (Number(d.uses) || 0), 0);
+
   return (
     <>
       <div className="adm-top">
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <BackBtn to="/admin" label="← Dashboard" />
-          <h1>Discounts</h1>
+          <div>
+            <h1>Promotions & Discounts ({s.discounts.length})</h1>
+            <p className="adm-hint" style={{ margin: "2px 0 0" }}>Create coupon codes, percentage sales, and free shipping vouchers</p>
+          </div>
         </div>
       </div>
-      <Card>
-        <RowList<Discount> rows={s.discounts} onChange={(r) => setState((x) => ({ ...x, discounts: r }))}
-          blank={{ code: "", type: "percentage", value: "", minOrder: "0", uses: 0, limit: "", active: true, starts: "", ends: "" }}
+
+      <div className="adm-stats">
+        <div className="adm-stat accent-emerald">
+          <span>Active Promo Codes</span>
+          <b>{activeCount}</b>
+          <small>{s.discounts.length - activeCount} inactive / expired</small>
+        </div>
+        <div className="adm-stat accent-indigo">
+          <span>Total Redemptions</span>
+          <b>{totalUses}</b>
+          <small>Times discounts applied</small>
+        </div>
+        <div className="adm-stat accent-purple">
+          <span>Supported Types</span>
+          <b>4</b>
+          <small>% Off, ৳ Flat, Free Shipping, BOGO</small>
+        </div>
+      </div>
+
+      <Card title="Coupon & Voucher Management" subtitle="Manage active promo codes, set minimum order values, and schedule expiration dates">
+        <RowList<Discount>
+          rows={s.discounts}
+          onChange={(r) => setState((x) => ({ ...x, discounts: r }))}
+          blank={{
+            code: "",
+            type: "percentage",
+            value: "10",
+            minOrder: "0",
+            uses: 0,
+            limit: "",
+            active: true,
+            starts: new Date().toISOString().slice(0, 10),
+            ends: "",
+          }}
           fields={[
-            { key: "code", label: "Code" }, { key: "type", label: "Type", type: ["percentage", "fixed amount", "free shipping", "buy x get y"] },
-            { key: "value", label: "Value" }, { key: "minOrder", label: "Min order ৳" }, { key: "limit", label: "Usage limit" },
-            { key: "uses", label: "Used", type: "number" }, { key: "starts", label: "Starts" }, { key: "ends", label: "Ends" },
-            { key: "active", label: "Active", type: "bool" },
-          ]} />
+            { key: "code", label: "Coupon Code" },
+            { key: "type", label: "Discount Type", type: ["percentage", "fixed amount", "free shipping", "buy x get y"] },
+            { key: "value", label: "Value (% or ৳)" },
+            { key: "minOrder", label: "Min Order Amount (৳)" },
+            { key: "limit", label: "Max Total Uses" },
+            { key: "uses", label: "Times Used", type: "number" },
+            { key: "starts", label: "Start Date" },
+            { key: "ends", label: "End Date" },
+            { key: "active", label: "Active?", type: "bool" },
+          ]}
+        />
       </Card>
     </>
   );
