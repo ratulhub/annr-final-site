@@ -978,11 +978,13 @@
       if (cb) cb.querySelector("button").onclick = function () { localStorage.setItem("shihiko-cookie-ok", "1"); cb.remove(); };
     }
 
-    // Gift Campaigns & Events Engine (Polished HUD & PDP representation without intrusive header bars)
+    // Gift Campaigns & Events Engine (Pure Authentic Streetwear Presentation · Zero AI Widget Feel)
     (function applyCampaignsAndEvents() {
-      // 1. Permanently remove any legacy or intrusive banner/ticker bars
-      var oldTopBar = document.getElementById("adm-event-topbar");
-      if (oldTopBar) oldTopBar.remove();
+      // 1. Permanently remove all legacy or AI-like floating widgets and intrusive stacked bars
+      var oldPill = document.getElementById("adm-floating-gift-pill");
+      if (oldPill) oldPill.remove();
+      var oldPdpBox = document.getElementById("adm-pdp-gift-perk");
+      if (oldPdpBox) oldPdpBox.remove();
       var oldTicker = document.getElementById("adm-event-ticker");
       if (oldTicker) oldTicker.remove();
 
@@ -997,72 +999,81 @@
         return false;
       });
 
+      var headerEventLink = document.getElementById("adm-header-event-link");
+      var mobileEventLink = document.getElementById("adm-mobile-event-link");
+      var pdpFeature = document.getElementById("adm-pdp-gift-feature");
+      var topBarEl = document.getElementById("adm-event-topbar");
+
       if (!activeEvent) {
-        var oldPill = document.getElementById("adm-floating-gift-pill");
-        if (oldPill) oldPill.remove();
-        var oldPdp = document.getElementById("adm-pdp-gift-perk");
-        if (oldPdp) oldPdp.remove();
+        if (headerEventLink) headerEventLink.remove();
+        if (mobileEventLink) mobileEventLink.remove();
+        if (pdpFeature) pdpFeature.remove();
+        if (topBarEl) topBarEl.remove();
         return;
       }
 
-      // Pulse animation for HUD beacon
-      css("@keyframes admBeaconPulse{0%{box-shadow:0 0 0 0 rgba(0,230,118,0.7)}70%{box-shadow:0 0 0 8px rgba(0,230,118,0)}100%{box-shadow:0 0 0 0 rgba(0,230,118,0)}}");
-
-      // 2. Elegant Interactive Floating HUD Capsule (Bottom-Right, non-intrusive)
-      var pillEl = document.getElementById("adm-floating-gift-pill");
-      var isDismissed = sessionStorage.getItem("annr_gift_hud_dismissed") === "1";
-      if (!isDismissed) {
-        if (!pillEl) {
-          pillEl = document.createElement("div");
-          pillEl.id = "adm-floating-gift-pill";
-          document.body.appendChild(pillEl);
+      // 2. Optional Top Announcement Bar (Only rendered if explicitly enabled in admin)
+      if (activeEvent.showTopBar && activeEvent.topBarText) {
+        if (!topBarEl) {
+          topBarEl = document.createElement(activeEvent.topBarUrl ? "a" : "div");
+          topBarEl.id = "adm-event-topbar";
+          document.body.insertBefore(topBarEl, document.body.firstChild);
         }
-        pillEl.style.cssText = "position:fixed;right:24px;bottom:24px;z-index:99990;background:rgba(10,10,14,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.18);border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.12);padding:7px 14px;display:inline-flex;align-items:center;gap:10px;cursor:pointer;transition:transform .2s ease,border-color .2s ease";
-        var minSpendTxt = Number(activeEvent.minSpend) > 0 ? "৳" + esc(activeEvent.minSpend) + "+" : "ALL";
-        var labelTxt = esc(activeEvent.tag || "FREE GIFT") + " // " + minSpendTxt + " ORDERS";
-        pillEl.innerHTML = "<span style='width:7px;height:7px;border-radius:50%;background:#00e676;display:inline-block;animation:admBeaconPulse 2s infinite;flex-shrink:0'></span>" +
-          "<span style=\"font:10.5px/1 'NB Architekt Std',sans-serif;letter-spacing:1px;text-transform:uppercase;color:#fff;font-weight:700\">" + labelTxt + "</span>" +
-          "<span style=\"background:#fff;color:#000;padding:3.5px 8.5px;border-radius:999px;font:9px/1 'NB Architekt Std',sans-serif;letter-spacing:1px;font-weight:800;text-transform:uppercase\">VIEW</span>" +
-          "<span data-close-pill title='Dismiss' style='opacity:0.45;font-size:13px;cursor:pointer;padding:0 2px;line-height:1;margin-left:2px;color:#fff'>✕</span>";
-        
-        pillEl.onmouseenter = function() { pillEl.style.transform = "translateY(-2px)"; pillEl.style.borderColor = "rgba(255,255,255,0.35)"; };
-        pillEl.onmouseleave = function() { pillEl.style.transform = "translateY(0)"; pillEl.style.borderColor = "rgba(255,255,255,0.18)"; };
-
-        pillEl.onclick = function (e) {
-          if (e.target && e.target.getAttribute("data-close-pill") != null) {
-            e.stopPropagation();
-            sessionStorage.setItem("annr_gift_hud_dismissed", "1");
-            pillEl.remove();
-            return;
-          }
-          openGiftModal(activeEvent);
-        };
-      } else if (pillEl) {
-        pillEl.remove();
+        if (activeEvent.topBarUrl) topBarEl.href = safeUrl(activeEvent.topBarUrl);
+        topBarEl.textContent = activeEvent.topBarText;
+        topBarEl.style.cssText = "display:block;text-decoration:none;background:#000000;color:#ffffff;text-align:center;font:10px/1 'NB Architekt Std',sans-serif;letter-spacing:2px;text-transform:uppercase;padding:9px 12px;position:relative;z-index:10002;border-bottom:1px solid rgba(255,255,255,0.12)";
+      } else if (topBarEl) {
+        topBarEl.remove();
       }
 
-      // 3. Product Page (PDP) Integrated Perk Chip
+      // 3. Native Header Navigation Integration (Seamlessly matches Vault & VIP typography)
+      var headerNavRight = document.querySelector(".header-new__nav-block--right") || document.querySelector(".header-left-block");
+      if (headerNavRight && !document.getElementById("adm-header-event-link")) {
+        var eventLink = document.createElement("a");
+        eventLink.id = "adm-header-event-link";
+        eventLink.href = "#annr-event";
+        eventLink.className = "header-action-link header-new__action";
+        eventLink.textContent = activeEvent.tag || "GIFT DROP";
+        eventLink.style.cssText = "letter-spacing:1px;font-weight:700;text-transform:uppercase";
+        eventLink.onclick = function(e) {
+          e.preventDefault();
+          openGiftModal(activeEvent);
+        };
+        var vipLink = headerNavRight.querySelector(".js-vip-page-link");
+        if (vipLink) {
+          headerNavRight.insertBefore(eventLink, vipLink);
+        } else {
+          headerNavRight.appendChild(eventLink);
+        }
+      }
+
+      // 4. Mobile Menu Navigation Item
+      var mobileList = document.querySelector(".header-new__mobile-menu-list");
+      if (mobileList && !document.getElementById("adm-mobile-event-link")) {
+        var mobLink = document.createElement("a");
+        mobLink.id = "adm-mobile-event-link";
+        mobLink.href = "#annr-event";
+        mobLink.className = "mobile-menu-list-item header-new__mobile-item header-new__mobile-link";
+        mobLink.innerHTML = "<span>" + esc(activeEvent.title || "Special Event: Free Gift") + "</span>";
+        mobLink.onclick = function(e) {
+          e.preventDefault();
+          openGiftModal(activeEvent);
+        };
+        mobileList.appendChild(mobLink);
+      }
+
+      // 5. Native Product Detail Page Feature List Bullet
       if (tpl === "product") {
-        var pdpEl = document.getElementById("adm-pdp-gift-perk");
-        var formTarget = document.querySelector(".product-form") || document.querySelector(".product-info") || document.querySelector(".product__info-container") || document.querySelector(".product-form__buttons");
-        if (formTarget) {
-          if (!pdpEl) {
-            pdpEl = document.createElement("div");
-            pdpEl.id = "adm-pdp-gift-perk";
-            formTarget.parentNode.insertBefore(pdpEl, formTarget);
-          }
-          var spendCond = Number(activeEvent.minSpend) > 0 ? "orders over ৳" + esc(activeEvent.minSpend) : "all orders";
-          pdpEl.style.cssText = "display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:4px;padding:10px 14px;margin:12px 0 16px;box-sizing:border-box";
-          pdpEl.innerHTML = "<div style=\"display:flex;align-items:center;gap:8px;font:11px/1.4 'NB Architekt Std',sans-serif;letter-spacing:0.8px;color:#fff;text-transform:uppercase\">" +
-            "<span style='font-size:14px'>🎁</span>" +
-            "<span>" + esc(activeEvent.tag || "FREE GIFT") + ": " + spendCond + " receive <strong>" + esc(activeEvent.giftItem || "Complimentary Gift") + "</strong></span>" +
-          "</div>" +
-          "<button type='button' data-details style=\"background:none;border:none;color:#fff;text-decoration:underline;cursor:pointer;font:10px/1 'NB Architekt Std',sans-serif;font-weight:700;letter-spacing:1px;padding:0;text-transform:uppercase\">DETAILS →</button>";
-          
-          var detailsBtn = pdpEl.querySelector("[data-details]");
-          if (detailsBtn) {
-            detailsBtn.onclick = function() { openGiftModal(activeEvent); };
-          }
+        var featuresList = document.querySelector(".product-info-features");
+        if (featuresList && !document.getElementById("adm-pdp-gift-feature")) {
+          var giftLi = document.createElement("li");
+          giftLi.id = "adm-pdp-gift-feature";
+          giftLi.className = "product-info-feature product-info-feature--gift";
+          giftLi.style.cssText = "cursor:pointer";
+          giftLi.innerHTML = "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' style='opacity:0.85;margin-right:8px;flex-shrink:0'><polyline points='20 12 20 22 4 22 4 12'></polyline><rect x='2' y='7' width='20' height='5'></rect><line x1='12' y1='22' x2='12' y2='7'></line><path d='M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z'></path><path d='M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z'></path></svg>" +
+            "<span>" + esc(activeEvent.giftItem ? "FREE " + activeEvent.giftItem.toUpperCase() + (Number(activeEvent.minSpend) > 0 ? " (ORDERS OVER ৳" + activeEvent.minSpend + ")" : "") : "FREE GIFT WITH PURCHASE") + "</span>";
+          giftLi.onclick = function() { openGiftModal(activeEvent); };
+          featuresList.appendChild(giftLi);
         }
       }
     })();
@@ -1070,21 +1081,22 @@
     function openGiftModal(ev) {
       var modal = document.getElementById("adm-gift-modal");
       if (modal) modal.remove();
-      var img = ev.giftImage ? "<img src='" + esc(safeImg(ev.giftImage)) + "' alt='" + esc(ev.giftItem) + "' style='width:100%;max-height:240px;object-fit:cover;border-radius:4px;margin-bottom:16px;background:#111'>" : "";
-      var cond = Number(ev.minSpend) > 0 ? "Qualified on all orders over ৳" + esc(ev.minSpend) : "Qualified on all orders";
-      var codeHtml = ev.discountCode ? "<div style='font-size:11px;opacity:.8;margin-top:6px;display:flex;align-items:center;justify-content:space-between'><span>Coupon code: <strong style='color:#00e676;font-family:monospace;letter-spacing:1px'>" + esc(ev.discountCode) + "</strong></span><button type='button' id='adm-copy-code' style='background:#222;border:1px solid #444;color:#fff;font-size:10px;padding:3px 8px;border-radius:3px;cursor:pointer'>COPY</button></div>" : "";
+      var img = ev.giftImage ? "<img src='" + esc(safeImg(ev.giftImage)) + "' alt='" + esc(ev.giftItem) + "' style='width:100%;max-height:260px;object-fit:cover;border-radius:2px;margin-bottom:18px;background:#111'>" : "";
+      var cond = Number(ev.minSpend) > 0 ? "Complimentary with orders over ৳" + esc(ev.minSpend) : "Complimentary with all orders";
+      var codeHtml = ev.discountCode ? "<div style='font-size:11px;letter-spacing:1px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#151515;border:1px solid #282828'><span>CODE: <strong style='font-family:monospace;letter-spacing:1.5px'>" + esc(ev.discountCode) + "</strong></span><button type='button' id='adm-copy-code' style='background:#fff;border:none;color:#000;font:9px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;padding:5px 10px;cursor:pointer'>COPY</button></div>" : "";
       modal = overlay("adm-gift-modal",
-        "<div style='background:#0a0a0c;color:#fff;max-width:440px;width:90%;padding:28px;border:1px solid rgba(255,255,255,0.2);box-shadow:0 16px 48px rgba(0,0,0,0.85);font:12px/1.5 \"NB Architekt Std\",sans-serif;position:relative;border-radius:6px'>" +
-          "<button type='button' data-close style='position:absolute;top:12px;right:14px;background:none;border:0;color:#fff;font-size:18px;cursor:pointer;line-height:1;opacity:.7'>✕</button>" +
-          "<div style='font:9px \"FK Grotesk SemiMono\",monospace;letter-spacing:1.5px;color:#00e676;margin-bottom:6px'>" + esc(ev.tag || "FREE GIFT") + " · " + esc(ev.badgeText || "PROMOTION") + "</div>" +
-          "<div style='font:20px \"Druk Wide\",sans-serif;text-transform:uppercase;margin-bottom:8px'>" + esc(ev.title) + "</div>" +
+        "<div style='background:#000000;color:#ffffff;max-width:420px;width:92%;padding:32px 28px;border:1px solid #262626;box-shadow:0 24px 64px rgba(0,0,0,0.9);font:12px/1.5 \"NB Architekt Std\",sans-serif;position:relative'>" +
+          "<button type='button' data-close style='position:absolute;top:16px;right:18px;background:none;border:0;color:#ffffff;font-size:18px;cursor:pointer;line-height:1;opacity:.6'>✕</button>" +
+          "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#888888;text-transform:uppercase;margin-bottom:8px'>" + esc(ev.tag || "EXCLUSIVE DROP") + " // " + esc(ev.badgeText || "SPECIAL OFFER") + "</div>" +
+          "<div style='font:22px/1.1 \"Druk Wide\",sans-serif;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px'>" + esc(ev.title) + "</div>" +
           img +
-          "<div style='font-size:14px;font-weight:700;margin-bottom:4px'>" + esc(ev.giftItem) + " <span style='font-size:12px;opacity:.7;font-weight:400'>(" + esc(ev.giftValue || "FREE") + ")</span></div>" +
-          "<p style='opacity:.8;font-size:12px;margin:0 0 10px'>" + esc(ev.giftDescription || "") + "</p>" +
-          "<div style='background:rgba(255,255,255,.08);padding:10px 14px;border-radius:4px;margin-bottom:16px;font-size:11px'>" + cond + codeHtml + "</div>" +
-          "<a href='/collections/all/index.html' style='display:block;text-align:center;background:#fff;color:#000;padding:12px 20px;text-decoration:none;text-transform:uppercase;font:11px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1px;font-weight:700;border-radius:2px'>SHOP QUALIFYING PIECES →</a>" +
+          "<div style='font-size:14px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px'>" + esc(ev.giftItem) + " <span style='font-size:11px;opacity:.6;font-weight:400'>(" + esc(ev.giftValue || "COMPLIMENTARY") + ")</span></div>" +
+          (ev.giftDescription ? "<p style='opacity:.75;font-size:12px;line-height:1.6;margin:0 0 14px'>" + esc(ev.giftDescription) + "</p>" : "") +
+          "<div style='border-top:1px solid #222222;padding-top:12px;margin-bottom:18px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;opacity:.8'>" + cond + "</div>" +
+          codeHtml +
+          "<a href='/collections/all/index.html' style='display:block;text-align:center;background:#ffffff;color:#000000;padding:14px 20px;text-decoration:none;text-transform:uppercase;font:11px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1.5px;font-weight:700;margin-top:16px'>SHOP COLLECTION →</a>" +
         "</div>",
-        "position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px"
+        "position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px"
       );
       if (modal) {
         modal.addEventListener("click", function (e) {
@@ -1094,7 +1106,7 @@
         if (copyBtn && ev.discountCode) {
           copyBtn.onclick = function() {
             navigator.clipboard.writeText(ev.discountCode).then(function() {
-              copyBtn.textContent = "COPIED!";
+              copyBtn.textContent = "COPIED";
               setTimeout(function() { copyBtn.textContent = "COPY"; }, 2000);
             });
           };
