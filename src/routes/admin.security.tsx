@@ -15,8 +15,10 @@ export const Route = createFileRoute("/admin/security")({
 // Every indicator has exactly one of these states. A page existing is never evidence that a control works.
 type St = "pass" | "fail" | "unchecked" | "disconnected" | "demo";
 const LABEL: Record<St, string> = { pass: "Verified · passing", fail: "Failed / insecure", unchecked: "Not checked", disconnected: "Not connected", demo: "Demo data" };
-const COLOR: Record<St, string> = { pass: "#0a7d32", fail: "#e10600", unchecked: "#777", disconnected: "#777", demo: "#a86b00" };
-function Badge({ s }: { s: St }) { return <span className="adm-tag" style={{ borderColor: COLOR[s], color: COLOR[s] }}>{LABEL[s]}</span>; }
+function Badge({ s }: { s: St }) {
+  const cls = s === "pass" ? "active" : s === "fail" ? "danger" : s === "demo" ? "warning" : "info";
+  return <span className={`adm-tag ${cls}`}>{LABEL[s]}</span>;
+}
 function Row({ name, s, why }: { name: string; s: St; why: ReactNode }) {
   return <tr><td style={{ width: "30%" }}>{name}</td><td style={{ width: 170 }}><Badge s={s} /></td><td>{why}</td></tr>;
 }
