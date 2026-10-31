@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { discardDraft, getHistory, getPublished, publish, restoreVersion, siteConfig, unpublishAll, useAdmin } from "../admin/store";
 import { confirmReauth, getSession, logAuthEvent } from "../admin/security/auth";
 import { can } from "../admin/security/permissions";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { DevicePreview } from "../admin/site/fields";
 
 export const Route = createFileRoute("/admin/publish")({ component: PublishPage });
