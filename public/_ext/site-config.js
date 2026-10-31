@@ -625,7 +625,8 @@
                   (P && P[ph] && (P[ph].deleted || P[ph].status === "deleted"));
       var isInactive = P && P[ph] && P[ph].status && P[ph].status !== "active";
       if ((isDel || isInactive) && !preview) {
-        return overlay("adm-404", "<div>" + esc(tech.notFoundTitle || "Product not found") + "<br><small style='font-size:11px'>" + esc(tech.notFoundText || "This product is currently unavailable.") + "<br><a href='/home.html' style='color:#fff'>HOME</a></small></div>", FULL);
+        showUnavailable(tech.notFoundTitle || "PRODUCT UNAVAILABLE", tech.notFoundText || "This product is currently offline.");
+        return;
       }
       var prod = getFullCatalog().find(function (x) { return x.handle === ph; }) || (P && P[ph]) || {};
       if (prod.title) {
@@ -695,9 +696,11 @@
 
     if (ch) {
       var isColDel = (cfg && Array.isArray(cfg.deletedCollections) && cfg.deletedCollections.indexOf(ch) !== -1) ||
-                     (C && C[ch] && (C[ch].deleted || C[ch].visible === false));
+                     (C && C[ch] && (C[ch].deleted || C[ch].visible === false)) ||
+                     (colsMap[ch] && colsMap[ch].visible === false);
       if (isColDel && !preview) {
-        return overlay("adm-404", "<div>" + esc(tech.notFoundTitle || "Collection not found") + "<br><small style='font-size:11px'>" + esc(tech.notFoundText || "This collection is currently unavailable.") + "<br><a href='/home.html' style='color:#fff'>HOME</a></small></div>", FULL);
+        showUnavailable(tech.notFoundTitle || "COLLECTION UNAVAILABLE", tech.notFoundText || "This collection is currently offline.");
+        return;
       }
       var colTitle = document.querySelector(".collection-title"); if (colTitle && o && o.title != null) colTitle.textContent = o.title;
       if (o && o.description != null && o.description !== "") {
