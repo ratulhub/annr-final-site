@@ -66,31 +66,31 @@ function Orders() {
         </div>
         <div className="adm-row">
           <button className="adm-btn ghost" onClick={exportCSV} title="Export orders as CSV spreadsheet">
-            📥 {downloadSuccess ? "CSV Exported!" : "Export Orders CSV"}
+            {downloadSuccess ? "CSV exported" : "Export CSV"}
           </button>
         </div>
       </div>
 
       {/* Quick Order Stats */}
       <div className="adm-stats">
-        <div className="adm-stat accent-indigo">
-          <span>Total Revenue</span>
+        <div className="adm-stat">
+          <span>Total revenue</span>
           <b>৳{totalRevenue}</b>
           <small>{s.orders.length} total orders</small>
         </div>
-        <div className="adm-stat accent-emerald">
-          <span>Paid Orders</span>
+        <div className="adm-stat">
+          <span>Paid orders</span>
           <b>{paidOrders}</b>
           <small>{paidOrders === s.orders.length ? "100% paid" : `${s.orders.length - paidOrders} pending payment`}</small>
         </div>
-        <div className="adm-stat accent-amber">
+        <div className="adm-stat">
           <span>Unfulfilled</span>
           <b>{unfulfilledOrders}</b>
-          <small>{unfulfilledOrders > 0 ? "Awaiting packing / shipment" : "All orders fulfilled"}</small>
+          <small>{unfulfilledOrders > 0 ? "Awaiting fulfillment" : "All orders fulfilled"}</small>
         </div>
       </div>
 
-      <Card title="All Customer Orders" subtitle="Directly edit order rows, change fulfillment or payment status, or record new customer orders">
+      <Card title="Orders" subtitle="Manage customer orders, shipping details, payment, and fulfillment status">
         <RowList<Order>
           rows={rows}
           onChange={(r) => setState((x) => ({ ...x, orders: r }))}
