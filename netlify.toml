@@ -1,0 +1,57 @@
+# Netlify configuration for AnnR Storefront & Admin Panel
+# Architecture:
+# - Static storefront (158 HTML pages + /cdn/shop/* + /_ext/*) is served from dist/ at CDN edge speed.
+# - Dynamic routes (/admin/*, /p/*, /cart, /search/suggest, /recommendations/*, and newly created
+#   products/collections) are handled by the TanStack Start + Nitro v3 Netlify Function (.netlify/functions-internal/server).
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NITRO_PRESET = "netlify"
+
+[functions]
+  # Bundle fallback HTML templates so dynamic product/collection creation in Admin works in serverless
+  included_files = [
+    "public/products/aka-manto-longsleeve/index.html",
+    "public/collections/all/index.html",
+    "public/_ext/cart-popup-empty.html"
+  ]
+
+# Edge redirect: root path goes directly to the storefront home page
+[[redirects]]
+  from = "/"
+  to = "/home.html"
+  status = 302
+  force = true
+
+# Security headers enforced across all routes (verified by /admin/security)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(self)"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' 'unsafe-inline' https://*.shopify.com https://*.shopifycdn.com https://www.googletagmanager.com https://*.klaviyo.com; style-src 'self' 'unsafe-inline' https://fonts.bunny.net; img-src 'self' data: blob: https:; media-src 'self' https:; font-src 'self' data: https://fonts.bunny.net; connect-src 'self' https:; frame-src 'self' https://*.shopify.com https://*.gotolstoy.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self' https://*.shopify.com https://shihiko.com; frame-ancestors 'self'"
+
+[[headers]]
+  for = "/admin*"
+  [headers.values]
+    Cache-Control = "no-store"
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/cdn/shop/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
