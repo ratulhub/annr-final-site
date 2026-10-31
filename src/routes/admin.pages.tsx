@@ -25,8 +25,13 @@ function Pages() {
     });
   return (
     <>
-      <div className="adm-top"><h1>Pages</h1>
-        <button className="adm-btn" onClick={() => setState((x) => ({ ...x, pages: [{ handle: "page-" + uid(), title: "New page", body: "", visible: false, seoTitle: "", seoDescription: "" }, ...x.pages] }))}>+ Add page</button></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Pages</h1>
+        </div>
+        <button className="adm-btn" onClick={() => setState((x) => ({ ...x, pages: [{ handle: "page-" + uid(), title: "New page", body: "", visible: false, seoTitle: "", seoDescription: "" }, ...x.pages] }))}>+ Add page</button>
+      </div>
       {s.pages.map((p) => (
         <Card key={p.handle} title={p.title} action={<div className="adm-row">
           <span className={"adm-tag" + (p.visible ? " on" : "")}>{p.visible ? "visible" : "hidden"}</span>
