@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { setState, uid, useAdmin, type Product } from "../admin/store";
+import { BackBtn } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/products")({ component: Products });
 
@@ -19,7 +20,13 @@ function Products() {
   const setAll = (st: Product["status"]) => setState((x) => ({ ...x, products: x.products.map((p) => (list.includes(p) ? { ...p, status: st } : p)) }));
   return (
     <>
-      <div className="adm-top"><h1>Products ({s.products.length})</h1><button className="adm-btn" onClick={add}>+ Add product</button></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Products ({s.products.length})</h1>
+        </div>
+        <button className="adm-btn" onClick={add}>+ Add product</button>
+      </div>
       <div className="adm-row" style={{ marginBottom: 14 }}>
         <input placeholder="Search products" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 300 }} />
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 160 }}>{["all", "active", "draft", "archived"].map((o) => <option key={o}>{o}</option>)}</select>
