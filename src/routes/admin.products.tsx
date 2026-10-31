@@ -83,40 +83,40 @@ function Products() {
           </div>
         </div>
         <div className="adm-row">
-          <button className="adm-btn" onClick={add} style={{ background: "var(--red)", borderColor: "var(--red)" }}>
-            ➕ Add Product
+          <button className="adm-btn primary" onClick={add}>
+            Add product
           </button>
         </div>
       </div>
 
       {/* Filter and Bulk Action Controls */}
-      <div className="adm-card" style={{ padding: 16, marginBottom: 18 }}>
+      <div className="adm-card" style={{ padding: 14, marginBottom: 16 }}>
         <div className="adm-row" style={{ justifyContent: "space-between" }}>
           <div className="adm-row" style={{ flex: 1, minWidth: 260 }}>
             <input
-              placeholder="🔍 Search product title..."
+              placeholder="Search products..."
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              style={{ maxWidth: 320 }}
+              style={{ maxWidth: 300 }}
             />
             <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 160 }}>
-              <option value="all">All Statuses ({s.products.length})</option>
-              <option value="active">Active Only ({s.products.filter((p) => p.status === "active").length})</option>
-              <option value="draft">Drafts Only ({s.products.filter((p) => p.status === "draft").length})</option>
-              <option value="archived">Archived Only ({s.products.filter((p) => p.status === "archived").length})</option>
+              <option value="all">All statuses ({s.products.length})</option>
+              <option value="active">Active only ({s.products.filter((p) => p.status === "active").length})</option>
+              <option value="draft">Drafts only ({s.products.filter((p) => p.status === "draft").length})</option>
+              <option value="archived">Archived only ({s.products.filter((p) => p.status === "archived").length})</option>
             </select>
             {q && (
               <button className="adm-btn ghost sm" onClick={() => setQ("")}>
-                Clear Filter
+                Clear
               </button>
             )}
           </div>
           <div className="adm-row">
             <button className="adm-btn ghost sm" onClick={() => setAll("active")}>
-              ✓ Set Shown Active
+              Set active
             </button>
             <button className="adm-btn ghost sm" onClick={() => setAll("draft")}>
-              ⏸️ Set Shown Draft
+              Set draft
             </button>
           </div>
         </div>
@@ -127,13 +127,13 @@ function Products() {
         <table>
           <thead>
             <tr>
-              <th style={{ width: 60 }} />
-              <th>Product Details</th>
+              <th style={{ width: 56 }} />
+              <th>Product</th>
               <th>Status</th>
               <th>Price</th>
-              <th>Stock Level</th>
-              <th>Sizes / Variants</th>
-              <th style={{ textAlign: "right", paddingRight: 18 }}>Actions</th>
+              <th>Inventory</th>
+              <th>Variants</th>
+              <th style={{ textAlign: "right", paddingRight: 16 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -144,20 +144,22 @@ function Products() {
                 <tr key={p.handle}>
                   <td>
                     {p.images[0] ? (
-                      <img src={p.images[0]} alt="" style={{ borderRadius: 6 }} />
+                      <img src={p.images[0]} alt="" style={{ borderRadius: 4 }} />
                     ) : (
                       <div
                         style={{
-                          width: 48,
-                          height: 48,
-                          background: "var(--soft)",
-                          borderRadius: 6,
+                          width: 44,
+                          height: 44,
+                          background: "var(--p-background)",
+                          borderRadius: 4,
+                          border: "1px solid var(--p-border-subdued)",
                           display: "grid",
                           placeItems: "center",
-                          fontSize: 18,
+                          fontSize: 10,
+                          color: "var(--p-text-subdued)",
                         }}
                       >
-                        👕
+                        No img
                       </div>
                     )}
                   </td>
@@ -166,19 +168,19 @@ function Products() {
                       className="link"
                       to="/admin/products/$handle"
                       params={{ handle: p.handle }}
-                      style={{ fontSize: 14, fontWeight: 700 }}
+                      style={{ fontSize: 13.5, fontWeight: 500 }}
                     >
                       {p.title}
                     </Link>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-                      /{p.handle} {p.badge && <span className="adm-tag purple" style={{ fontSize: 9, padding: "2px 6px", marginLeft: 6 }}>{p.badge}</span>}
+                    <div style={{ fontSize: 12, color: "var(--p-text-subdued)", marginTop: 2 }}>
+                      /{p.handle} {p.badge && <span className="adm-tag" style={{ fontSize: 10, padding: "1px 5px", marginLeft: 4 }}>{p.badge}</span>}
                     </div>
                   </td>
                   <td>
                     <button
                       type="button"
                       onClick={() => toggleStatus(p)}
-                      title="Click to toggle Active / Draft"
+                      title="Click to toggle status"
                       style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
                     >
                       <span className={`adm-tag ${p.status === "active" ? "active" : p.status === "draft" ? "draft" : "danger"}`}>
@@ -187,23 +189,23 @@ function Products() {
                     </button>
                   </td>
                   <td>
-                    <b style={{ color: "var(--ink)", fontSize: 14 }}>৳{p.price}</b>
+                    <span style={{ fontWeight: 500 }}>৳{p.price}</span>
                   </td>
                   <td>
                     {isLow ? (
-                      <span className="adm-tag danger" style={{ fontWeight: 800 }}>
-                        ⚠️ {totalStock} LOW
+                      <span className="adm-tag danger">
+                        {totalStock} in stock
                       </span>
                     ) : (
-                      <span className="adm-tag active" style={{ fontWeight: 700 }}>
+                      <span style={{ color: "var(--p-text)" }}>
                         {totalStock} in stock
                       </span>
                     )}
                   </td>
                   <td>
-                    <span style={{ fontWeight: 600 }}>{p.variants.map((v) => v.option).join(", ")}</span>
+                    <span style={{ color: "var(--p-text-subdued)", fontSize: 12.5 }}>{p.variants.map((v) => v.option).join(", ")}</span>
                   </td>
-                  <td style={{ textAlign: "right", paddingRight: 18 }}>
+                  <td style={{ textAlign: "right", paddingRight: 16 }}>
                     <div className="adm-row" style={{ justifyContent: "flex-end", gap: 6 }}>
                       <Link className="adm-btn ghost sm" to="/admin/products/$handle" params={{ handle: p.handle }}>
                         Edit
