@@ -388,7 +388,7 @@ function EventsManager() {
 
                 {/* 4. Storefront Placements */}
                 <h3 style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", margin: "18px 0 8px" }}>
-                  Storefront Placements & Display
+                  Storefront Placements & Display (Non-Interruptive)
                 </h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 18 }}>
                   {/* Authentic Streetwear Placements */}
@@ -396,79 +396,23 @@ function EventsManager() {
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#111827", display: "inline-block" }} />
                       <strong style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", color: "#111827" }}>
-                        Native Brand Navigation & Product Features (Zero AI Feel · Authentic Streetwear)
+                        Non-Interruptive Placements (Cart Drawer &amp; Product Specs)
                       </strong>
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       <Chk
-                        label="Header Action Link (Displays cleanly in desktop & mobile header navigation alongside Vault & VIP)"
-                        value={selectedEvent.showFloatingGiftPill}
-                        onChange={(v) => updateEvent(selectedEvent.id, { showFloatingGiftPill: v })}
+                        label="Cart Drawer Reward Perk (Displays sleek luxury gift notice inside shopping bag when viewing cart)"
+                        value={selectedEvent.showCartReward !== false}
+                        onChange={(v) => updateEvent(selectedEvent.id, { showCartReward: v })}
                       />
-                      {selectedEvent.showFloatingGiftPill && (
-                        <div style={{ marginTop: 4, marginLeft: 24 }}>
-                          <label className="adm-field">
-                            <span>Navigation tag label</span>
-                            <input
-                              value={selectedEvent.pillText || selectedEvent.tag || "GIFT DROP"}
-                              onChange={(e) => updateEvent(selectedEvent.id, { pillText: e.target.value })}
-                              placeholder="e.g. GIFT DROP or SPECIAL EVENT"
-                            />
-                          </label>
-                        </div>
-                      )}
 
                       <Chk
-                        label="Native Product Page (PDP) Feature Bullet (Blends directly into the product info feature list)"
+                        label="Native Product Page (PDP) Feature Bullet (Blends cleanly into the product info feature list)"
                         value={selectedEvent.showPdpPerk ?? true}
                         onChange={(v) => updateEvent(selectedEvent.id, { showPdpPerk: v })}
                       />
-
-                      <Chk
-                        label="Cart Drawer Progress & Reward Prompt"
-                        value={selectedEvent.showCartReward}
-                        onChange={(v) => updateEvent(selectedEvent.id, { showCartReward: v })}
-                      />
-                      {selectedEvent.showCartReward && (
-                        <div style={{ marginTop: 4, marginLeft: 24 }}>
-                          <label className="adm-field">
-                            <span>Cart incentive message (Use {'{remaining}'} for remaining ৳)</span>
-                            <input
-                              value={selectedEvent.cartRewardMessage}
-                              onChange={(e) => updateEvent(selectedEvent.id, { cartRewardMessage: e.target.value })}
-                            />
-                          </label>
-                        </div>
-                      )}
                     </div>
-                  </div>
-
-                  {/* Header Announcement Bar (Optional) */}
-                  <div style={{ border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, padding: "10px 14px" }}>
-                    <Chk
-                      label="Show Single Top Announcement Bar (Header Bar)"
-                      value={selectedEvent.showTopBar}
-                      onChange={(v) => updateEvent(selectedEvent.id, { showTopBar: v })}
-                    />
-                    {selectedEvent.showTopBar && (
-                      <div className="adm-grid" style={{ marginTop: 8 }}>
-                        <label className="adm-field" style={{ gridColumn: "1/-1" }}>
-                          <span>Top bar message text</span>
-                          <input
-                            value={selectedEvent.topBarText}
-                            onChange={(e) => updateEvent(selectedEvent.id, { topBarText: e.target.value })}
-                          />
-                        </label>
-                        <label className="adm-field" style={{ gridColumn: "1/-1" }}>
-                          <span>Top bar link URL</span>
-                          <input
-                            value={selectedEvent.topBarUrl}
-                            onChange={(e) => updateEvent(selectedEvent.id, { topBarUrl: e.target.value })}
-                          />
-                        </label>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -498,23 +442,37 @@ function EventsManager() {
               {/* Live Storefront Component Preview */}
               <Card title="Live Storefront Component Preview">
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {/* Header Navigation Link Preview */}
-                  {selectedEvent.showFloatingGiftPill && (
+                  {/* Cart Drawer Perk Preview */}
+                  {selectedEvent.showCartReward !== false && (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, textTransform: "uppercase", color: "var(--p-text-subdued)" }}>
-                        1. Native Header Action (Appears alongside Vault &amp; VIP in navigation):
+                        1. Cart Drawer Reward Perk (Appears exclusively inside customer shopping bag):
                       </div>
-                      <div style={{ background: "#0a0a0a", padding: "14px 20px", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between", color: "#fff" }}>
-                        <div style={{ fontFamily: "Rockybilly, cursive", fontSize: 20 }}>AnnR</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 16, fontFamily: "'NB Architekt Std', sans-serif", fontSize: 11, letterSpacing: 1 }}>
-                          <span style={{ opacity: 0.6 }}>SEARCH</span>
-                          <span style={{ opacity: 0.6 }}>VAULT</span>
-                          <span style={{ color: "#ffffff", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 4, cursor: "pointer" }}>
-                            {selectedEvent.pillText || selectedEvent.tag || "GIFT DROP"}
-                          </span>
-                          <span style={{ opacity: 0.6 }}>VIP</span>
-                          <span style={{ opacity: 0.6 }}>[BAG]</span>
+                      <div
+                        style={{
+                          background: "#0a0a0a",
+                          color: "#ffffff",
+                          border: "1px solid #222222",
+                          borderRadius: 4,
+                          padding: "12px 14px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          fontFamily: "'NB Architekt Std', sans-serif",
+                          fontSize: 11,
+                          letterSpacing: 0.5,
+                        }}
+                      >
+                        <span style={{ fontSize: 16 }}>🎁</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "#fff" }}>
+                            {selectedEvent.giftItem ? `COMPLIMENTARY ${selectedEvent.giftItem.toUpperCase()}` : "COMPLIMENTARY GIFT DROP"}
+                          </div>
+                          <div style={{ fontSize: 11, opacity: 0.75, marginTop: 2 }}>
+                            {Number(selectedEvent.minSpend) > 0 ? `Qualified on orders over ৳${selectedEvent.minSpend}` : "Complimentary with your order"}
+                          </div>
                         </div>
+                        <span style={{ fontSize: 11, opacity: 0.6 }}>DETAILS →</span>
                       </div>
                     </div>
                   )}
@@ -543,55 +501,6 @@ function EventsManager() {
                         <span style={{ fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", fontSize: 12 }}>
                           {selectedEvent.giftItem ? `FREE ${selectedEvent.giftItem.toUpperCase()}${Number(selectedEvent.minSpend) > 0 ? ` ON ORDERS OVER ৳${selectedEvent.minSpend}` : ""}` : "FREE GIFT WITH PURCHASE"}
                         </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Top Bar Preview (If explicitly enabled) */}
-                  {selectedEvent.showTopBar && (
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>
-                        3. Top Announcement Bar:
-                      </div>
-                      <div
-                        style={{
-                          background: "#000000",
-                          color: "#ffffff",
-                          padding: "9px 12px",
-                          textAlign: "center",
-                          fontFamily: "'NB Architekt Std', sans-serif",
-                          fontSize: 10,
-                          letterSpacing: 2,
-                          textTransform: "uppercase",
-                          borderRadius: 2,
-                        }}
-                      >
-                        {selectedEvent.topBarText || "Campaign Top Announcement Bar"}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Ticker Preview (If explicitly enabled) */}
-                  {selectedEvent.showTicker && (
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>
-                        Legacy Marquee Ticker:
-                      </div>
-                      <div
-                        style={{
-                          background: selectedEvent.bg || "#111",
-                          color: selectedEvent.textColor || "#fff",
-                          padding: "8px 12px",
-                          overflow: "hidden",
-                          whiteSpace: "nowrap",
-                          fontFamily: "'Druk Wide', sans-serif",
-                          fontSize: 12,
-                          letterSpacing: 1.5,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          borderRadius: 4,
-                        }}
-                      >
-                        {selectedEvent.tickerText || "ANNR EVENT MARQUEE TICKER"}
                       </div>
                     </div>
                   )}
