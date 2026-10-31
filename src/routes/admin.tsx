@@ -41,7 +41,19 @@ function AdminLayout() {
   const [q, setQ] = useState("");
   const path = useLocation({ select: (l) => l.pathname });
   useEffect(() => { setAuthed(isLoggedIn()); setCollapsed(localStorage.getItem("shihiko-admin-collapsed") === "1"); setReady(true); }, []);
-  useEffect(() => setMobile(false), [path]);
+  // Reset search filter and close mobile menu on page navigation
+  useEffect(() => {
+    setMobile(false);
+    setQ("");
+  }, [path]);
+
+  // Reject any credential autofill containing '@' or username pattern
+  useEffect(() => {
+    if (q && (q.includes("@") || q.toLowerCase().includes("ratul"))) {
+      setQ("");
+    }
+  }, [q]);
+
   // Idle / absolute session expiry: re-check every 30s and on activity.
   useEffect(() => {
     if (!authed) return;
@@ -56,24 +68,124 @@ function AdminLayout() {
   const toggle = () => { localStorage.setItem("shihiko-admin-collapsed", collapsed ? "0" : "1"); setCollapsed(!collapsed); };
   const crumbs = findCrumbs(path);
   const query = q.trim().toLowerCase();
+  const filteredGroups = NAV_GROUPS.map((g) => {
+    const items = g.items.filter((i) => !query || i.label.toLowerCase().includes(query) || g.group.toLowerCase().includes(query));
+    return { group: g.group, items };
+  }).filter((g) => g.items.length > 0);
+
   return (
     <div className={`adm${collapsed ? " collapsed" : ""}${mobile ? " mobile-open" : ""}`}>
       <aside className="adm-side">
         <div className="adm-logo">AnnR<small>Admin Panel</small></div>
-        <input className="adm-navsearch" placeholder="Search menu…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search menu" />
+        {path !== "/admin" && path !== "/admin/" && (
+          <div style={{ margin: "0 16px 12px" }}>
+            <button
+              type="button"
+              className="adm-btn ghost sm"
+              style={{
+                width: "100%",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "7px 10px",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                background: "#181818",
+                border: "1px solid #444",
+                color: "var(--paper)",
+              }}
+              onClick={() => {
+                if (window.history.length > 1) {
+                  window.history.back();
+                } else {
+                  window.location.href = "/admin";
+                }
+              }}
+              title="Go back to previous page"
+            >
+              ← Back
+            </button>
+          </div>
+        )}
+        <div style={{ position: "relative", margin: "0 16px 14px" }}>
+          <input
+            type="search"
+            id="admin-menu-search-input"
+            name="admin_sidebar_menu_filter_no_autofill"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            data-lpignore="true"
+            data-1p-ignore="true"
+            data-form-type="other"
+            aria-autocomplete="none"
+            className="adm-navsearch"
+            style={{ margin: 0, width: "100%", paddingRight: q ? 26 : 9 }}
+            placeholder="Search menu…"
+            value={q}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val.includes("@") || val.toLowerCase().includes("ratul")) {
+                setQ("");
+              } else {
+                setQ(val);
+              }
+            }}
+            aria-label="Search menu"
+          />
+          {q && (
+            <button
+              type="button"
+              onClick={() => setQ("")}
+              style={{
+                position: "absolute",
+                right: 6,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "transparent",
+                border: "none",
+                color: "var(--paper)",
+                cursor: "pointer",
+                padding: "2px 6px",
+                fontSize: 12,
+                opacity: 0.7,
+                lineHeight: 1,
+              }}
+              title="Clear search"
+              aria-label="Clear menu search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
         <nav className="adm-nav">
-          {NAV_GROUPS.map((g) => {
-            const items = g.items.filter((i) => !query || i.label.toLowerCase().includes(query) || g.group.toLowerCase().includes(query));
-            if (!items.length) return null;
-            return (
+          {filteredGroups.length === 0 && query ? (
+            <div style={{ padding: "16px", margin: "0 16px 16px", background: "#161616", border: "1px dashed #333", fontSize: 11, textAlign: "center" }}>
+              <div style={{ color: "var(--muted)", marginBottom: 8 }}>No menu items match "{q}"</div>
+              <button
+                type="button"
+                className="adm-btn ghost sm"
+                style={{ width: "100%", fontSize: 10, padding: "5px 8px" }}
+                onClick={() => setQ("")}
+              >
+                Show All Menus
+              </button>
+            </div>
+          ) : (
+            filteredGroups.map((g) => (
               <div key={g.group} className="adm-group">
                 <div className="adm-group-title">{g.group}</div>
-                {items.map((i) => i.report ? <Link key={i.label} to="/admin/analytics/$report" params={{ report: i.report }} activeProps={{ className: "active" }}>{i.label}</Link> : i.module
+                {g.items.map((i) => i.report ? <Link key={i.label} to="/admin/analytics/$report" params={{ report: i.report }} activeProps={{ className: "active" }}>{i.label}</Link> : i.module
                   ? <Link key={i.label} to="/admin/m/$module" params={{ module: i.module }} activeProps={{ className: "active" }}>{i.label}{i.soon && <em>{i.soon}</em>}</Link>
                   : <Link key={i.to} to={i.to!} activeOptions={{ exact: i.to === "/admin" }} activeProps={{ className: "active" }}>{i.label}</Link>)}
               </div>
-            );
-          })}
+            ))
+          )}
           <div className="adm-group">
             <a href="/home.html" target="_blank" rel="noreferrer">View Store ↗</a>
             <a href="#" onClick={(e) => { e.preventDefault(); logout(); setAuthed(false); }}>Log out</a>
