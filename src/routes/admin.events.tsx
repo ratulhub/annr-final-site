@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { setSite, uid } from "../admin/store";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { Chk, ColorF, useSite } from "../admin/site/fields";
 import type { CampaignEvent } from "../admin/site/types";
 
@@ -119,11 +119,14 @@ function EventsManager() {
   return (
     <>
       <div className="adm-top">
-        <div>
-          <h1>Gift Campaigns & Events</h1>
-          <p className="adm-hint" style={{ marginTop: 4 }}>
-            Control live gift drops, seasonal promotions, flash sales, countdowns, and reward triggers across the entire storefront.
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <div>
+            <h1>Gift Campaigns & Events</h1>
+            <p className="adm-hint" style={{ marginTop: 4 }}>
+              Control live gift drops, seasonal promotions, flash sales, countdowns, and reward triggers across the entire storefront.
+            </p>
+          </div>
         </div>
         <div className="adm-row" style={{ gap: 8 }}>
           {activeCount > 0 ? (
