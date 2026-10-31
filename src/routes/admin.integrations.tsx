@@ -1,13 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { IntegrationsCard } from "../admin/site/IntegrationsCard";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/integrations")({ component: Integrations });
 
 function Integrations() {
   return (
     <>
-      <div className="adm-top"><h1>Integrations</h1></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Integrations</h1>
+        </div>
+      </div>
       <p className="adm-hint">Services the store uses or will use. Nothing is connected from this panel yet, so every status is honest: Not connected.</p>
       <IntegrationsCard />
       <Card title="Already working through the live store">
