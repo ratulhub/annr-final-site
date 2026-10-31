@@ -22,7 +22,11 @@ function EditPage() {
   const imgs = s.site.media;
   return (
     <>
-      <div className="adm-top"><h1>{page.title}</h1>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin/website" label="← Website Pages" />
+          <h1>{page.title}</h1>
+        </div>
         <div className="adm-row"><Link className="adm-btn ghost" to="/admin/website">All pages</Link>
           <select value={page.status} onChange={(e) => save({ status: e.target.value as CustomPage["status"] })} style={{ width: 140 }}><option value="draft">draft</option><option value="published">published</option></select></div></div>
       {errors.length > 0 && <div className="adm-err" style={{ marginBottom: 12 }}>Fix before publishing: {errors.join(" · ")}</div>}
