@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { setSite, uid } from "../admin/store";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { TEMPLATES, SPACING, SECTION_KINDS } from "../admin/site/registry";
 import { Chk, ColorF, DevicePreview, Pick, move, OrderBtns, useSite } from "../admin/site/fields";
 import type { SectionCfg, AddedSection } from "../admin/site/types";
