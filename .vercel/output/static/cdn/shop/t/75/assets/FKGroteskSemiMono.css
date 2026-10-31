@@ -1,0 +1,23 @@
+@font-face {
+	font-family: 'FK Grotesk SemiMono';
+	src: url('/cdn/shop/t/75/assets/FKGroteskSemiMonoTrial-Light.otf?v=166608045931137323161789705536') format('opentype');
+	font-weight: 300;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'FK Grotesk SemiMono';
+	src: url('/cdn/shop/t/75/assets/FKGroteskSemiMonoTrial-Regular.otf?v=51794320968250259641789705536') format('opentype');
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'FK Grotesk SemiMono';
+	src: url('/cdn/shop/t/75/assets/FKGroteskSemiMonoTrial-Bold.otf?v=140273653288133024461789705536') format('opentype');
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
