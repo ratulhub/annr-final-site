@@ -1,11 +1,11 @@
-import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import adminCss from "../admin/admin.css?url";
 import { isLoggedIn, login, logout, getSession } from "../admin/store";
 import { logAuthEvent, touch } from "../admin/security/auth";
 import { can, permissionForPath } from "../admin/security/permissions";
 import { useAdmin } from "../admin/store";
-import { NAV_GROUPS } from "../admin/config/navigation";
+import { NAV_GROUPS, type NavGroup } from "../admin/config/navigation";
 import { publish } from "../admin/store";
 import { useDirty } from "./admin.publish";
 
