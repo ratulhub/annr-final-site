@@ -80,7 +80,12 @@ function SecurityCenter() {
 
   return (
     <>
-      <div className="adm-top"><h1>Security Center</h1></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Back to Dashboard" />
+          <h1>Security Center</h1>
+        </div>
+      </div>
       <p className="adm-hint" style={{ marginBottom: 16 }}>
         This page only reports. It never grants access. Real protection must come from the database rules in
         <code> database/sql</code> (mirrored in <code>supabase/migrations</code>) once Supabase is connected. Full documentation: <code>docs/security-threat-model.md</code>, <code>docs/security-audit.md</code>, <code>docs/security-remediation-plan.md</code>, <code>docs/supabase-security-plan.md</code>, <code>docs/security-verification-checklist.md</code>.
