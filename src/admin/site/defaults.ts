@@ -71,6 +71,7 @@ export function siteDefaults(): SiteConfig {
         giftValue: "৳1,200",
         giftImage: "/cdn/shop/files/UWUSOCKS1.jpg",
         giftDescription: "Complimentary AnnR Classics 100% combed cotton socks bundle automatically qualified on all orders over ৳5,000.",
+        showPdpPerk: true,
         showTopBar: false,
         topBarText: "🎁 SPECIAL OFFER: FREE ANNR SOCKS BUNDLE ON ALL ORDERS OVER ৳5,000 · LIMITED TIME",
         topBarUrl: "/collections/all/index.html",
