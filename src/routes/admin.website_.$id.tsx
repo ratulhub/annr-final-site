@@ -50,7 +50,7 @@ function EditPage() {
           <div className="adm-row">{(Object.keys(BLOCKS) as Block["type"][]).map((t) => <button key={t} className="adm-btn ghost sm" onClick={() => setB([...page.blocks, { ...BLOCKS[t].blank(), id: uid() } as Block])}>+ {BLOCKS[t].label}</button>)}</div>
         </div>
         <Card title="Preview" action={<span className="adm-row" style={{ gap: 4 }}>{[["Desktop", "100%"], ["Tablet", "768px"], ["Mobile", "375px"]].map(([l, w]) => <button key={l} className={`adm-btn sm ${device === w ? "" : "ghost"}`} onClick={() => setDevice(w!)}>{l}</button>)}</span>}>
-          <div style={{ border: "1px solid #000", overflow: "auto", maxHeight: 700 }}><div style={{ width: device, maxWidth: "100%", margin: "0 auto" }}><PageView page={page} products={s.products.map((p) => ({ handle: p.handle, title: p.title, price: p.price, image: p.images[0] || "", status: p.status }))} /></div></div>
+          <div style={{ border: "1.5px solid var(--line)", borderRadius: 8, overflow: "auto", maxHeight: 700, background: "#ffffff" }}><div style={{ width: device, maxWidth: "100%", margin: "0 auto" }}><PageView page={page} products={s.products.map((p) => ({ handle: p.handle, title: p.title, price: p.price, image: p.images[0] || "", status: p.status }))} /></div></div>
         </Card>
       </div>
     </>
