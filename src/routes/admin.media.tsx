@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { setSite, uid, useAdmin } from "../admin/store";
-import { Card } from "../admin/ui";
+import { BackBtn, Card } from "../admin/ui";
 import { mediaUsage, storeFile } from "../admin/services/media";
 import type { MediaItem } from "../admin/site/types";
 
@@ -29,8 +29,13 @@ function Media() {
   };
   return (
     <>
-      <div className="adm-top"><h1>Media library</h1>
-        <label className="adm-btn">Upload<input type="file" accept="image/*" multiple hidden onChange={(e) => upload(e.target.files)} /></label></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Media library</h1>
+        </div>
+        <label className="adm-btn">Upload<input type="file" accept="image/*" multiple hidden onChange={(e) => upload(e.target.files)} /></label>
+      </div>
       <p className="adm-hint">Demo: uploads are stored inside this browser (max 400 KB each) and are not in permanent cloud storage. Use links for big files.</p>
       {err && <div className="adm-err">{err}</div>}
       <div className="adm-row" style={{ marginBottom: 14 }}>
