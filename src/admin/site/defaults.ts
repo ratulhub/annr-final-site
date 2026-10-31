@@ -104,7 +104,7 @@ export function siteDefaults(): SiteConfig {
         showTopBar: false,
         topBarText: "⚡ MIDNIGHT VAULT CAPSULE DROP IS NOW LIVE · LIMITED QUANTITIES",
         topBarUrl: "/collections/vault/index.html",
-        showTicker: true,
+        showTicker: false,
         tickerText: "ANNR VAULT CAPSULE DROP · ARCHIVED EDITIONS · STRICTLY LIMITED STOCK",
         showFloatingGiftPill: false,
         pillText: "⚡ Vault Drop Live",
