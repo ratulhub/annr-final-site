@@ -77,7 +77,7 @@ export function siteDefaults(): SiteConfig {
         topBarUrl: "/collections/all/index.html",
         showTicker: false,
         tickerText: "ANNR GIFT CAMPAIGN · FREE SOCKS BUNDLE WITH ORDERS OVER ৳5,000 · WORLDWIDE SHIPPING · SHOP THE DROP",
-        showFloatingGiftPill: true,
+        showFloatingGiftPill: false,
         pillText: "🎁 FREE GIFT WITH ৳5,000+",
         showCartReward: true,
         cartRewardMessage: "Add ৳{remaining} more to claim your FREE AnnR Gift!",

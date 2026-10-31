@@ -978,15 +978,26 @@
       if (cb) cb.querySelector("button").onclick = function () { localStorage.setItem("shihiko-cookie-ok", "1"); cb.remove(); };
     }
 
-    // Gift Campaigns & Events Engine (Pure Authentic Streetwear Presentation · Zero AI Widget Feel)
+    // Gift Campaigns & Events Engine (Pure Authentic Streetwear Presentation · Non-Interruptive)
     (function applyCampaignsAndEvents() {
-      // 1. Permanently remove all legacy or AI-like floating widgets and intrusive stacked bars
-      var oldPill = document.getElementById("adm-floating-gift-pill");
-      if (oldPill) oldPill.remove();
-      var oldPdpBox = document.getElementById("adm-pdp-gift-perk");
-      if (oldPdpBox) oldPdpBox.remove();
-      var oldTicker = document.getElementById("adm-event-ticker");
-      if (oldTicker) oldTicker.remove();
+      // 1. Permanently remove all intrusive bars, covering tickers, header links, and floating pills
+      var toRemove = [
+        "adm-event-topbar",
+        "adm-event-ticker",
+        "adm-floating-gift-pill",
+        "adm-header-event-link",
+        "adm-mobile-event-link",
+        "adm-pdp-gift-perk"
+      ];
+      toRemove.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.remove();
+      });
+
+      // Also clean up any lingering links or bars in the DOM
+      document.querySelectorAll("#adm-event-topbar, #adm-event-ticker, #adm-floating-gift-pill, #adm-header-event-link, #adm-mobile-event-link").forEach(function(el) {
+        el.remove();
+      });
 
       var events = S.events || [];
       var now = new Date().toISOString().slice(0, 10);
@@ -999,71 +1010,69 @@
         return false;
       });
 
-      var headerEventLink = document.getElementById("adm-header-event-link");
-      var mobileEventLink = document.getElementById("adm-mobile-event-link");
-      var pdpFeature = document.getElementById("adm-pdp-gift-feature");
-      var topBarEl = document.getElementById("adm-event-topbar");
-
-      if (!activeEvent) {
-        if (headerEventLink) headerEventLink.remove();
-        if (mobileEventLink) mobileEventLink.remove();
-        if (pdpFeature) pdpFeature.remove();
-        if (topBarEl) topBarEl.remove();
-        return;
-      }
-
-      // 2. Optional Top Announcement Bar (Only rendered if explicitly enabled in admin)
-      if (activeEvent.showTopBar && activeEvent.topBarText) {
-        if (!topBarEl) {
-          topBarEl = document.createElement(activeEvent.topBarUrl ? "a" : "div");
-          topBarEl.id = "adm-event-topbar";
-          document.body.insertBefore(topBarEl, document.body.firstChild);
-        }
-        if (activeEvent.topBarUrl) topBarEl.href = safeUrl(activeEvent.topBarUrl);
-        topBarEl.textContent = activeEvent.topBarText;
-        topBarEl.style.cssText = "display:block;text-decoration:none;background:#000000;color:#ffffff;text-align:center;font:10px/1 'NB Architekt Std',sans-serif;letter-spacing:2px;text-transform:uppercase;padding:9px 12px;position:relative;z-index:10002;border-bottom:1px solid rgba(255,255,255,0.12)";
-      } else if (topBarEl) {
-        topBarEl.remove();
-      }
-
-      // 3. Native Header Navigation Integration (Seamlessly matches Vault & VIP typography)
-      var headerNavRight = document.querySelector(".header-new__nav-block--right") || document.querySelector(".header-left-block");
-      if (headerNavRight && !document.getElementById("adm-header-event-link")) {
-        var eventLink = document.createElement("a");
-        eventLink.id = "adm-header-event-link";
-        eventLink.href = "#annr-event";
-        eventLink.className = "header-action-link header-new__action";
-        eventLink.textContent = activeEvent.tag || "GIFT DROP";
-        eventLink.style.cssText = "letter-spacing:1px;font-weight:700;text-transform:uppercase";
-        eventLink.onclick = function(e) {
-          e.preventDefault();
-          openGiftModal(activeEvent);
-        };
-        var vipLink = headerNavRight.querySelector(".js-vip-page-link");
-        if (vipLink) {
-          headerNavRight.insertBefore(eventLink, vipLink);
-        } else {
-          headerNavRight.appendChild(eventLink);
+      // Sanitize stored event flags so legacy localStorage never re-enables intrusive header bars
+      if (cfg && cfg.site && Array.isArray(cfg.site.events)) {
+        var changed = false;
+        cfg.site.events.forEach(function(ev) {
+          if (ev.showTopBar || ev.showTicker || ev.showFloatingGiftPill) {
+            ev.showTopBar = false;
+            ev.showTicker = false;
+            ev.showFloatingGiftPill = false;
+            changed = true;
+          }
+        });
+        if (changed) {
+          try { localStorage.setItem(preview ? "shihiko-site-draft" : "shihiko-site-config", JSON.stringify(cfg)); } catch(e) {}
         }
       }
 
-      // 4. Mobile Menu Navigation Item
-      var mobileList = document.querySelector(".header-new__mobile-menu-list");
-      if (mobileList && !document.getElementById("adm-mobile-event-link")) {
-        var mobLink = document.createElement("a");
-        mobLink.id = "adm-mobile-event-link";
-        mobLink.href = "#annr-event";
-        mobLink.className = "mobile-menu-list-item header-new__mobile-item header-new__mobile-link";
-        mobLink.innerHTML = "<span>" + esc(activeEvent.title || "Special Event: Free Gift") + "</span>";
-        mobLink.onclick = function(e) {
-          e.preventDefault();
-          openGiftModal(activeEvent);
+      if (!activeEvent) return;
+
+      // Ensure activeEvent runtime flags are strictly clean
+      activeEvent.showTopBar = false;
+      activeEvent.showTicker = false;
+      activeEvent.showFloatingGiftPill = false;
+
+      // 2. Non-Interruptive Style & Position: Cart Drawer Reward Perk (Appears exclusively inside the customer bag)
+      if (activeEvent.showCartReward !== false) {
+        var injectCartPerk = function() {
+          var cartPopup = document.getElementById("cart-popup");
+          if (!cartPopup) return;
+          if (document.getElementById("adm-cart-gift-perk")) return;
+
+          var perkEl = document.createElement("div");
+          perkEl.id = "adm-cart-gift-perk";
+          perkEl.style.cssText = "background:#0a0a0a;color:#ffffff;border:1px solid #222222;border-radius:4px;padding:12px 14px;margin:12px 16px;font:11px/1.4 'NB Architekt Std',sans-serif;letter-spacing:0.5px;display:flex;align-items:center;gap:10px;cursor:pointer";
+          perkEl.onclick = function() { openGiftModal(activeEvent); };
+
+          var iconSvg = "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' style='opacity:0.9;flex-shrink:0'><polyline points='20 12 20 22 4 22 4 12'></polyline><rect x='2' y='7' width='20' height='5'></rect><line x1='12' y1='22' x2='12' y2='7'></line><path d='M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z'></path><path d='M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z'></path></svg>";
+          var giftLabel = activeEvent.giftItem ? "COMPLIMENTARY " + esc(activeEvent.giftItem.toUpperCase()) : "COMPLIMENTARY GIFT DROP";
+          var spendCond = Number(activeEvent.minSpend) > 0 ? "Qualified on orders over ৳" + esc(activeEvent.minSpend) : "Complimentary with your order";
+          perkEl.innerHTML = iconSvg + "<div style='flex:1'><div style='font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff'>" + giftLabel + "</div><div style='font-size:11px;opacity:0.75;margin-top:2px'>" + spendCond + "</div></div><span style='font-size:11px;opacity:0.6'>DETAILS →</span>";
+
+          var targetContainer = cartPopup.querySelector(".cart-popup-content, form, .cart-popup-items");
+          if (targetContainer) {
+            targetContainer.insertBefore(perkEl, targetContainer.firstChild);
+          } else {
+            cartPopup.appendChild(perkEl);
+          }
         };
-        mobileList.appendChild(mobLink);
+
+        var cartEl = document.getElementById("cart-popup");
+        if (cartEl && !cartEl.__annrObserved) {
+          cartEl.__annrObserved = true;
+          var obs = new MutationObserver(function() {
+            if (!document.getElementById("adm-cart-gift-perk")) {
+              injectCartPerk();
+            }
+          });
+          obs.observe(cartEl, { childList: true, subtree: true });
+        }
+        injectCartPerk();
       }
 
-      // 5. Native Product Detail Page Feature List Bullet
-      if (tpl === "product") {
+      // 3. Non-Interruptive Style & Position: Native Product Detail Page Feature List Bullet
+      if (tpl === "product" && activeEvent.showPdpPerk !== false) {
         var featuresList = document.querySelector(".product-info-features");
         if (featuresList && !document.getElementById("adm-pdp-gift-feature")) {
           var giftLi = document.createElement("li");
