@@ -35,31 +35,24 @@ function PublishPage() {
           <button className="adm-btn" disabled={!dirty || !mayPublish} onClick={() => { if (!mayPublish) return; publish(); logAuthEvent("site_publish"); }}>Publish to store</button>
         </div>
       </div>
-      <Card
-        title="Live Store Status"
-        subtitle="Manage sync between your working draft and the live storefront"
-        accent={dirty ? "var(--amber)" : "var(--emerald)"}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-          <span className={`adm-tag ${dirty ? "pending" : "active"}`} style={{ fontSize: 12, padding: "4px 12px" }}>
-            {dirty ? "⚠️ Unpublished Changes Pending" : "✓ Store Is Fully Up To Date"}
-          </span>
-          <a href="/home.html" target="_blank" rel="noreferrer" className="adm-btn ghost sm">
-            View Live Store ↗
-          </a>
+      <div className={`adm-banner ${dirty ? "warning" : "success"}`} style={{ marginBottom: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>
+            {dirty ? "Unpublished changes pending" : "Storefront is up to date"}
+          </div>
+          <div style={{ fontSize: 13, marginTop: 4, opacity: 0.9 }}>
+            {dirty
+              ? "You have modified store configurations in the admin panel. The public storefront currently serves the last published release until you click 'Publish to store'."
+              : "The live storefront is currently serving all your latest configurations, products, and styles."}
+          </div>
+          <div style={{ fontSize: 12, marginTop: 6, opacity: 0.8 }}>
+            Last published: <b>{pub ? new Date(pub.publishedAt).toLocaleString() : "Never (serving original baseline)"}</b>
+          </div>
         </div>
-        <p style={{ margin: "6px 0", fontSize: 14 }}>
-          {dirty
-            ? "You have modified store configurations in the admin panel. The public storefront currently serves the last published release until you click 'Publish to store'."
-            : "The live storefront is currently serving all your latest configurations, products, and styles."}
-        </p>
-        <p style={{ margin: "6px 0", color: "var(--muted)", fontSize: 12 }}>
-          Last published release: <b>{pub ? new Date(pub.publishedAt).toLocaleString() : "Never (storefront is serving original baseline)"}</b>
-        </p>
-        <p className="adm-hint" style={{ marginTop: 8 }}>
-          Live Browser Sync Mode: Drafts, revisions, and versions are saved instantly and mirrored across storage.
-        </p>
-      </Card>
+        <a href="/home.html" target="_blank" rel="noreferrer" className="adm-btn ghost sm" style={{ alignSelf: "center" }}>
+          View live store ↗
+        </a>
+      </div>
       <Card title="Draft preview (real store pages)"><DevicePreview url="/home.html" /></Card>
       <Card title="Published versions">
         {hist.length ? <table><thead><tr><th>Published</th><th /></tr></thead><tbody>
