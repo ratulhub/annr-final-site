@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { setState, uid, useAdmin, type Collection } from "../admin/store";
-import { Area, Card, Select, Text, Toggle } from "../admin/ui";
+import { Area, BackBtn, Card, Select, Text, Toggle } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/collections")({ component: Collections });
 
