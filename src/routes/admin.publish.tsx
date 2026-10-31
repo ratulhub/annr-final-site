@@ -24,7 +24,11 @@ function PublishPage() {
   const mayPublish = can(getSession()?.role, "site.publish");
   return (
     <>
-      <div className="adm-top"><h1>Preview & publish</h1>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Preview & publish</h1>
+        </div>
         <div className="adm-row">
           {pub && <button className="adm-btn danger" disabled={!mayPublish} onClick={async () => { if (!mayPublish) return; if (confirm("Remove all published admin overrides and return the store to the original site?") && await confirmReauth("unpublish all overrides")) { unpublishAll(); logAuthEvent("site_unpublish"); } }}>Revert live store to original</button>}
           <button className="adm-btn ghost" disabled={!dirty || !pub || !mayPublish} onClick={() => { if (!mayPublish) return; if (confirm("Throw away all changes since the last publish?")) { discardDraft(); logAuthEvent("site_discard"); } }}>Discard draft</button>
