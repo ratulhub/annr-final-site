@@ -1,0 +1,4 @@
+# Netlify redirect rules for AnnR Storefront
+# Root path redirects to the storefront home page
+/           /home.html   302!
+/index.html /home.html   302!
