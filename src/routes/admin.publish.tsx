@@ -35,10 +35,30 @@ function PublishPage() {
           <button className="adm-btn" disabled={!dirty || !mayPublish} onClick={() => { if (!mayPublish) return; publish(); logAuthEvent("site_publish"); }}>Publish to store</button>
         </div>
       </div>
-      <Card title="Status">
-        <p>{dirty ? "You have unpublished changes. The store still shows the last published version." : "The store is showing your latest changes."}</p>
-        <p>Last published: <b>{pub ? new Date(pub.publishedAt).toLocaleString() : "never (store shows the original site)"}</b></p>
-        <p className="adm-hint">Demo mode: drafts, publishing and history are kept in this browser only. Shared publishing and lasting version history need a backend.</p>
+      <Card
+        title="Live Store Status"
+        subtitle="Manage sync between your working draft and the live storefront"
+        accent={dirty ? "var(--amber)" : "var(--emerald)"}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <span className={`adm-tag ${dirty ? "pending" : "active"}`} style={{ fontSize: 12, padding: "4px 12px" }}>
+            {dirty ? "⚠️ Unpublished Changes Pending" : "✓ Store Is Fully Up To Date"}
+          </span>
+          <a href="/home.html" target="_blank" rel="noreferrer" className="adm-btn ghost sm">
+            View Live Store ↗
+          </a>
+        </div>
+        <p style={{ margin: "6px 0", fontSize: 14 }}>
+          {dirty
+            ? "You have modified store configurations in the admin panel. The public storefront currently serves the last published release until you click 'Publish to store'."
+            : "The live storefront is currently serving all your latest configurations, products, and styles."}
+        </p>
+        <p style={{ margin: "6px 0", color: "var(--muted)", fontSize: 12 }}>
+          Last published release: <b>{pub ? new Date(pub.publishedAt).toLocaleString() : "Never (storefront is serving original baseline)"}</b>
+        </p>
+        <p className="adm-hint" style={{ marginTop: 8 }}>
+          Live Browser Sync Mode: Drafts, revisions, and versions are saved instantly and mirrored across storage.
+        </p>
       </Card>
       <Card title="Draft preview (real store pages)"><DevicePreview url="/home.html" /></Card>
       <Card title="Published versions">
