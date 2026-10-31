@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { setState, useAdmin, type Product, type Variant } from "../admin/store";
-import { Area, Card, RowList, Select, Text, Toggle } from "../admin/ui";
+import { Area, BackBtn, Card, RowList, Select, Text, Toggle } from "../admin/ui";
 import { storeFile } from "../admin/services/media";
 import { safeImageUrl } from "../admin/security/sanitize";
 
