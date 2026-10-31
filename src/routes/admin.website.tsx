@@ -193,11 +193,14 @@ function WebsitePagesManager() {
   return (
     <>
       <div className="adm-top">
-        <div>
-          <h1>Website Pages & Visibility</h1>
-          <p className="adm-hint" style={{ marginTop: 4 }}>
-            Control visibility for every page on the website. Show or hide individual collections, store pages, or create and publish custom block pages.
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <div>
+            <h1>Website Pages & Visibility</h1>
+            <p className="adm-hint" style={{ marginTop: 4 }}>
+              Control visibility for every page on the website. Show or hide individual collections, store pages, or create and publish custom block pages.
+            </p>
+          </div>
         </div>
         <div className="adm-row" style={{ gap: 8 }}>
           <button className="adm-btn" onClick={addPage}>
