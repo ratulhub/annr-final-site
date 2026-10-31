@@ -85,7 +85,43 @@ function AdminLayout() {
         <header className="adm-header">
           <button className="adm-icon desk" onClick={toggle} aria-label="Collapse sidebar">☰</button>
           <button className="adm-icon mob" onClick={() => setMobile(!mobile)} aria-label="Open menu">☰</button>
-          <div className="adm-crumbs"><Link to="/admin">Admin</Link>{crumbs.map((c) => <span key={c}> / {c}</span>)}</div>
+          {path !== "/admin" && path !== "/admin/" && (
+            <button
+              type="button"
+              className="adm-btn ghost sm"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "6px 12px",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+              onClick={() => {
+                if (window.history.length > 1) {
+                  window.history.back();
+                } else {
+                  window.location.href = "/admin";
+                }
+              }}
+              title="Go back to previous page"
+            >
+              ← Back
+            </button>
+          )}
+          <div className="adm-crumbs" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <Link to="/admin" style={{ fontWeight: 700 }}>Admin</Link>
+            {crumbs.map((c, idx) => (
+              <span key={idx} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span style={{ opacity: 0.4 }}>/</span>
+                {c.to ? <Link to={c.to} style={{ textDecoration: "underline" }}>{c.label}</Link> : <span>{c.label}</span>}
+              </span>
+            ))}
+          </div>
           <div className="adm-header-right">
             <span className="adm-tag">Demo · this browser only</span>
             <PublishButton />
