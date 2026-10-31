@@ -64,20 +64,20 @@ function Collections() {
           </div>
         </div>
         <div className="adm-row">
-          <button className="adm-btn" onClick={add} style={{ background: "var(--red)", borderColor: "var(--red)" }}>
-            ➕ Add Collection
+          <button className="adm-btn primary" onClick={add}>
+            Add collection
           </button>
         </div>
       </div>
 
       <div className="adm-stats">
-        <div className="adm-stat accent-emerald">
-          <span>Active Collections</span>
+        <div className="adm-stat">
+          <span>Active collections</span>
           <b>{visibleCount}</b>
           <small>{s.collections.length - visibleCount} hidden from store</small>
         </div>
-        <div className="adm-stat accent-indigo">
-          <span>Total Products</span>
+        <div className="adm-stat">
+          <span>Total products</span>
           <b>{s.products.length}</b>
           <small>Available to categorize</small>
         </div>
