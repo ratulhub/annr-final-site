@@ -9,7 +9,12 @@ function Orders() {
   const rows = s.orders.map((o) => ({ ...o }));
   return (
     <>
-      <div className="adm-top"><h1>Orders ({s.orders.length})</h1></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Orders ({s.orders.length})</h1>
+        </div>
+      </div>
       <Card>
         <RowList<Order> rows={rows} onChange={(r) => setState((x) => ({ ...x, orders: r }))}
           blank={{ date: new Date().toISOString().slice(0, 10), customer: "", email: "", total: "0.00", status: "Unfulfilled", payment: "Pending", items: "", address: "", note: "" }}
