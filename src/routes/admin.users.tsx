@@ -91,7 +91,12 @@ function Users() {
 
   return (
     <>
-      <div className="adm-top"><h1>Users & permissions</h1></div>
+      <div className="adm-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <BackBtn to="/admin" label="← Dashboard" />
+          <h1>Users & permissions</h1>
+        </div>
+      </div>
       <p className="adm-hint">Plan who can do what. Saved in this browser only — database enforcement lives in <code>database/sql/03_rbac.sql</code> once a backend is connected.</p>
       <Card title="Staff & admins">
         <div style={{ overflowX: "auto" }}>
