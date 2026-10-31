@@ -430,27 +430,83 @@
       if (C[h].visible != null) colsMap[h].visible = C[h].visible !== false;
     });
 
-    // Hidden pages and maintenance
-    var hidden = (S.hiddenPages || []).some(function (p) { return path.indexOf(p) === 0; });
-    var pg = tpl === "page" && G[pageHandle(path)];
-    var colHandle = handleOf(path, "collections");
-    var col = tpl === "collection" && (C[colHandle] || colsMap[colHandle]);
-    if (hidden || (pg && pg.visible === false) || (col && col.visible === false))
-      return overlay("adm-404", "<div>" + esc(tech.notFoundTitle || "Page not found") + "<br><small style='font-size:11px'>" + esc(tech.notFoundText || "This page or collection is currently unavailable.") + "<br><a href='/home.html' style='color:#fff'>HOME</a></small></div>", FULL);
-    if (tech.maintenance)
-      return overlay("adm-maint", "<div>" + esc(tech.maintenanceTitle || gen.siteName) + "<br><small style='font-size:11px;letter-spacing:1px'>" + esc(tech.maintenanceText) + "</small></div>", FULL);
+    // Hidden pages, collection visibility and maintenance
+    var normPath = path.toLowerCase().replace(/\/index\.html$/, "").replace(/\/$/, "");
+    if (!normPath) normPath = "/";
 
-    // Dynamic Navigation cleanup for hidden pages
+    var isHidden = false;
+
+    // A. Check S.hiddenPages
     (S.hiddenPages || []).forEach(function (hp) {
       if (!hp) return;
-      document.querySelectorAll("a[href*='" + hp + "']").forEach(function (a) {
-        var pItem = a.closest(".header-menu-item, .header-new__mega-section, .collection-menu__item, .footer-menu-list-item, .mobile-menu-sublinks-item, .header-new__mobile-section");
-        if (pItem) pItem.style.setProperty("display", "none", "important");
+      var nhp = String(hp).toLowerCase().replace(/\/index\.html$/, "").replace(/\/$/, "");
+      if (nhp && (normPath === nhp || normPath.indexOf(nhp + "/") === 0)) {
+        isHidden = true;
+      }
+    });
+
+    // B. Check collections
+    var colHandle = handleOf(path, "collections");
+    if (colHandle) {
+      var colData = colsMap[colHandle] || (C && C[colHandle]);
+      if (colData && colData.visible === false) isHidden = true;
+      if (cfg && Array.isArray(cfg.deletedCollections) && cfg.deletedCollections.indexOf(colHandle) >= 0) isHidden = true;
+    }
+
+    // C. Check pages
+    var pageH = pageHandle(path);
+    if (pageH) {
+      var pgData = G && G[pageH];
+      if (pgData && pgData.visible === false) isHidden = true;
+      if (cfg && Array.isArray(cfg.deletedPages) && cfg.deletedPages.indexOf(pageH) >= 0) isHidden = true;
+    }
+
+    if (tech.maintenance && !preview) {
+      showUnavailable(tech.maintenanceTitle || gen.siteName || "ANNR", tech.maintenanceText || "We'll be back soon");
+      return;
+    }
+
+    if (isHidden && !preview) {
+      showUnavailable(tech.notFoundTitle || "PAGE UNAVAILABLE", tech.notFoundText || "This page or collection is currently offline.");
+      return;
+    }
+
+    // 1. Purge ALL hidden collection links from the entire DOM (desktop mega menu, mobile drawer, secondary menus, footers):
+    Object.keys(colsMap).forEach(function (h) {
+      if (colsMap[h].visible === false) {
+        var anchors = document.querySelectorAll("a[href*='/collections/" + h + "/'], a[href*='/collections/" + h + "']");
+        anchors.forEach(function (a) {
+          var targetH = handleOf(a.getAttribute("href"), "collections");
+          if (targetH !== h) return;
+
+          a.style.setProperty("display", "none", "important");
+
+          var item = a.closest(".header-submenu-list-item, .header-new__mega-link, .mobile-menu-sublinks-item, .header-new__mobile-sublink, .collection-menu__item, .footer-menu-list-item, .header-new__mega-section");
+          if (item) {
+            var headLink = item.querySelector && item.querySelector(".header-new__mega-heading > a");
+            if (headLink && handleOf(headLink.getAttribute("href"), "collections") === h) {
+              item.style.setProperty("display", "none", "important");
+            } else if (!item.classList.contains("header-new__mega-section")) {
+              item.style.setProperty("display", "none", "important");
+            }
+          }
+        });
+      }
+    });
+
+    // 2. Purge ALL paths in S.hiddenPages from navigation:
+    (S.hiddenPages || []).forEach(function (hp) {
+      if (!hp) return;
+      var clean = String(hp).replace(/\/index\.html$/, "").replace(/\/$/, "");
+      var anchors = document.querySelectorAll("a[href*='" + clean + "/'], a[href*='" + clean + "'], a[href*='" + hp + "']");
+      anchors.forEach(function (a) {
+        a.style.setProperty("display", "none", "important");
+        var item = a.closest(".header-submenu-list-item, .header-new__mega-link, .mobile-menu-sublinks-item, .header-new__mobile-sublink, .collection-menu__item, .footer-menu-list-item, .header-menu-item, .header-new__mega-section");
+        if (item) item.style.setProperty("display", "none", "important");
       });
     });
 
-    // Dynamic Collections reference synchronization in Navbar:
-    // 1. Desktop header mega-menu dropdown under Collections
+    // 3. Dynamic Collections reference synchronization & index numbers in Navbar:
     var megaSections = document.querySelectorAll(".header-submenu-list.header-new__mega-list > .header-new__mega-section");
     var visibleIdx = 1;
     megaSections.forEach(function (sec) {
