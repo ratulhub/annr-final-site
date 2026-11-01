@@ -1122,11 +1122,738 @@
         }
       }
     }
+
+    // 4. Cart Drawer Checkout Redirection & Cart Sync
+    (function initCartCheckoutSync() {
+      function syncCartItems() {
+        try {
+          fetch("/cart.js").then(function(r) { return r.ok ? r.json() : null; }).then(function(cart) {
+            if (cart && Array.isArray(cart.items) && cart.items.length > 0) {
+              var formatted = cart.items.map(function(it) {
+                var size = (it.variant_options && it.variant_options[0]) ||
+                           (it.options_with_values && it.options_with_values[0] && it.options_with_values[0].value) || "Standard";
+                return {
+                  id: String(it.id || it.variant_id || it.handle),
+                  title: it.title || it.product_title || "AnnR Product",
+                  price: Math.round((it.price || 0) / 100),
+                  quantity: it.quantity || 1,
+                  size: size,
+                  image: it.featured_image ? it.featured_image.url : (it.image || "")
+                };
+              });
+              localStorage.setItem("annr-cart", JSON.stringify(formatted));
+            }
+          }).catch(function() {});
+        } catch(e) {}
+      }
+
+      // Sync when cart popup opens or item is added
+      document.addEventListener("click", function(e) {
+        var a = e.target.closest && e.target.closest(".js-cart-trigger, [href*='/cart'], button[name='add'], .js-add-to-cart");
+        if (a) setTimeout(syncCartItems, 500);
+
+        // Intercept Checkout Buttons
+        var chk = e.target.closest && e.target.closest("button[name='checkout'], a[href*='/checkout'], .cart-popup-checkout, [data-checkout-button]");
+        if (chk) {
+          e.preventDefault();
+          e.stopPropagation();
+          syncCartItems();
+          window.location.href = "/checkout";
+        }
+      }, true);
+    })();
+
+    // 5. Bangladesh VIP Loyalty & Points Hub Modal
+    (function initVipHub() {
+      var BD_GEO = {
+        "Dhaka": ["Dhaka", "Gazipur", "Narayanganj", "Tangail", "Faridpur", "Gopalganj", "Kishoreganj", "Madaripur", "Manikganj", "Munshiganj", "Narsingdi", "Rajbari", "Shariatpur"],
+        "Chattogram": ["Chattogram", "Cox's Bazar", "Cumilla", "Feni", "Brahmanbaria", "Chandpur", "Noakhali", "Lakshmipur", "Khagrachhari", "Rangamati", "Bandarban"],
+        "Rajshahi": ["Rajshahi", "Bogura", "Pabna", "Sirajganj", "Naogaon", "Natore", "Chapainawabganj", "Joypurhat"],
+        "Khulna": ["Khulna", "Jashore", "Kushtia", "Satkhira", "Bagerhat", "Jhenaidah", "Chuadanga", "Magura", "Meherpur", "Narail"],
+        "Barishal": ["Barishal", "Patuakhali", "Bhola", "Pirojpur", "Barguna", "Jhalokati"],
+        "Sylhet": ["Sylhet", "Moulvibazar", "Habiganj", "Sunamganj"],
+        "Rangpur": ["Rangpur", "Dinajpur", "Gaibandha", "Kurigram", "Lalmonirhat", "Nilphamari", "Panchagarh", "Thakurgaon"],
+        "Mymensingh": ["Mymensingh", "Jamalpur", "Netrokona", "Sherpur"]
+      };
+
+      function getVipSettings() {
+        try {
+          var s = localStorage.getItem("annr-loyalty-settings");
+          if (s) return JSON.parse(s);
+        } catch(e) {}
+        return {
+          point_value_bdt: 1.0,
+          friend_discount_percent: 10,
+          points_per_referral_order: 100,
+          min_withdrawal_points: 100
+        };
+      }
+
+      function getSessionMember() {
+        try {
+          var rawSess = localStorage.getItem("annr_vip_session");
+          if (!rawSess) return null;
+          var sess = JSON.parse(rawSess);
+          var rawMembers = localStorage.getItem("annr-vip-members");
+          var members = rawMembers ? JSON.parse(rawMembers) : [];
+          return members.find(function(m) { return m.email === sess.email || m.phone === sess.phone; }) || sess;
+        } catch(e) { return null; }
+      }
+
+      function openVipModal() {
+        var existing = document.getElementById("adm-vip-hub-modal");
+        if (existing) existing.remove();
+
+        var member = getSessionMember();
+        var st = getVipSettings();
+        var pointVal = Number(st.point_value_bdt) || 1.0;
+
+        var contentHtml = "";
+        if (!member) {
+          // Unauthenticated: Sign Up / Sign In Tabs
+          contentHtml =
+            "<div style='background:#09090b;color:#ffffff;max-width:440px;width:94%;padding:28px 24px;border:1px solid #27272a;box-shadow:0 24px 64px rgba(0,0,0,0.9);font:12px/1.5 \"NB Architekt Std\",sans-serif;position:relative;max-height:90vh;overflow-y:auto;border-radius:4px'>" +
+              "<button type='button' data-close style='position:absolute;top:16px;right:16px;background:none;border:0;color:#fff;font-size:18px;cursor:pointer;opacity:.6'>✕</button>" +
+              "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#a1a1aa;text-transform:uppercase;margin-bottom:6px'>ANNR VIP LOYALTY PROGRAM</div>" +
+              "<div style='font:20px/1.1 \"Druk Wide\",sans-serif;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px'>MEMBER VAULT</div>" +
+              "<div style='display:flex;gap:8px;border-bottom:1px solid #27272a;margin-bottom:18px'>" +
+                "<button type='button' id='vip-tab-signup' style='background:none;border:none;border-bottom:2px solid #fff;color:#fff;font:11px/1.2 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;padding:8px 12px;cursor:pointer'>CREATE ACCOUNT</button>" +
+                "<button type='button' id='vip-tab-login' style='background:none;border:none;border-bottom:2px solid transparent;color:#71717a;font:11px/1.2 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;padding:8px 12px;cursor:pointer'>SIGN IN</button>" +
+              "</div>" +
+
+              "<form id='vip-signup-form' style='display:flex;flex-direction:column;gap:12px'>" +
+                "<div style='background:#18181b;padding:10px 12px;border:1px solid #27272a;border-radius:3px;font-size:11px;color:#d4d4d8'>" +
+                  "✨ Join VIP today: Get <strong>100 Welcome Points (৳100)</strong> + your own referral coupon to earn cash points whenever friends shop!" +
+                "</div>" +
+                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Full Name *</label><input type='text' id='vip-name' required placeholder='e.g. Ratul Ahmed' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
+                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Mobile Phone Number *</label><input type='tel' id='vip-phone' required placeholder='017XXXXXXXX' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
+                "<label style='display:flex;align-items:center;gap:8px;font-size:11px;color:#a1a1aa;cursor:pointer'><input type='checkbox' id='vip-whatsapp' checked style='accent-color:#22c55e'> This number is on WhatsApp</label>" +
+                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Email Address *</label><input type='email' id='vip-email' required placeholder='ratul@example.com' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
+                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Password *</label><input type='password' id='vip-pass' required minlength='6' placeholder='Min 6 characters' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
+                "<div style='display:grid;grid-template-columns:1fr 1fr;gap:10px'>" +
+                  "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Division *</label><select id='vip-division' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px;font-size:12px;border-radius:3px'>" + Object.keys(BD_GEO).map(function(d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("") + "</select></div>" +
+                  "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>District *</label><select id='vip-district' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px;font-size:12px;border-radius:3px'></select></div>" +
+                "</div>" +
+                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Thana / Upazila</label><input type='text' id='vip-upazila' placeholder='e.g. Dhanmondi / Mirpur' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
+                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Delivery Address *</label><input type='text' id='vip-address' required placeholder='House, Road, Area' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
+                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Friend's Referral Code (Optional)</label><input type='text' id='vip-ref-code' placeholder='e.g. VIP-RATUL88' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px;font-family:monospace;letter-spacing:1px'></div>" +
+                "<button type='submit' style='background:#fff;color:#000;border:none;padding:12px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-top:6px;border-radius:3px'>ACTIVATE VIP MEMBERSHIP →</button>" +
+              "</form>" +
+
+              "<form id='vip-login-form' style='display:none;flex-direction:column;gap:14px'>" +
+                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Email or Phone *</label><input type='text' id='login-ident' required placeholder='Email or phone number' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:10px;font-size:12px;border-radius:3px'></div>" +
+                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Password *</label><input type='password' id='login-pass' required placeholder='Enter password' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:10px;font-size:12px;border-radius:3px'></div>" +
+                "<button type='submit' style='background:#fff;color:#000;border:none;padding:12px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-top:8px;border-radius:3px'>SIGN IN TO VAULT →</button>" +
+              "</form>" +
+            "</div>";
+        } else {
+          // Member VIP Dashboard
+          var availPts = Number(member.available_points || 0);
+          var pendPts = Number(member.pending_points || 0);
+          var cashValue = Math.round(availPts * pointVal);
+          var refCode = member.referral_code || "VIP-ANNR" + Math.floor(100 + Math.random() * 899);
+
+          // Get past withdrawals
+          var allW = [];
+          try {
+            var rawW = localStorage.getItem("annr-withdrawals");
+            if (rawW) allW = JSON.parse(rawW);
+          } catch(e) {}
+          var userW = allW.filter(function(w) { return w.member_email === member.email; });
+
+          contentHtml =
+            "<div style='background:#09090b;color:#ffffff;max-width:480px;width:94%;padding:28px 24px;border:1px solid #27272a;box-shadow:0 24px 64px rgba(0,0,0,0.9);font:12px/1.5 \"NB Architekt Std\",sans-serif;position:relative;max-height:90vh;overflow-y:auto;border-radius:4px'>" +
+              "<button type='button' data-close style='position:absolute;top:16px;right:16px;background:none;border:0;color:#fff;font-size:18px;cursor:pointer;opacity:.6'>✕</button>" +
+              "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#a1a1aa;text-transform:uppercase;margin-bottom:6px'>VIP MEMBER HUB // " + esc(member.tier || "SILVER") + " TIER</div>" +
+              "<div style='font:20px/1.1 \"Druk Wide\",sans-serif;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px'>" + esc(member.full_name || "MEMBER") + "</div>" +
+
+              // Wallet Card
+              "<div style='background:#18181b;border:1px solid #27272a;padding:16px;border-radius:4px;margin-bottom:16px'>" +
+                "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>" +
+                  "<span style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa'>Available Balance</span>" +
+                  "<span style='font-size:10px;color:#22c55e;font-weight:700'>1 PT = ৳" + pointVal.toFixed(2) + "</span>" +
+                "</div>" +
+                "<div style='display:flex;align-items:baseline;gap:8px'>" +
+                  "<span style='font:26px/1 \"Druk Wide\",sans-serif'>" + availPts + "</span>" +
+                  "<span style='font-size:11px;color:#a1a1aa;font-weight:700'>PTS</span>" +
+                  "<span style='font:18px/1 \"NB Architekt Std\",sans-serif;margin-left:auto;color:#22c55e;font-weight:700'>= ৳" + cashValue + "</span>" +
+                "</div>" +
+                (pendPts > 0 ? "<div style='font-size:10px;color:#f59e0b;margin-top:6px'>⏳ " + pendPts + " points pending delivery & return window</div>" : "") +
+              "</div>" +
+
+              // Referral Coupon Card
+              "<div style='background:#18181b;border:1px solid #27272a;padding:16px;border-radius:4px;margin-bottom:16px'>" +
+                "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:6px'>Your Personal Referral Coupon</div>" +
+                "<div style='display:flex;align-items:center;justify-content:space-between;background:#09090b;padding:10px 12px;border:1px dashed #3f3f46;border-radius:3px;margin-bottom:8px'>" +
+                  "<span style='font:16px/1 \"FK Grotesk SemiMono\",monospace;font-weight:700;letter-spacing:2px;color:#fff'>" + esc(refCode) + "</span>" +
+                  "<button type='button' id='vip-copy-code' style='background:#fff;color:#000;border:none;padding:6px 12px;font:9px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;border-radius:2px'>COPY CODE</button>" +
+                "</div>" +
+                "<p style='font-size:11px;color:#a1a1aa;margin:0 0 8px'>Give friends <strong>10% OFF</strong>. You earn <strong>100 points (৳100 cash)</strong> on every order they place using your code!</p>" +
+                "<button type='button' id='vip-copy-link' style='background:none;border:1px solid #3f3f46;color:#fff;padding:6px 10px;font-size:10px;letter-spacing:1px;cursor:pointer;border-radius:2px;width:100%'>COPY DIRECT REFERRAL LINK</button>" +
+              "</div>" +
+
+              // Cash Payout Form
+              "<details style='background:#18181b;border:1px solid #27272a;padding:14px;border-radius:4px;margin-bottom:16px'>" +
+                "<summary style='cursor:pointer;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:11px;color:#fff'>💸 Request Cash Payout (bKash / Nagad / Bank)</summary>" +
+                "<form id='vip-payout-form' style='display:flex;flex-direction:column;gap:10px;margin-top:12px'>" +
+                  "<div><label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Payout Method *</label><select id='payout-method' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:8px;font-size:11px;border-radius:3px'><option value='bKash'>bKash (Personal)</option><option value='Nagad'>Nagad (Personal)</option><option value='Rocket'>Rocket</option><option value='Bank Transfer'>Bank Transfer</option></select></div>" +
+                  "<div><label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Account Number *</label><input type='text' id='payout-account' required placeholder='017XXXXXXXX' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:8px;font-size:11px;border-radius:3px'></div>" +
+                  "<div><label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Account Name *</label><input type='text' id='payout-name' required value='" + esc(member.full_name) + "' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:8px;font-size:11px;border-radius:3px'></div>" +
+                  "<div><label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Points to Cash Out (Min 100) *</label><input type='number' id='payout-pts' min='100' max='" + availPts + "' value='" + Math.max(100, Math.min(availPts, 500)) + "' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:8px;font-size:11px;border-radius:3px'></div>" +
+                  "<button type='submit' style='background:#22c55e;color:#000;border:none;padding:10px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:3px;margin-top:4px'>SUBMIT WITHDRAWAL REQUEST →</button>" +
+                "</form>" +
+              "</details>" +
+
+              // Past Payout History
+              (userW.length > 0 ?
+                "<div style='margin-bottom:16px'>" +
+                  "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:6px'>Recent Payout Requests</div>" +
+                  userW.map(function(w) {
+                    var badgeCol = w.status === "paid" ? "#22c55e" : w.status === "approved" ? "#3b82f6" : w.status === "rejected" ? "#ef4444" : "#f59e0b";
+                    return "<div style='display:flex;justify-content:space-between;align-items:center;background:#18181b;padding:8px 10px;border-radius:3px;margin-bottom:6px;font-size:11px'>" +
+                      "<div><div><strong>৳" + esc(w.money_amount_bdt) + "</strong> via " + esc(w.payout_method) + "</div><div style='font-size:9px;color:#71717a'>" + esc(w.account_number) + " · " + (w.created_at ? w.created_at.slice(0, 10) : "") + (w.transaction_reference ? " · TrxID: " + esc(w.transaction_reference) : "") + "</div></div>" +
+                      "<span style='color:" + badgeCol + ";text-transform:uppercase;font-size:9px;font-weight:700;letter-spacing:1px'>" + esc(w.status) + "</span>" +
+                    "</div>";
+                  }).join("") +
+                "</div>" : "") +
+
+              "<button type='button' id='vip-signout-btn' style='background:none;border:1px solid #27272a;color:#71717a;width:100%;padding:10px;font:10px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1.5px;cursor:pointer;text-transform:uppercase;border-radius:3px'>SIGN OUT</button>" +
+            "</div>";
+        }
+
+        var modal = overlay("adm-vip-hub-modal", contentHtml,
+          "position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px"
+        );
+        if (!modal) return;
+
+        modal.addEventListener("click", function(e) {
+          if (e.target === modal || e.target.hasAttribute("data-close")) modal.remove();
+        });
+
+        // Tabs toggle
+        var tabSignup = modal.querySelector("#vip-tab-signup");
+        var tabLogin = modal.querySelector("#vip-tab-login");
+        var formSignup = modal.querySelector("#vip-signup-form");
+        var formLogin = modal.querySelector("#vip-login-form");
+        if (tabSignup && tabLogin && formSignup && formLogin) {
+          tabSignup.onclick = function() {
+            tabSignup.style.color = "#fff"; tabSignup.style.borderBottomColor = "#fff";
+            tabLogin.style.color = "#71717a"; tabLogin.style.borderBottomColor = "transparent";
+            formSignup.style.display = "flex"; formLogin.style.display = "none";
+          };
+          tabLogin.onclick = function() {
+            tabLogin.style.color = "#fff"; tabLogin.style.borderBottomColor = "#fff";
+            tabSignup.style.color = "#71717a"; tabSignup.style.borderBottomColor = "transparent";
+            formSignup.style.display = "none"; formLogin.style.display = "flex";
+          };
+        }
+
+        // Division -> District dropdown sync
+        var divSelect = modal.querySelector("#vip-division");
+        var distSelect = modal.querySelector("#vip-district");
+        if (divSelect && distSelect) {
+          var updateDistricts = function(dVal) {
+            var dists = BD_GEO[dVal] || [];
+            distSelect.innerHTML = dists.map(function(d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("");
+          };
+          updateDistricts(divSelect.value);
+          divSelect.onchange = function() { updateDistricts(divSelect.value); };
+        }
+
+        // Sign Up submission
+        if (formSignup) {
+          formSignup.onsubmit = function(e) {
+            e.preventDefault();
+            var name = modal.querySelector("#vip-name").value.trim();
+            var phone = modal.querySelector("#vip-phone").value.trim();
+            var isWhatsapp = modal.querySelector("#vip-whatsapp").checked;
+            var email = modal.querySelector("#vip-email").value.trim().toLowerCase();
+            var pass = modal.querySelector("#vip-pass").value;
+            var div = modal.querySelector("#vip-division").value;
+            var dist = modal.querySelector("#vip-district").value;
+            var upazila = modal.querySelector("#vip-upazila").value.trim();
+            var addr = modal.querySelector("#vip-address").value.trim();
+            var refCode = modal.querySelector("#vip-ref-code").value.trim().toUpperCase();
+
+            // Check existing
+            var rawM = localStorage.getItem("annr-vip-members");
+            var members = rawM ? JSON.parse(rawM) : [];
+            var dup = members.find(function(m) { return m.email === email || m.phone === phone; });
+            if (dup) {
+              alert("An account with this email or phone already exists. Please sign in.");
+              tabLogin.click();
+              return;
+            }
+
+            var generatedCode = "VIP-" + name.replace(/[^a-zA-Z]/g, "").slice(0, 5).toUpperCase() + Math.floor(10 + Math.random() * 89);
+            var newMember = {
+              id: "vip-" + Date.now().toString(36),
+              email: email,
+              full_name: name,
+              phone: phone,
+              is_whatsapp: isWhatsapp,
+              division: div,
+              district: dist,
+              upazila: upazila,
+              full_address: addr,
+              tier: "Silver",
+              available_points: 100, // 100 welcome points = ৳100
+              pending_points: 0,
+              total_earned_points: 100,
+              referral_code: generatedCode,
+              referred_by_code: refCode,
+              status: "active",
+              created_at: new Date().toISOString()
+            };
+
+            members.push(newMember);
+            localStorage.setItem("annr-vip-members", JSON.stringify(members));
+            localStorage.setItem("annr_vip_session", JSON.stringify({ email: email, name: name, phone: phone }));
+
+            // Also register to referral coupons table
+            var rawCoupons = localStorage.getItem("annr-referral-coupons");
+            var coupons = rawCoupons ? JSON.parse(rawCoupons) : [];
+            coupons.push({
+              code: generatedCode,
+              owner_email: email,
+              owner_name: name,
+              discount_type: "percentage",
+              discount_value: 10,
+              points_reward: 100,
+              status: "active"
+            });
+            localStorage.setItem("annr-referral-coupons", JSON.stringify(coupons));
+
+            alert("🎉 Welcome to AnnR VIP! 100 Reward Points (৳100) have been credited to your wallet.");
+            openVipModal();
+          };
+        }
+
+        // Sign In submission
+        if (formLogin) {
+          formLogin.onsubmit = function(e) {
+            e.preventDefault();
+            var ident = modal.querySelector("#login-ident").value.trim().toLowerCase();
+            var rawM = localStorage.getItem("annr-vip-members");
+            var members = rawM ? JSON.parse(rawM) : [];
+            var found = members.find(function(m) { return m.email === ident || m.phone === ident; });
+            if (!found) {
+              alert("No VIP account found with that email or phone.");
+              return;
+            }
+            localStorage.setItem("annr_vip_session", JSON.stringify({ email: found.email, name: found.full_name, phone: found.phone }));
+            openVipModal();
+          };
+        }
+
+        // Member dashboard actions
+        var copyCodeBtn = modal.querySelector("#vip-copy-code");
+        if (copyCodeBtn && member) {
+          copyCodeBtn.onclick = function() {
+            navigator.clipboard.writeText(member.referral_code).then(function() {
+              copyCodeBtn.textContent = "COPIED";
+              setTimeout(function() { copyCodeBtn.textContent = "COPY CODE"; }, 2000);
+            });
+          };
+        }
+
+        var copyLinkBtn = modal.querySelector("#vip-copy-link");
+        if (copyLinkBtn && member) {
+          copyLinkBtn.onclick = function() {
+            var shareUrl = window.location.origin + "/collections/all/index.html?ref=" + encodeURIComponent(member.referral_code);
+            navigator.clipboard.writeText(shareUrl).then(function() {
+              copyLinkBtn.textContent = "✓ REFERRAL LINK COPIED!";
+              setTimeout(function() { copyLinkBtn.textContent = "COPY DIRECT REFERRAL LINK"; }, 2000);
+            });
+          };
+        }
+
+        // Payout form submission
+        var payoutForm = modal.querySelector("#vip-payout-form");
+        if (payoutForm && member) {
+          payoutForm.onsubmit = function(e) {
+            e.preventDefault();
+            var method = modal.querySelector("#payout-method").value;
+            var acc = modal.querySelector("#payout-account").value.trim();
+            var accName = modal.querySelector("#payout-name").value.trim();
+            var pts = Number(modal.querySelector("#payout-pts").value);
+            var avail = Number(member.available_points || 0);
+
+            if (pts > avail) {
+              alert("Insufficient points. Available: " + avail);
+              return;
+            }
+            if (pts < 100) {
+              alert("Minimum withdrawal is 100 points (৳" + (100 * pointVal) + ")");
+              return;
+            }
+
+            // Deduct points
+            var rawM = localStorage.getItem("annr-vip-members");
+            var members = rawM ? JSON.parse(rawM) : [];
+            var targetMember = members.find(function(m) { return m.email === member.email; });
+            if (targetMember) {
+              targetMember.available_points -= pts;
+              targetMember.withdrawn_points = (targetMember.withdrawn_points || 0) + pts;
+              localStorage.setItem("annr-vip-members", JSON.stringify(members));
+            }
+
+            // Create withdrawal request
+            var rawW = localStorage.getItem("annr-withdrawals");
+            var withdrawals = rawW ? JSON.parse(rawW) : [];
+            withdrawals.unshift({
+              id: "w-" + Date.now().toString(36),
+              member_id: member.id,
+              member_name: member.full_name,
+              member_email: member.email,
+              points_amount: pts,
+              money_amount_bdt: pts * pointVal,
+              payout_method: method,
+              account_number: acc,
+              account_holder_name: accName,
+              status: "pending",
+              created_at: new Date().toISOString()
+            });
+            localStorage.setItem("annr-withdrawals", JSON.stringify(withdrawals));
+
+            alert("✓ Withdrawal request for ৳" + (pts * pointVal) + " submitted successfully! Admin will review and process payout.");
+            openVipModal();
+          };
+        }
+
+        // Sign out
+        var signoutBtn = modal.querySelector("#vip-signout-btn");
+        if (signoutBtn) {
+          signoutBtn.onclick = function() {
+            localStorage.removeItem("annr_vip_session");
+            openVipModal();
+          };
+        }
+      }
+
+      // Attach listener to all VIP triggers in storefront
+      document.addEventListener("click", function(e) {
+        var a = e.target.closest && e.target.closest(".js-vip-page-link, [href*='/account/login'], [href*='/account'], a[href*='vip']");
+        if (a) {
+          var href = a.getAttribute("href") || "";
+          if (!/^https?:\/\/(?!localhost)/i.test(href)) {
+            e.preventDefault();
+            e.stopPropagation();
+            openVipModal();
+          }
+        }
+      }, true);
+    })();
+
+    // 6. Interactive Vault Ball Drop Mini-Game (Discrete, Non-Interruptive)
+    (function initBallDrop() {
+      // Remove any legacy invasive popup
+      var old = document.getElementById("adm-ball-drop-trigger");
+      if (old) old.remove();
+
+      var loyaltySt = {};
+      try {
+        var rawSt = localStorage.getItem("annr-loyalty-settings");
+        if (rawSt) loyaltySt = JSON.parse(rawSt);
+      } catch(e) {}
+
+      var isEnabled = loyaltySt.ball_drop_enabled !== false;
+      if (!isEnabled) return;
+
+      var bdConfig = loyaltySt.ball_drop_config || {
+        title: "ANNR LUCKY BALL DROP",
+        subtitle: "Drop the chrome sphere to unlock instant VIP discounts and store cash credits.",
+        prizes: [
+          { label: "10% OFF", code: "LUCKY10", weight: 35 },
+          { label: "৳300 OFF", code: "ANNR300", weight: 25 },
+          { label: "50 VIP PTS", code: "PTS50", weight: 20 },
+          { label: "15% OFF", code: "VIPDROP15", weight: 15 },
+          { label: "FREE BEANIE", code: "FREEBEANIE", weight: 5 }
+        ]
+      };
+
+      // Discrete floating streetwear launcher at bottom-right
+      var trigger = document.createElement("div");
+      trigger.id = "adm-ball-drop-trigger";
+      trigger.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:99975;background:#09090b;color:#ffffff;border:1px solid #27272a;border-radius:40px;padding:9px 16px;font:11px/1 'NB Architekt Std',sans-serif;letter-spacing:1px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.8);transition:transform .2s,border-color .2s;user-select:none";
+      trigger.innerHTML = "<span style='width:7px;height:7px;border-radius:50%;background:#e10600;display:inline-block'></span><span>⚡ BALL DROP</span>";
+      trigger.onmouseenter = function() { trigger.style.borderColor = "#ffffff"; trigger.style.transform = "translateY(-2px)"; };
+      trigger.onmouseleave = function() { trigger.style.borderColor = "#27272a"; trigger.style.transform = "translateY(0)"; };
+      document.body.appendChild(trigger);
+
+      function openBallDropGame() {
+        var existingModal = document.getElementById("adm-ball-drop-modal");
+        if (existingModal) existingModal.remove();
+
+        var prizes = bdConfig.prizes || [
+          { label: "10% OFF", code: "LUCKY10" },
+          { label: "৳300 OFF", code: "ANNR300" },
+          { label: "50 PTS", code: "PTS50" },
+          { label: "15% OFF", code: "VIPDROP15" },
+          { label: "FREE GIFT", code: "FREEBEANIE" }
+        ];
+
+        var modal = overlay("adm-ball-drop-modal",
+          "<div style='background:#09090b;color:#ffffff;max-width:400px;width:92%;padding:26px 20px;border:1px solid #27272a;box-shadow:0 24px 64px rgba(0,0,0,0.95);font:12px/1.5 \"NB Architekt Std\",sans-serif;position:relative;border-radius:4px;text-align:center'>" +
+            "<button type='button' data-close style='position:absolute;top:14px;right:16px;background:none;border:0;color:#fff;font-size:18px;cursor:pointer;opacity:.6'>✕</button>" +
+            "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#a1a1aa;text-transform:uppercase;margin-bottom:6px'>VAULT MINI-GAME // PROBABILITY DROP</div>" +
+            "<div style='font:18px/1.1 \"Druk Wide\",sans-serif;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px'>" + esc(bdConfig.title || "ANNR BALL DROP") + "</div>" +
+            "<p style='font-size:11px;color:#a1a1aa;margin:0 0 14px'>" + esc(bdConfig.subtitle || "Drop the sphere to unlock instant VIP coupons") + "</p>" +
+
+            "<div style='background:#040405;border:1px solid #1f1f23;border-radius:4px;padding:8px;position:relative;display:inline-block;margin-bottom:14px'>" +
+              "<canvas id='adm-bd-canvas' width='320' height='340' style='display:block;background:#08080a;border-radius:3px'></canvas>" +
+            "</div>" +
+
+            "<div id='adm-bd-controls'>" +
+              "<button type='button' id='adm-bd-drop-btn' style='background:#ffffff;color:#000000;border:none;padding:12px 28px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:3px;box-shadow:0 4px 14px rgba(255,255,255,0.2)'>RELEASE SPHERE ↓</button>" +
+            "</div>" +
+
+            "<div id='adm-bd-result' style='display:none;background:#18181b;border:1px solid #27272a;padding:12px;border-radius:4px;margin-top:12px'>" +
+              "<div style='font-size:10px;color:#22c55e;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px'>🎉 CONGRATULATIONS!</div>" +
+              "<div id='adm-bd-prize-text' style='font:16px/1.2 \"Druk Wide\",sans-serif;margin-bottom:8px'></div>" +
+              "<div id='adm-bd-coupon-box' style='display:flex;align-items:center;justify-content:center;gap:8px'>" +
+                "<span id='adm-bd-code' style='font-family:monospace;letter-spacing:2px;font-weight:700;background:#09090b;padding:6px 10px;border:1px dashed #3f3f46'></span>" +
+                "<button type='button' id='adm-bd-copy' style='background:#fff;color:#000;border:none;padding:6px 12px;font:9px/1 \"NB Architekt Std\",sans-serif;font-weight:700;cursor:pointer'>COPY</button>" +
+              "</div>" +
+            "</div>" +
+          "</div>",
+          "position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px"
+        );
+        if (!modal) return;
+
+        modal.addEventListener("click", function(e) {
+          if (e.target === modal || e.target.hasAttribute("data-close")) modal.remove();
+        });
+
+        // Setup Plinko Canvas Physics
+        var canvas = modal.querySelector("#adm-bd-canvas");
+        var dropBtn = modal.querySelector("#adm-bd-drop-btn");
+        var resBox = modal.querySelector("#adm-bd-result");
+        var prizeText = modal.querySelector("#adm-bd-prize-text");
+        var codeBox = modal.querySelector("#adm-bd-code");
+        var copyBtn = modal.querySelector("#adm-bd-copy");
+        if (!canvas) return;
+
+        var ctx = canvas.getContext("2d");
+        var W = canvas.width, H = canvas.height;
+        var slotsCount = Math.min(5, prizes.length);
+        var slotWidth = W / slotsCount;
+
+        // Sound synthesizer (Web Audio API)
+        function playTick(freq) {
+          try {
+            var aCtx = new (window.AudioContext || window.webkitAudioContext)();
+            var osc = aCtx.createOscillator();
+            var gain = aCtx.createGain();
+            osc.frequency.value = freq || 600;
+            gain.gain.setValueAtTime(0.04, aCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, aCtx.currentTime + 0.05);
+            osc.connect(gain);
+            gain.connect(aCtx.destination);
+            osc.start();
+            osc.stop(aCtx.currentTime + 0.05);
+          } catch(e) {}
+        }
+
+        // Generate Pegs
+        var pegs = [];
+        var rows = 6;
+        for (var r = 0; r < rows; r++) {
+          var cols = r + 3;
+          var y = 50 + r * 38;
+          var rowSpacing = (W - 30) / (cols + 1);
+          for (var c = 0; c < cols; c++) {
+            pegs.push({
+              x: 15 + (c + 1) * rowSpacing,
+              y: y,
+              r: 3.5
+            });
+          }
+        }
+
+        var ball = null;
+        var animId = null;
+
+        function drawBoard() {
+          ctx.clearRect(0, 0, W, H);
+
+          // Draw pegs
+          ctx.fillStyle = "#52525b";
+          for (var i = 0; i < pegs.length; i++) {
+            var p = pegs[i];
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fill();
+            // Highlight
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(p.x - 1, p.y - 1, 1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#52525b";
+          }
+
+          // Draw bottom prize bins
+          for (var s = 0; s < slotsCount; s++) {
+            var sx = s * slotWidth;
+            // Divider
+            ctx.strokeStyle = "#27272a";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(sx, H - 46);
+            ctx.lineTo(sx, H);
+            ctx.stroke();
+
+            // Label
+            var pItem = prizes[s];
+            ctx.fillStyle = s % 2 === 0 ? "#e4e4e7" : "#a1a1aa";
+            ctx.font = "8px 'NB Architekt Std', monospace";
+            ctx.textAlign = "center";
+            ctx.fillText(pItem.label || "PRIZE", sx + slotWidth / 2, H - 18);
+          }
+
+          // Draw ball
+          if (ball) {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+            ctx.strokeStyle = "#e10600";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+        }
+
+        drawBoard();
+
+        dropBtn.onclick = function() {
+          dropBtn.disabled = true;
+          dropBtn.style.opacity = "0.5";
+          dropBtn.textContent = "DROPPING...";
+
+          ball = {
+            x: W / 2 + (Math.random() * 20 - 10),
+            y: 16,
+            vx: (Math.random() * 1.5 - 0.75),
+            vy: 0.8,
+            r: 5.5
+          };
+
+          function update() {
+            ball.vy += 0.24; // gravity
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            // Wall collisions
+            if (ball.x - ball.r < 4) {
+              ball.x = 4 + ball.r;
+              ball.vx = -ball.vx * 0.6;
+              playTick(450);
+            }
+            if (ball.x + ball.r > W - 4) {
+              ball.x = W - 4 - ball.r;
+              ball.vx = -ball.vx * 0.6;
+              playTick(450);
+            }
+
+            // Peg collisions
+            for (var i = 0; i < pegs.length; i++) {
+              var p = pegs[i];
+              var dx = ball.x - p.x;
+              var dy = ball.y - p.y;
+              var dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < ball.r + p.r) {
+                var angle = Math.atan2(dy, dx);
+                var speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy) * 0.65;
+                ball.vx = Math.cos(angle) * speed + (Math.random() * 0.6 - 0.3);
+                ball.vy = Math.sin(angle) * speed;
+                ball.x = p.x + Math.cos(angle) * (ball.r + p.r + 0.5);
+                ball.y = p.y + Math.sin(angle) * (ball.r + p.r + 0.5);
+                playTick(600 + Math.random() * 200);
+              }
+            }
+
+            // Bottom reached
+            if (ball.y >= H - 26) {
+              cancelAnimationFrame(animId);
+              var slotIndex = Math.floor(ball.x / slotWidth);
+              slotIndex = Math.max(0, Math.min(slotsCount - 1, slotIndex));
+              var wonPrize = prizes[slotIndex];
+
+              drawBoard();
+              playTick(900);
+
+              // Reveal result
+              resBox.style.display = "block";
+              prizeText.textContent = wonPrize.label || "VIP REWARD";
+              codeBox.textContent = wonPrize.code || "ANNRVIP";
+
+              if (copyBtn) {
+                copyBtn.onclick = function() {
+                  navigator.clipboard.writeText(wonPrize.code || "ANNRVIP").then(function() {
+                    copyBtn.textContent = "COPIED";
+                    setTimeout(function() { copyBtn.textContent = "COPY"; }, 2000);
+                  });
+                };
+              }
+
+              // If points prize and user is logged in, credit points
+              if (wonPrize.label && wonPrize.label.includes("PTS")) {
+                try {
+                  var rawM = localStorage.getItem("annr-vip-members");
+                  var rawSess = localStorage.getItem("annr_vip_session");
+                  if (rawM && rawSess) {
+                    var sess = JSON.parse(rawSess);
+                    var members = JSON.parse(rawM);
+                    var cur = members.find(function(m) { return m.email === sess.email; });
+                    if (cur) {
+                      cur.available_points = (cur.available_points || 0) + 50;
+                      localStorage.setItem("annr-vip-members", JSON.stringify(members));
+                    }
+                  }
+                } catch(e) {}
+              }
+
+              dropBtn.textContent = "PLAYED TODAY";
+              return;
+            }
+
+            drawBoard();
+            animId = requestAnimationFrame(update);
+          }
+
+          animId = requestAnimationFrame(update);
+        };
+      }
+
+      trigger.onclick = openBallDropGame;
+    })();
   }
   window.shihikoApply = apply;
   window.addEventListener("shihiko:collection:loaded", function () { apply(); });
   window.addEventListener("popstate", function () { setTimeout(apply, 0); });
   whenReady(apply);
+
+  // Background sync published config from Supabase
+  (function syncPublishedFromSupabase() {
+    if (preview) return;
+    try {
+      fetch("https://aooydxydkyjtulhduexa.supabase.co/rest/v1/site_config_versions?is_published=eq.true&select=config&limit=1", {
+        headers: { "apikey": "sb_publishable_rWZ3_sO_15nX-jMpRMrnng_CrRhuJK5" }
+      })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(rows) {
+        if (rows && rows.length > 0 && rows[0].config) {
+          var remoteStr = JSON.stringify(rows[0].config);
+          var localStr = localStorage.getItem("shihiko-site-config");
+          if (localStr !== remoteStr) {
+            localStorage.setItem("shihiko-site-config", remoteStr);
+            refreshState();
+            apply();
+          }
+        }
+      }).catch(function() {});
+    } catch(e) {}
+  })();
 })();
 
 /* Local analytics adapter: trackEvent() records events in THIS browser only (no server, no personal data,

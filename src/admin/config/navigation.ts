@@ -38,6 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
     group: "Marketing & Drops",
     iconKey: "marketing",
     items: [
+      { label: "VIP Loyalty & Points", to: "/admin/loyalty" },
       { label: "Campaigns & Events", to: "/admin/events" },
       { label: "Promotional Banners", to: "/admin/content" },
     ],

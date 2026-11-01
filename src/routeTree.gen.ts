@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminActivityRouteImport } from './routes/admin.activity'
 import { Route as AdminCollectionsRouteImport } from './routes/admin.collections'
@@ -21,6 +22,7 @@ import { Route as AdminDiscountsRouteImport } from './routes/admin.discounts'
 import { Route as AdminEventsRouteImport } from './routes/admin.events'
 import { Route as AdminFormsRouteImport } from './routes/admin.forms'
 import { Route as AdminIntegrationsRouteImport } from './routes/admin.integrations'
+import { Route as AdminLoyaltyRouteImport } from './routes/admin.loyalty'
 import { Route as AdminMediaRouteImport } from './routes/admin.media'
 import { Route as AdminNavigationRouteImport } from './routes/admin.navigation'
 import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
@@ -53,6 +55,11 @@ const SplatRoute = SplatRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -98,6 +105,11 @@ const AdminFormsRoute = AdminFormsRouteImport.update({
 const AdminIntegrationsRoute = AdminIntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLoyaltyRoute = AdminLoyaltyRouteImport.update({
+  id: '/loyalty',
+  path: '/loyalty',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminMediaRoute = AdminMediaRouteImport.update({
@@ -195,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/admin': typeof AdminRouteWithChildren
+  '/checkout': typeof CheckoutRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/collections': typeof AdminCollectionsRoute
   '/admin/content': typeof AdminContentRoute
@@ -203,6 +216,7 @@ export interface FileRoutesByFullPath {
   '/admin/events': typeof AdminEventsRoute
   '/admin/forms': typeof AdminFormsRoute
   '/admin/integrations': typeof AdminIntegrationsRoute
+  '/admin/loyalty': typeof AdminLoyaltyRoute
   '/admin/media': typeof AdminMediaRoute
   '/admin/navigation': typeof AdminNavigationRoute
   '/admin/orders': typeof AdminOrdersRoute
@@ -226,6 +240,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/checkout': typeof CheckoutRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/collections': typeof AdminCollectionsRoute
   '/admin/content': typeof AdminContentRoute
@@ -234,6 +249,7 @@ export interface FileRoutesByTo {
   '/admin/events': typeof AdminEventsRoute
   '/admin/forms': typeof AdminFormsRoute
   '/admin/integrations': typeof AdminIntegrationsRoute
+  '/admin/loyalty': typeof AdminLoyaltyRoute
   '/admin/media': typeof AdminMediaRoute
   '/admin/navigation': typeof AdminNavigationRoute
   '/admin/orders': typeof AdminOrdersRoute
@@ -259,6 +275,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/admin': typeof AdminRouteWithChildren
+  '/checkout': typeof CheckoutRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/collections': typeof AdminCollectionsRoute
   '/admin/content': typeof AdminContentRoute
@@ -267,6 +284,7 @@ export interface FileRoutesById {
   '/admin/events': typeof AdminEventsRoute
   '/admin/forms': typeof AdminFormsRoute
   '/admin/integrations': typeof AdminIntegrationsRoute
+  '/admin/loyalty': typeof AdminLoyaltyRoute
   '/admin/media': typeof AdminMediaRoute
   '/admin/navigation': typeof AdminNavigationRoute
   '/admin/orders': typeof AdminOrdersRoute
@@ -293,6 +311,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/admin'
+    | '/checkout'
     | '/admin/activity'
     | '/admin/collections'
     | '/admin/content'
@@ -301,6 +320,7 @@ export interface FileRouteTypes {
     | '/admin/events'
     | '/admin/forms'
     | '/admin/integrations'
+    | '/admin/loyalty'
     | '/admin/media'
     | '/admin/navigation'
     | '/admin/orders'
@@ -324,6 +344,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$'
+    | '/checkout'
     | '/admin/activity'
     | '/admin/collections'
     | '/admin/content'
@@ -332,6 +353,7 @@ export interface FileRouteTypes {
     | '/admin/events'
     | '/admin/forms'
     | '/admin/integrations'
+    | '/admin/loyalty'
     | '/admin/media'
     | '/admin/navigation'
     | '/admin/orders'
@@ -356,6 +378,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/admin'
+    | '/checkout'
     | '/admin/activity'
     | '/admin/collections'
     | '/admin/content'
@@ -364,6 +387,7 @@ export interface FileRouteTypes {
     | '/admin/events'
     | '/admin/forms'
     | '/admin/integrations'
+    | '/admin/loyalty'
     | '/admin/media'
     | '/admin/navigation'
     | '/admin/orders'
@@ -389,6 +413,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
   AdminRoute: typeof AdminRouteWithChildren
+  CheckoutRoute: typeof CheckoutRoute
   PSlugRoute: typeof PSlugRoute
 }
 
@@ -413,6 +438,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -476,6 +508,13 @@ declare module '@tanstack/react-router' {
       path: '/integrations'
       fullPath: '/admin/integrations'
       preLoaderRoute: typeof AdminIntegrationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/loyalty': {
+      id: '/admin/loyalty'
+      path: '/loyalty'
+      fullPath: '/admin/loyalty'
+      preLoaderRoute: typeof AdminLoyaltyRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/media': {
@@ -616,6 +655,7 @@ interface AdminRouteChildren {
   AdminEventsRoute: typeof AdminEventsRoute
   AdminFormsRoute: typeof AdminFormsRoute
   AdminIntegrationsRoute: typeof AdminIntegrationsRoute
+  AdminLoyaltyRoute: typeof AdminLoyaltyRoute
   AdminMediaRoute: typeof AdminMediaRoute
   AdminNavigationRoute: typeof AdminNavigationRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
@@ -645,6 +685,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminEventsRoute: AdminEventsRoute,
   AdminFormsRoute: AdminFormsRoute,
   AdminIntegrationsRoute: AdminIntegrationsRoute,
+  AdminLoyaltyRoute: AdminLoyaltyRoute,
   AdminMediaRoute: AdminMediaRoute,
   AdminNavigationRoute: AdminNavigationRoute,
   AdminOrdersRoute: AdminOrdersRoute,
@@ -671,6 +712,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
   AdminRoute: AdminRouteWithChildren,
+  CheckoutRoute: CheckoutRoute,
   PSlugRoute: PSlugRoute,
 }
 export const routeTree = rootRouteImport

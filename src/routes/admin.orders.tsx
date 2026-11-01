@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { setState, useAdmin, type Order } from "../admin/store";
 import { BackBtn, Card, RowList } from "../admin/ui";
+import { updateStoreOrderStatus } from "../lib/loyalty";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/orders")({ component: Orders });
 
@@ -9,6 +11,90 @@ function Orders() {
   const s = useAdmin();
   const rows = s.orders.map((o) => ({ ...o }));
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+
+  // Sync new orders from checkout (localStorage or Supabase)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("annr-orders");
+      if (raw) {
+        const localPlaced: any[] = JSON.parse(raw);
+        if (Array.isArray(localPlaced) && localPlaced.length > 0) {
+          setState((prev) => {
+            const existingIds = new Set(prev.orders.map((o) => o.id));
+            const toAdd: Order[] = [];
+            for (const po of localPlaced) {
+              const id = po.id || `#${po.order_number}`;
+              if (!existingIds.has(id)) {
+                toAdd.push({
+                  id,
+                  date: po.created_at ? po.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+                  customer: po.customer_name || po.customer || "Store Customer",
+                  email: po.email || "",
+                  total: String(po.total || "0.00"),
+                  status: po.status || "Unfulfilled",
+                  payment: po.payment_method?.toUpperCase() || po.payment || "Pending",
+                  items: Array.isArray(po.items) ? po.items.map((i: any) => `${i.title} × ${i.quantity}`).join(", ") : (po.items || ""),
+                  address: po.full_address || po.address || "",
+                  note: po.customer_notes || po.trx_id ? `TrxID: ${po.trx_id || ""}` : "",
+                });
+              }
+            }
+            if (toAdd.length > 0) {
+              return { ...prev, orders: [...toAdd, ...prev.orders] };
+            }
+            return prev;
+          });
+        }
+      }
+
+      // Also query Supabase orders table if configured
+      if (isSupabaseConfigured()) {
+        supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(50).then(({ data }) => {
+          if (data && data.length > 0) {
+            setState((prev) => {
+              const existingIds = new Set(prev.orders.map((o) => o.id));
+              const remoteAdd: Order[] = [];
+              for (const ro of data) {
+                const id = `#${ro.order_number || ro.id.slice(0, 8)}`;
+                if (!existingIds.has(id)) {
+                  remoteAdd.push({
+                    id,
+                    date: ro.created_at.slice(0, 10),
+                    customer: ro.customer_name || "Customer",
+                    email: ro.email || "",
+                    total: String(ro.total_bdt || ro.total || "0"),
+                    status: ro.status || "Unfulfilled",
+                    payment: ro.payment_status || "Pending",
+                    items: "Store items",
+                    address: ro.shipping_address || "",
+                    note: ro.trx_id ? `TrxID: ${ro.trx_id}` : "",
+                  });
+                }
+              }
+              if (remoteAdd.length > 0) {
+                return { ...prev, orders: [...remoteAdd, ...prev.orders] };
+              }
+              return prev;
+            });
+          }
+        }, () => {});
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const handleOrdersChange = (newOrders: Order[]) => {
+    // Check which order changed status
+    const oldMap = new Map(s.orders.map((o) => [o.id, o]));
+    for (const no of newOrders) {
+      const old = oldMap.get(no.id);
+      if (old && (old.status !== no.status || old.payment !== no.payment)) {
+        updateStoreOrderStatus(no.id, no.status, no.payment).catch(console.error);
+      }
+    }
+    setState((x) => ({ ...x, orders: newOrders }));
+  };
 
   // Compute revenue and summary stats
   const totalRevenue = s.orders.reduce((sum, o) => {
@@ -93,7 +179,7 @@ function Orders() {
       <Card title="Orders" subtitle="Manage customer orders, shipping details, payment, and fulfillment status">
         <RowList<Order>
           rows={rows}
-          onChange={(r) => setState((x) => ({ ...x, orders: r }))}
+          onChange={handleOrdersChange}
           blank={{
             date: new Date().toISOString().slice(0, 10),
             customer: "",

@@ -4,6 +4,7 @@ import { dataSource } from "./services/dataSource";
 import { siteDefaults } from "./site/defaults";
 import type { SiteConfig } from "./site/types";
 import { getSession as getSessionSafe } from "./security/auth";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 // Demo-only admin data layer. Everything lives in the browser (localStorage) until a
 // real database is connected; swap load/save for API calls later.
@@ -228,10 +229,27 @@ export function publish() {
   const hist = getHistory();
   hist.unshift({ at: new Date().toISOString(), state: { ...s, activity: [] } });
   try { dataSource.write(HIST_KEY, hist.slice(0, 10)); } catch { dataSource.write(HIST_KEY, hist.slice(0, 2)); }
-  dataSource.write(PUB_KEY, siteConfig(s));
+  const pubCfg = siteConfig(s);
+  dataSource.write(PUB_KEY, pubCfg);
   const act = { id: uid(), at: new Date().toISOString(), by: getSessionSafe()?.email || "unknown", section: "publish", action: "updated" as const, item: "Website", fields: "published draft" };
   state = { ...s, activity: [act, ...s.activity].slice(0, 1000), publishedAt: act.at } as State;
   dataSource.write(KEY, state); subs.forEach((f) => f());
+
+  // Also publish to Supabase if configured
+  if (isSupabaseConfigured()) {
+    (async () => {
+      try {
+        await supabase.from("site_config_versions").update({ is_published: false }).eq("is_published", true);
+        await supabase.from("site_config_versions").insert({
+          config: pubCfg,
+          is_published: true,
+          note: `Published by ${getSessionSafe()?.email || "admin"}`,
+        });
+      } catch (err) {
+        console.warn("Notice: Supabase publish synced locally (DB pending table migration)", err);
+      }
+    })();
+  }
 }
 // Throw away unpublished edits: go back to the last published version (or original).
 export function discardDraft() {

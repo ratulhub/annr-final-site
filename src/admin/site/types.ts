@@ -104,4 +104,11 @@ export type SiteConfig = {
   hiddenPages: string[];
   customPages: CustomPage[];
   events: CampaignEvent[];
+  ballDrop?: {
+    enabled: boolean;
+    title: string;
+    subtitle: string;
+    prizes: Array<{ id: string; label: string; couponCode: string; discount: string; points?: number; weight: number; color: string }>;
+  };
+  loyalty?: Record<string, unknown>;
 };

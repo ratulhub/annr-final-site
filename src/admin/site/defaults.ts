@@ -117,5 +117,24 @@ export function siteDefaults(): SiteConfig {
         accentColor: "#f3795b",
       },
     ],
+    ballDrop: {
+      enabled: true,
+      title: "ANNR LUCKY BALL DROP",
+      subtitle: "Drop the chrome sphere to unlock instant VIP discounts and store cash credits.",
+      prizes: [
+        { id: "p1", label: "10% OFF", couponCode: "LUCKY10", discount: "10%", weight: 35, color: "#e10600" },
+        { id: "p2", label: "৳300 OFF", couponCode: "ANNR300", discount: "৳300", weight: 25, color: "#3b82f6" },
+        { id: "p3", label: "50 VIP PTS", couponCode: "PTS50", discount: "50 Points", points: 50, weight: 20, color: "#10b981" },
+        { id: "p4", label: "15% OFF", couponCode: "VIPDROP15", discount: "15%", weight: 15, color: "#8b5cf6" },
+        { id: "p5", label: "FREE BEANIE", couponCode: "FREEBEANIE", discount: "Free Item", weight: 5, color: "#f59e0b" },
+      ],
+    },
+    loyalty: {
+      program_enabled: true,
+      points_per_referral_order: 100,
+      point_value_bdt: 1.0,
+      friend_discount_percent: 10,
+      min_withdrawal_points: 100,
+    },
   };
 }
