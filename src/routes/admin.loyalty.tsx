@@ -644,159 +644,392 @@ function LoyaltyAdmin() {
 
       {/* TAB 4: Ball Drop Campaign Controller */}
       {activeTab === "balldrop" && (
-        <Card title="Interactive Vault Ball Drop Campaign Controller" subtitle="Manage storefront mini-game drops, prizes, and play rates">
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <label className="adm-check">
-              <input
-                type="checkbox"
-                checked={settings.ball_drop_enabled}
-                onChange={(e) => setSettings({ ...settings, ball_drop_enabled: e.target.checked })}
-              />
-              <span style={{ fontWeight: 700, fontSize: 14 }}>
-                Activate Vault Ball Drop Interactive Campaign on Storefront
-              </span>
-            </label>
-
-            <div className="adm-grid">
-              <label className="adm-field">
-                <span>Campaign title</span>
-                <input
-                  type="text"
-                  value={settings.ball_drop_config?.title || ""}
-                  onChange={(e) =>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Card
+            title="Interactive Ball Drop Campaign Controller"
+            subtitle="Complete ON/OFF toggle, copy editing, model image, and landing prize slot configuration"
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {/* Master ON / OFF Switch */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background: settings.ball_drop_enabled ? "rgba(34, 197, 94, 0.08)" : "#f4f4f5",
+                  border: `1px solid ${settings.ball_drop_enabled ? "#22c55e" : "#d4d4d8"}`,
+                  padding: "16px 20px",
+                  borderRadius: 8,
+                }}
+              >
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: settings.ball_drop_enabled ? "#22c55e" : "#71717a",
+                        display: "inline-block",
+                      }}
+                    />
+                    <strong style={{ fontSize: 15 }}>
+                      {settings.ball_drop_enabled ? "Campaign is LIVE & Active on Storefront" : "Campaign is OFF (Disabled)"}
+                    </strong>
+                  </div>
+                  <p style={{ margin: "4px 0 0", fontSize: 12, opacity: 0.8 }}>
+                    {settings.ball_drop_enabled
+                      ? "The split-screen TAP TO DROP mini-game is visible to store visitors."
+                      : "The campaign is hidden and will not trigger or appear on the storefront."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className={`adm-btn ${settings.ball_drop_enabled ? "danger" : "primary"}`}
+                  style={{ minWidth: 120, fontWeight: 700 }}
+                  onClick={() =>
                     setSettings({
                       ...settings,
-                      ball_drop_config: { ...settings.ball_drop_config, title: e.target.value },
-                    })
-                  }
-                />
-              </label>
-
-              <label className="adm-field">
-                <span>Campaign subtitle</span>
-                <input
-                  type="text"
-                  value={settings.ball_drop_config?.subtitle || ""}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      ball_drop_config: { ...settings.ball_drop_config, subtitle: e.target.value },
-                    })
-                  }
-                />
-              </label>
-
-              <label className="adm-field">
-                <span>Plays per customer / session</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={settings.ball_drop_config?.playsPerCustomer || 1}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      ball_drop_config: {
-                        ...settings.ball_drop_config,
-                        playsPerCustomer: Number(e.target.value),
-                      },
-                    })
-                  }
-                />
-              </label>
-
-              <label className="adm-field">
-                <span>Visual aesthetic theme</span>
-                <select
-                  value={settings.ball_drop_config?.theme || "dark_cyberpunk"}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      ball_drop_config: { ...settings.ball_drop_config, theme: e.target.value },
+                      ball_drop_enabled: !settings.ball_drop_enabled,
                     })
                   }
                 >
-                  <option value="dark_cyberpunk">Dark Cyberpunk (AnnR Stealth)</option>
-                  <option value="monochrome_luxury">Monochrome Luxury (High-End Streetwear)</option>
-                  <option value="neon_orange">Electric Amber / Neon Orange</option>
-                </select>
-              </label>
-            </div>
+                  {settings.ball_drop_enabled ? "TURN OFF" : "TURN ON"}
+                </button>
+              </div>
 
-            <div style={{ borderTop: "1px solid var(--p-border-subdued)", paddingTop: 14 }}>
-              <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Configured Drop Prize Pool (Landing Slots)</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {settings.ball_drop_config?.prizes?.map((prize, idx) => (
+              {/* Display & Trigger Settings */}
+              <div style={{ borderTop: "1px solid var(--p-border-subdued)", paddingTop: 16 }}>
+                <h3 style={{ margin: "0 0 12px", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
+                  1. Storefront Display Triggers
+                </h3>
+                <div className="adm-grid">
+                  <label className="adm-check">
+                    <input
+                      type="checkbox"
+                      checked={settings.ball_drop_config?.autoPopup !== false}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          ball_drop_config: {
+                            ...settings.ball_drop_config,
+                            autoPopup: e.target.checked,
+                          },
+                        })
+                      }
+                    />
+                    <span>Auto-popup on visitor page load</span>
+                  </label>
+
+                  <label className="adm-field">
+                    <span>Auto-popup delay (seconds)</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={settings.ball_drop_config?.autoPopupDelay || 3}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          ball_drop_config: {
+                            ...settings.ball_drop_config,
+                            autoPopupDelay: Number(e.target.value),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+
+                  <label className="adm-check">
+                    <input
+                      type="checkbox"
+                      checked={settings.ball_drop_config?.showFloatingTrigger !== false}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          ball_drop_config: {
+                            ...settings.ball_drop_config,
+                            showFloatingTrigger: e.target.checked,
+                          },
+                        })
+                      }
+                    />
+                    <span>Show bottom-right launcher badge (⚡ BALL DROP)</span>
+                  </label>
+
+                  <label className="adm-field">
+                    <span>Plays per visitor session</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={5}
+                      value={settings.ball_drop_config?.playsPerCustomer || 1}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          ball_drop_config: {
+                            ...settings.ball_drop_config,
+                            playsPerCustomer: Number(e.target.value),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Creative Copy & Image Edit */}
+              <div style={{ borderTop: "1px solid var(--p-border-subdued)", paddingTop: 16 }}>
+                <h3 style={{ margin: "0 0 12px", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
+                  2. Campaign Creative Copy &amp; Model Banner Image
+                </h3>
+                <div className="adm-grid">
+                  <label className="adm-field">
+                    <span>Main Heading</span>
+                    <input
+                      type="text"
+                      value={settings.ball_drop_config?.title || "TAP TO DROP"}
+                      placeholder="e.g. TAP TO DROP"
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          ball_drop_config: { ...settings.ball_drop_config, title: e.target.value },
+                        })
+                      }
+                    />
+                  </label>
+
+                  <label className="adm-field">
+                    <span>Button Label</span>
+                    <input
+                      type="text"
+                      value={settings.ball_drop_config?.buttonText || "TRY YOUR LUCK"}
+                      placeholder="e.g. TRY YOUR LUCK"
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          ball_drop_config: { ...settings.ball_drop_config, buttonText: e.target.value },
+                        })
+                      }
+                    />
+                  </label>
+
+                  <label className="adm-field" style={{ gridColumn: "1 / -1" }}>
+                    <span>Model Photo / Banner Image (Right Column)</span>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                      <input
+                        type="text"
+                        style={{ flex: 1 }}
+                        value={settings.ball_drop_config?.modelImage || "/cdn/shop/files/ball-drop-model.jpg"}
+                        placeholder="/cdn/shop/files/ball-drop-model.jpg"
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            ball_drop_config: { ...settings.ball_drop_config, modelImage: e.target.value },
+                          })
+                        }
+                      />
+                      {settings.ball_drop_config?.modelImage && (
+                        <img
+                          src={settings.ball_drop_config.modelImage}
+                          alt="Banner Preview"
+                          style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 4, border: "1px solid #d4d4d8" }}
+                          onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+                        />
+                      )}
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Prize Slots Editor (5 Slots) */}
+              <div style={{ borderTop: "1px solid var(--p-border-subdued)", paddingTop: 16 }}>
+                <h3 style={{ margin: "0 0 12px", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
+                  3. Landing Prize Slots (Left to Right)
+                </h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {settings.ball_drop_config?.prizes?.map((prize, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        background: "#f9fafb",
+                        padding: "10px 14px",
+                        borderRadius: 6,
+                        border: "1px solid var(--p-border-subdued)",
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, width: 28, fontSize: 13 }}>#{idx + 1}</span>
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontSize: 10, color: "#71717a", textTransform: "uppercase" }}>Slot Label</span>
+                        <input
+                          type="text"
+                          value={prize.label}
+                          placeholder="e.g. Free item / 5% off"
+                          style={{ padding: "6px 8px", borderRadius: 4, border: "1px solid #d2d5d8" }}
+                          onChange={(e) => {
+                            const nextPrizes = [...(settings.ball_drop_config?.prizes || [])];
+                            if (nextPrizes[idx]) {
+                              nextPrizes[idx] = { ...nextPrizes[idx], label: e.target.value };
+                              setSettings({
+                                ...settings,
+                                ball_drop_config: { ...settings.ball_drop_config, prizes: nextPrizes },
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                      <div style={{ width: 160, display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontSize: 10, color: "#71717a", textTransform: "uppercase" }}>Coupon Code</span>
+                        <input
+                          type="text"
+                          value={prize.code || ""}
+                          placeholder="e.g. LUCK5"
+                          style={{ padding: "6px 8px", borderRadius: 4, border: "1px solid #d2d5d8", fontFamily: "monospace", textTransform: "uppercase" }}
+                          onChange={(e) => {
+                            const nextPrizes = [...(settings.ball_drop_config?.prizes || [])];
+                            if (nextPrizes[idx]) {
+                              nextPrizes[idx] = { ...nextPrizes[idx], code: e.target.value.toUpperCase() };
+                              setSettings({
+                                ...settings,
+                                ball_drop_config: { ...settings.ball_drop_config, prizes: nextPrizes },
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                      <div style={{ width: 90, display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontSize: 10, color: "#71717a", textTransform: "uppercase" }}>Weight (%)</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={prize.weight}
+                          style={{ padding: "6px 8px", borderRadius: 4, border: "1px solid #d2d5d8" }}
+                          onChange={(e) => {
+                            const nextPrizes = [...(settings.ball_drop_config?.prizes || [])];
+                            if (nextPrizes[idx]) {
+                              nextPrizes[idx] = { ...nextPrizes[idx], weight: Number(e.target.value) };
+                              setSettings({
+                                ...settings,
+                                ball_drop_config: { ...settings.ball_drop_config, prizes: nextPrizes },
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Live Preview of the Split-Screen Modal */}
+              <div style={{ borderTop: "1px solid var(--p-border-subdued)", paddingTop: 16 }}>
+                <h3 style={{ margin: "0 0 12px", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
+                  4. Live Storefront Mockup Preview
+                </h3>
+                <div
+                  style={{
+                    background: "#050505",
+                    padding: 24,
+                    borderRadius: 8,
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
                   <div
-                    key={idx}
                     style={{
+                      maxWidth: 720,
+                      width: "100%",
+                      background: "#111113",
+                      border: "1px solid #27272a",
+                      borderRadius: 4,
+                      overflow: "hidden",
                       display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      background: "#f9fafb",
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      border: "1px solid var(--p-border-subdued)",
+                      boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
                     }}
                   >
-                    <span style={{ fontWeight: 700, width: 24 }}>#{idx + 1}</span>
-                    <input
-                      type="text"
-                      value={prize.label}
-                      placeholder="Prize label"
-                      style={{ flex: 1, padding: "6px 8px", borderRadius: 4, border: "1px solid #d2d5d8" }}
-                      onChange={(e) => {
-                        const nextPrizes = [...(settings.ball_drop_config?.prizes || [])];
-                        if (nextPrizes[idx]) {
-                          nextPrizes[idx] = { ...nextPrizes[idx], label: e.target.value };
-                          setSettings({
-                            ...settings,
-                            ball_drop_config: { ...settings.ball_drop_config, prizes: nextPrizes },
-                          });
-                        }
+                    {/* Left side: Plinko */}
+                    <div
+                      style={{
+                        flex: 1,
+                        padding: "24px 20px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        position: "relative",
+                        color: "#fff",
                       }}
-                    />
-                    <input
-                      type="text"
-                      value={prize.code || ""}
-                      placeholder="Coupon Code"
-                      style={{ width: 140, padding: "6px 8px", borderRadius: 4, border: "1px solid #d2d5d8", fontFamily: "monospace" }}
-                      onChange={(e) => {
-                        const nextPrizes = [...(settings.ball_drop_config?.prizes || [])];
-                        if (nextPrizes[idx]) {
-                          nextPrizes[idx] = { ...nextPrizes[idx], code: e.target.value.toUpperCase() };
-                          setSettings({
-                            ...settings,
-                            ball_drop_config: { ...settings.ball_drop_config, prizes: nextPrizes },
-                          });
-                        }
-                      }}
-                    />
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ fontSize: 11 }}>Weight:</span>
-                      <input
-                        type="number"
-                        min={1}
-                        value={prize.weight}
-                        style={{ width: 60, padding: "6px 8px", borderRadius: 4, border: "1px solid #d2d5d8" }}
-                        onChange={(e) => {
-                          const nextPrizes = [...(settings.ball_drop_config?.prizes || [])];
-                          if (nextPrizes[idx]) {
-                            nextPrizes[idx] = { ...nextPrizes[idx], weight: Number(e.target.value) };
-                            setSettings({
-                              ...settings,
-                              ball_drop_config: { ...settings.ball_drop_config, prizes: nextPrizes },
-                            });
-                          }
+                    >
+                      <span style={{ position: "absolute", top: 12, left: 14, fontSize: 18, opacity: 0.6 }}>✕</span>
+                      <div style={{ fontFamily: "Rockybilly, cursive", fontSize: 26, marginBottom: 4 }}>AnnR</div>
+                      <div style={{ fontFamily: "Druk Wide, sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>
+                        {settings.ball_drop_config?.title || "TAP TO DROP"}
+                      </div>
+                      <div
+                        style={{
+                          background: "#fff",
+                          color: "#000",
+                          borderRadius: 20,
+                          padding: "6px 20px",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: 1,
+                          textTransform: "uppercase",
+                          marginBottom: 14,
                         }}
+                      >
+                        {settings.ball_drop_config?.buttonText || "TRY YOUR LUCK"}
+                      </div>
+                      {/* Triangle dots */}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7, margin: "6px 0 16px" }}>
+                        {[2, 3, 4, 5, 6, 7, 8].map((count, r) => (
+                          <div key={r} style={{ display: "flex", gap: 14 }}>
+                            {Array.from({ length: count }).map((_, c) => (
+                              <span key={c} style={{ width: 4, height: 4, borderRadius: "50%", background: "#fff", display: "inline-block" }} />
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                      {/* 5 slot labels */}
+                      <div style={{ display: "flex", justifyContent: "space-between", width: "100%", borderTop: "1px solid #27272a", paddingTop: 8 }}>
+                        {settings.ball_drop_config?.prizes?.map((p, idx) => (
+                          <span key={idx} style={{ fontSize: 8, opacity: 0.85, textTransform: "lowercase", textAlign: "center", flex: 1 }}>
+                            {p.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Right side: Model Photo */}
+                    <div style={{ flex: 1, background: "#ffffff", minHeight: 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img
+                        src={settings.ball_drop_config?.modelImage || "/cdn/shop/files/ball-drop-model.jpg"}
+                        alt="Model Preview"
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                       />
                     </div>
                   </div>
-                ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
+                <button
+                  type="button"
+                  className="adm-btn primary"
+                  disabled={loading}
+                  onClick={handleSaveSettings}
+                  style={{ minWidth: 160 }}
+                >
+                  {savedSuccess ? "✓ Settings Saved & Published" : "Save Ball Drop Settings"}
+                </button>
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       )}
     </>
   );

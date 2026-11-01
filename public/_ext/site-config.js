@@ -1545,11 +1545,11 @@
       }, true);
     })();
 
-    // 6. Interactive Vault Ball Drop Mini-Game (Discrete, Non-Interruptive)
+    // 6. Interactive Vault Ball Drop Campaign (Split-Screen Streetwear Design)
     (function initBallDrop() {
-      // Remove any legacy invasive popup
-      var old = document.getElementById("adm-ball-drop-trigger");
-      if (old) old.remove();
+      // Remove any legacy triggers or modals
+      var oldTrigger = document.getElementById("adm-ball-drop-trigger");
+      if (oldTrigger) oldTrigger.remove();
 
       var loyaltySt = {};
       try {
@@ -1557,72 +1557,93 @@
         if (rawSt) loyaltySt = JSON.parse(rawSt);
       } catch(e) {}
 
+      // Master ON / OFF Check
       var isEnabled = loyaltySt.ball_drop_enabled !== false;
       if (!isEnabled) return;
 
       var bdConfig = loyaltySt.ball_drop_config || {
-        title: "ANNR LUCKY BALL DROP",
-        subtitle: "Drop the chrome sphere to unlock instant VIP discounts and store cash credits.",
+        title: "TAP TO DROP",
+        buttonText: "TRY YOUR LUCK",
+        modelImage: "/cdn/shop/files/ball-drop-model.jpg",
+        autoPopup: true,
+        autoPopupDelay: 3,
+        showFloatingTrigger: true,
         prizes: [
-          { label: "10% OFF", code: "LUCKY10", weight: 35 },
-          { label: "৳300 OFF", code: "ANNR300", weight: 25 },
-          { label: "50 VIP PTS", code: "PTS50", weight: 20 },
-          { label: "15% OFF", code: "VIPDROP15", weight: 15 },
-          { label: "FREE BEANIE", code: "FREEBEANIE", weight: 5 }
+          { label: "Free item", code: "FREEGIFT", weight: 10 },
+          { label: "5% off", code: "LUCK5", weight: 35 },
+          { label: "Free shipping", code: "FREESHIP", weight: 20 },
+          { label: "৳500 off", code: "ANNR500", weight: 15 },
+          { label: "10% off", code: "LUCK10", weight: 20 }
         ]
       };
 
-      // Discrete floating streetwear launcher at bottom-right
-      var trigger = document.createElement("div");
-      trigger.id = "adm-ball-drop-trigger";
-      trigger.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:99975;background:#09090b;color:#ffffff;border:1px solid #27272a;border-radius:40px;padding:9px 16px;font:11px/1 'NB Architekt Std',sans-serif;letter-spacing:1px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.8);transition:transform .2s,border-color .2s;user-select:none";
-      trigger.innerHTML = "<span style='width:7px;height:7px;border-radius:50%;background:#e10600;display:inline-block'></span><span>⚡ BALL DROP</span>";
-      trigger.onmouseenter = function() { trigger.style.borderColor = "#ffffff"; trigger.style.transform = "translateY(-2px)"; };
-      trigger.onmouseleave = function() { trigger.style.borderColor = "#27272a"; trigger.style.transform = "translateY(0)"; };
-      document.body.appendChild(trigger);
+      // Floating Trigger Badge (if enabled in admin)
+      if (bdConfig.showFloatingTrigger !== false) {
+        var trigger = document.createElement("div");
+        trigger.id = "adm-ball-drop-trigger";
+        trigger.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:99975;background:#111113;color:#ffffff;border:1px solid #27272a;border-radius:40px;padding:9px 18px;font:11px/1 'NB Architekt Std',sans-serif;letter-spacing:1px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.85);transition:transform .2s,border-color .2s;user-select:none";
+        trigger.innerHTML = "<span style='width:7px;height:7px;border-radius:50%;background:#e10600;display:inline-block'></span><span>⚡ BALL DROP</span>";
+        trigger.onmouseenter = function() { trigger.style.borderColor = "#ffffff"; trigger.style.transform = "translateY(-2px)"; };
+        trigger.onmouseleave = function() { trigger.style.borderColor = "#27272a"; trigger.style.transform = "translateY(0)"; };
+        trigger.onclick = function() { openBallDropGame(); };
+        document.body.appendChild(trigger);
+      }
 
       function openBallDropGame() {
         var existingModal = document.getElementById("adm-ball-drop-modal");
         if (existingModal) existingModal.remove();
 
-        var prizes = bdConfig.prizes || [
-          { label: "10% OFF", code: "LUCKY10" },
-          { label: "৳300 OFF", code: "ANNR300" },
-          { label: "50 PTS", code: "PTS50" },
-          { label: "15% OFF", code: "VIPDROP15" },
-          { label: "FREE GIFT", code: "FREEBEANIE" }
+        var prizes = (bdConfig.prizes && bdConfig.prizes.length >= 5) ? bdConfig.prizes : [
+          { label: "Free item", code: "FREEGIFT" },
+          { label: "5% off", code: "LUCK5" },
+          { label: "Free shipping", code: "FREESHIP" },
+          { label: "৳500 off", code: "ANNR500" },
+          { label: "10% off", code: "LUCK10" }
         ];
 
-        var modal = overlay("adm-ball-drop-modal",
-          "<div style='background:#09090b;color:#ffffff;max-width:400px;width:92%;padding:26px 20px;border:1px solid #27272a;box-shadow:0 24px 64px rgba(0,0,0,0.95);font:12px/1.5 \"NB Architekt Std\",sans-serif;position:relative;border-radius:4px;text-align:center'>" +
-            "<button type='button' data-close style='position:absolute;top:14px;right:16px;background:none;border:0;color:#fff;font-size:18px;cursor:pointer;opacity:.6'>✕</button>" +
-            "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#a1a1aa;text-transform:uppercase;margin-bottom:6px'>VAULT MINI-GAME // PROBABILITY DROP</div>" +
-            "<div style='font:18px/1.1 \"Druk Wide\",sans-serif;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px'>" + esc(bdConfig.title || "ANNR BALL DROP") + "</div>" +
-            "<p style='font-size:11px;color:#a1a1aa;margin:0 0 14px'>" + esc(bdConfig.subtitle || "Drop the sphere to unlock instant VIP coupons") + "</p>" +
+        var modalHtml =
+          "<div style='background:#111113;border:1px solid #27272a;max-width:920px;width:95%;border-radius:4px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.95);position:relative;display:flex;flex-direction:row'>" +
+            // Close Button
+            "<button type='button' data-close style='position:absolute;top:16px;left:16px;background:none;border:none;color:#ffffff;font-size:22px;cursor:pointer;opacity:.75;line-height:1;z-index:20'>✕</button>" +
 
-            "<div style='background:#040405;border:1px solid #1f1f23;border-radius:4px;padding:8px;position:relative;display:inline-block;margin-bottom:14px'>" +
-              "<canvas id='adm-bd-canvas' width='320' height='340' style='display:block;background:#08080a;border-radius:3px'></canvas>" +
-            "</div>" +
+            // Left Side: Plinko Interactive Game
+            "<div style='flex:1;min-width:320px;max-width:480px;background:#111113;padding:28px 24px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative'>" +
+              "<div style='font-family:\"Rockybilly\",cursive,sans-serif;font-size:36px;color:#ffffff;line-height:1;margin-bottom:8px;text-align:center'>AnnR</div>" +
+              "<div style='font:22px/1.1 \"Druk Wide\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffffff;margin-bottom:12px;text-align:center'>" + esc(bdConfig.title || "TAP TO DROP") + "</div>" +
 
-            "<div id='adm-bd-controls'>" +
-              "<button type='button' id='adm-bd-drop-btn' style='background:#ffffff;color:#000000;border:none;padding:12px 28px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:3px;box-shadow:0 4px 14px rgba(255,255,255,0.2)'>RELEASE SPHERE ↓</button>" +
-            "</div>" +
+              "<button type='button' id='adm-bd-drop-btn' style='background:#ffffff;color:#000000;border:none;border-radius:24px;padding:9px 28px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-bottom:14px;box-shadow:0 4px 14px rgba(255,255,255,0.25);transition:transform 0.15s'>" + esc(bdConfig.buttonText || "TRY YOUR LUCK") + "</button>" +
 
-            "<div id='adm-bd-result' style='display:none;background:#18181b;border:1px solid #27272a;padding:12px;border-radius:4px;margin-top:12px'>" +
-              "<div style='font-size:10px;color:#22c55e;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px'>🎉 CONGRATULATIONS!</div>" +
-              "<div id='adm-bd-prize-text' style='font:16px/1.2 \"Druk Wide\",sans-serif;margin-bottom:8px'></div>" +
-              "<div id='adm-bd-coupon-box' style='display:flex;align-items:center;justify-content:center;gap:8px'>" +
-                "<span id='adm-bd-code' style='font-family:monospace;letter-spacing:2px;font-weight:700;background:#09090b;padding:6px 10px;border:1px dashed #3f3f46'></span>" +
-                "<button type='button' id='adm-bd-copy' style='background:#fff;color:#000;border:none;padding:6px 12px;font:9px/1 \"NB Architekt Std\",sans-serif;font-weight:700;cursor:pointer'>COPY</button>" +
+              "<div style='background:#111113;position:relative;display:flex;justify-content:center;margin-bottom:10px'>" +
+                "<canvas id='adm-bd-canvas' width='340' height='260' style='display:block;background:transparent'></canvas>" +
+              "</div>" +
+
+              // Result Banner
+              "<div id='adm-bd-result' style='display:none;background:#18181b;border:1px solid #27272a;padding:12px 16px;border-radius:4px;margin-top:4px;width:100%;text-align:center'>" +
+                "<div style='font-size:10px;color:#22c55e;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px'>🎉 CONGRATULATIONS!</div>" +
+                "<div id='adm-bd-prize-text' style='font:14px/1.2 \"Druk Wide\",sans-serif;margin-bottom:8px;text-transform:uppercase'></div>" +
+                "<div id='adm-bd-coupon-box' style='display:flex;align-items:center;justify-content:center;gap:8px'>" +
+                  "<span id='adm-bd-code' style='font-family:monospace;letter-spacing:2px;font-weight:700;background:#09090b;padding:6px 10px;border:1px dashed #3f3f46;color:#ffffff'></span>" +
+                  "<button type='button' id='adm-bd-copy' style='background:#ffffff;color:#000000;border:none;padding:6px 12px;font:9px/1 \"NB Architekt Std\",sans-serif;font-weight:700;cursor:pointer;border-radius:2px'>COPY</button>" +
+                "</div>" +
               "</div>" +
             "</div>" +
-          "</div>",
-          "position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px"
+
+            // Right Side: Model Banner Image
+            "<div style='flex:1;background:#ffffff;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:480px'>" +
+              "<img src='" + esc(safeImg(bdConfig.modelImage || "/cdn/shop/files/ball-drop-model.jpg")) + "' alt='AnnR Model' style='width:100%;height:100%;object-fit:cover;display:block'>" +
+            "</div>" +
+          "</div>";
+
+        var modal = overlay("adm-ball-drop-modal", modalHtml,
+          "position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:16px"
         );
         if (!modal) return;
 
         modal.addEventListener("click", function(e) {
-          if (e.target === modal || e.target.hasAttribute("data-close")) modal.remove();
+          if (e.target === modal || e.target.hasAttribute("data-close")) {
+            modal.remove();
+            try { sessionStorage.setItem("annr_bd_popup_seen", "1"); } catch(err) {}
+          }
         });
 
         // Setup Plinko Canvas Physics
@@ -1636,7 +1657,7 @@
 
         var ctx = canvas.getContext("2d");
         var W = canvas.width, H = canvas.height;
-        var slotsCount = Math.min(5, prizes.length);
+        var slotsCount = 5;
         var slotWidth = W / slotsCount;
 
         // Sound synthesizer (Web Audio API)
@@ -1655,18 +1676,19 @@
           } catch(e) {}
         }
 
-        // Generate Pegs
+        // Generate Pegs in Triangle Pyramid (Matching screenshot)
         var pegs = [];
-        var rows = 6;
-        for (var r = 0; r < rows; r++) {
-          var cols = r + 3;
-          var y = 50 + r * 38;
-          var rowSpacing = (W - 30) / (cols + 1);
-          for (var c = 0; c < cols; c++) {
+        var pegRows = [2, 3, 4, 5, 6, 7, 8];
+        for (var r = 0; r < pegRows.length; r++) {
+          var count = pegRows[r];
+          var y = 20 + r * 28;
+          var rowWidth = (count - 1) * 36;
+          var startX = (W - rowWidth) / 2;
+          for (var c = 0; c < count; c++) {
             pegs.push({
-              x: 15 + (c + 1) * rowSpacing,
+              x: startX + c * 36,
               y: y,
-              r: 3.5
+              r: 3
             });
           }
         }
@@ -1677,41 +1699,26 @@
         function drawBoard() {
           ctx.clearRect(0, 0, W, H);
 
-          // Draw pegs
-          ctx.fillStyle = "#52525b";
+          // Draw triangular white pegs
+          ctx.fillStyle = "#ffffff";
           for (var i = 0; i < pegs.length; i++) {
             var p = pegs[i];
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
             ctx.fill();
-            // Highlight
-            ctx.fillStyle = "#ffffff";
-            ctx.beginPath();
-            ctx.arc(p.x - 1, p.y - 1, 1, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#52525b";
           }
 
-          // Draw bottom prize bins
+          // Draw bottom 5 slot labels (Matching screenshot)
           for (var s = 0; s < slotsCount; s++) {
             var sx = s * slotWidth;
-            // Divider
-            ctx.strokeStyle = "#27272a";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(sx, H - 46);
-            ctx.lineTo(sx, H);
-            ctx.stroke();
-
-            // Label
-            var pItem = prizes[s];
-            ctx.fillStyle = s % 2 === 0 ? "#e4e4e7" : "#a1a1aa";
-            ctx.font = "8px 'NB Architekt Std', monospace";
+            var pItem = prizes[s] || { label: "Prize" };
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "9px 'NB Architekt Std', sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText(pItem.label || "PRIZE", sx + slotWidth / 2, H - 18);
+            ctx.fillText(pItem.label || "Prize", sx + slotWidth / 2, H - 10);
           }
 
-          // Draw ball
+          // Draw falling ball
           if (ball) {
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
@@ -1731,26 +1738,26 @@
           dropBtn.textContent = "DROPPING...";
 
           ball = {
-            x: W / 2 + (Math.random() * 20 - 10),
-            y: 16,
-            vx: (Math.random() * 1.5 - 0.75),
+            x: W / 2 + (Math.random() * 8 - 4),
+            y: 4,
+            vx: (Math.random() * 0.8 - 0.4),
             vy: 0.8,
-            r: 5.5
+            r: 5
           };
 
           function update() {
-            ball.vy += 0.24; // gravity
+            ball.vy += 0.22; // gravity
             ball.x += ball.vx;
             ball.y += ball.vy;
 
-            // Wall collisions
-            if (ball.x - ball.r < 4) {
-              ball.x = 4 + ball.r;
+            // Side bounce
+            if (ball.x - ball.r < 10) {
+              ball.x = 10 + ball.r;
               ball.vx = -ball.vx * 0.6;
               playTick(450);
             }
-            if (ball.x + ball.r > W - 4) {
-              ball.x = W - 4 - ball.r;
+            if (ball.x + ball.r > W - 10) {
+              ball.x = W - 10 - ball.r;
               ball.vx = -ball.vx * 0.6;
               playTick(450);
             }
@@ -1773,18 +1780,18 @@
             }
 
             // Bottom reached
-            if (ball.y >= H - 26) {
+            if (ball.y >= H - 24) {
               cancelAnimationFrame(animId);
               var slotIndex = Math.floor(ball.x / slotWidth);
               slotIndex = Math.max(0, Math.min(slotsCount - 1, slotIndex));
-              var wonPrize = prizes[slotIndex];
+              var wonPrize = prizes[slotIndex] || prizes[0];
 
               drawBoard();
               playTick(900);
 
               // Reveal result
               resBox.style.display = "block";
-              prizeText.textContent = wonPrize.label || "VIP REWARD";
+              prizeText.textContent = wonPrize.label || "EXCLUSIVE REWARD";
               codeBox.textContent = wonPrize.code || "ANNRVIP";
 
               if (copyBtn) {
@@ -1797,7 +1804,7 @@
               }
 
               // If points prize and user is logged in, credit points
-              if (wonPrize.label && wonPrize.label.includes("PTS")) {
+              if (wonPrize.label && wonPrize.label.toLowerCase().includes("pts")) {
                 try {
                   var rawM = localStorage.getItem("annr-vip-members");
                   var rawSess = localStorage.getItem("annr_vip_session");
@@ -1825,7 +1832,19 @@
         };
       }
 
-      trigger.onclick = openBallDropGame;
+      // Auto-popup for visitors on page load (if enabled in admin)
+      if (bdConfig.autoPopup !== false) {
+        try {
+          if (sessionStorage.getItem("annr_bd_popup_seen") !== "1") {
+            var delayMs = (Number(bdConfig.autoPopupDelay) || 3) * 1000;
+            setTimeout(function() {
+              if (sessionStorage.getItem("annr_bd_popup_seen") !== "1") {
+                openBallDropGame();
+              }
+            }, delayMs);
+          }
+        } catch(e) {}
+      }
     })();
   }
   window.shihikoApply = apply;

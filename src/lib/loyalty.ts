@@ -19,6 +19,11 @@ export interface LoyaltySettings {
   ball_drop_config: {
     title: string;
     subtitle: string;
+    buttonText: string;
+    modelImage: string;
+    autoPopup: boolean;
+    autoPopupDelay: number;
+    showFloatingTrigger: boolean;
     playsPerCustomer: number;
     prizes: { label: string; code?: string; points?: number; weight: number }[];
     theme: string;
@@ -84,16 +89,22 @@ export const DEFAULT_LOYALTY_SETTINGS: LoyaltySettings = {
   pending_days_return_window: 7,
   coupon_prefix: "VIP-",
   allowed_payout_methods: ["bkash", "nagad", "rocket", "bank"],
-  ball_drop_enabled: false,
+  ball_drop_enabled: true,
   ball_drop_config: {
-    title: "AnnR Vault Ball Drop",
-    subtitle: "Drop the sphere & claim instant store credits",
+    title: "TAP TO DROP",
+    subtitle: "Try your luck to unlock instant exclusive discounts and free items.",
+    buttonText: "TRY YOUR LUCK",
+    modelImage: "/cdn/shop/files/ball-drop-model.jpg",
+    autoPopup: true,
+    autoPopupDelay: 3,
+    showFloatingTrigger: true,
     playsPerCustomer: 1,
     prizes: [
-      { label: "৳500 OFF voucher", code: "BALL500", weight: 20 },
-      { label: "10% OFF discount", code: "DROP10", weight: 40 },
-      { label: "Free Socks Bundle", code: "DROPGIFT", weight: 25 },
-      { label: "50 Bonus VIP Points", points: 50, weight: 15 },
+      { label: "Free item", code: "FREEGIFT", weight: 10 },
+      { label: "5% off", code: "LUCK5", weight: 35 },
+      { label: "Free shipping", code: "FREESHIP", weight: 20 },
+      { label: "৳500 off", code: "ANNR500", weight: 15 },
+      { label: "10% off", code: "LUCK10", weight: 20 },
     ],
     theme: "dark_cyberpunk",
   },
@@ -243,8 +254,8 @@ export async function registerVipMember(payload: {
 export async function validateReferralCoupon(
   code: string,
   orderTotal: number,
-  buyerEmail: string
-): Promise<{ valid: boolean; discount_amount?: number; discount_type?: string; discount_value?: number; error?: string }> {
+  buyerEmail?: string
+): Promise<{ valid: boolean; discount_amount?: number; discount_type?: string; discount_value?: number; points_reward?: number; error?: string }> {
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.rpc("validate_referral_coupon", {
@@ -253,12 +264,13 @@ export async function validateReferralCoupon(
         p_buyer_email: buyerEmail,
       });
       if (!error && data) {
-        return data;
+        if (data.valid) return data;
+        // If Supabase returned an explicit security rejection (like self-referral), return it
+        if (data.error && data.error.includes("own referral coupon")) {
+          return data;
+        }
       }
-      // If function is not in schema cache (migration pending in Supabase), fallback to local rules
-      if (error && !error.message.includes("schema cache") && !error.message.includes("Could not find the function")) {
-        return { valid: false, error: error.message };
-      }
+      // If error or inactive coupon in empty DB, fall through to local validation
     } catch (e: any) {
       // Fall through to local fallback
     }

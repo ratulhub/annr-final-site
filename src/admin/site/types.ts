@@ -108,6 +108,11 @@ export type SiteConfig = {
     enabled: boolean;
     title: string;
     subtitle: string;
+    buttonText?: string;
+    modelImage?: string;
+    autoPopup?: boolean;
+    autoPopupDelay?: number;
+    showFloatingTrigger?: boolean;
     prizes: Array<{ id: string; label: string; couponCode: string; discount: string; points?: number; weight: number; color: string }>;
   };
   loyalty?: Record<string, unknown>;
