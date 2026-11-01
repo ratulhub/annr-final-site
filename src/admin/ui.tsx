@@ -196,63 +196,68 @@ export function RowList<T extends { id: string }>({
     onChange(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
 
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table>
-        <thead>
-          <tr>
-            {fields.map((f) => (
-              <th key={String(f.key)}>{f.label}</th>
-            ))}
-            <th style={{ width: 50, textAlign: "center" }}>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={r.id}>
+    <div>
+      <div className="adm-table-scroll-hint">↔ Swipe horizontally to view all columns</div>
+      <div className="adm-table-wrap">
+        <table>
+          <thead>
+            <tr>
               {fields.map((f) => (
-                <td key={String(f.key)}>
-                  {f.type === "bool" ? (
-                    <input
-                      type="checkbox"
-                      checked={!!r[f.key]}
-                      onChange={(e) => set(i, f.key, e.target.checked)}
-                    />
-                  ) : Array.isArray(f.type) ? (
-                    <select
-                      value={String(r[f.key])}
-                      onChange={(e) => set(i, f.key, e.target.value)}
-                    >
-                      {f.type.map((o) => (
-                        <option key={o} value={o}>{o}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type={f.type === "number" ? "number" : "text"}
-                      value={String(r[f.key] ?? "")}
-                      onChange={(e) =>
-                        set(i, f.key, f.type === "number" ? Number(e.target.value) : e.target.value)
-                      }
-                    />
-                  )}
-                </td>
+                <th key={String(f.key)} style={{ minWidth: f.type === "bool" ? 60 : f.type === "number" ? 85 : 130 }}>{f.label}</th>
               ))}
-              <td style={{ textAlign: "center" }}>
-                <button
-                  type="button"
-                  className="adm-btn danger sm"
-                  style={{ padding: "4px 8px" }}
-                  onClick={() => onChange(rows.filter((_, j) => j !== i))}
-                  title="Delete row"
-                >
-                  ✕
-                </button>
-              </td>
+              <th style={{ width: 60, textAlign: "center" }}>Action</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="adm-row" style={{ marginTop: 14 }}>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.id}>
+                {fields.map((f) => (
+                  <td key={String(f.key)}>
+                    {f.type === "bool" ? (
+                      <input
+                        type="checkbox"
+                        checked={!!r[f.key]}
+                        onChange={(e) => set(i, f.key, e.target.checked)}
+                      />
+                    ) : Array.isArray(f.type) ? (
+                      <select
+                        value={String(r[f.key])}
+                        onChange={(e) => set(i, f.key, e.target.value)}
+                        style={{ minWidth: 100 }}
+                      >
+                        {f.type.map((o) => (
+                          <option key={o} value={o}>{o}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={f.type === "number" ? "number" : "text"}
+                        value={String(r[f.key] ?? "")}
+                        style={{ minWidth: f.type === "number" ? 75 : 110 }}
+                        onChange={(e) =>
+                          set(i, f.key, f.type === "number" ? Number(e.target.value) : e.target.value)
+                        }
+                      />
+                    )}
+                  </td>
+                ))}
+                <td style={{ textAlign: "center" }}>
+                  <button
+                    type="button"
+                    className="adm-btn danger sm"
+                    style={{ padding: "6px 10px" }}
+                    onClick={() => onChange(rows.filter((_, j) => j !== i))}
+                    title="Delete row"
+                  >
+                    ✕
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="adm-row" style={{ marginTop: 12 }}>
         <button
           type="button"
           className="adm-btn ghost sm"

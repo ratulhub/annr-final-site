@@ -180,7 +180,7 @@ function Dashboard() {
         <section className="adm-card">
           <h2>Summary metrics customization</h2>
           <p className="adm-hint">Toggle visibility and arrange metric order to fit your dashboard.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8, margin: "14px 0" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 240px), 1fr))", gap: 8, margin: "14px 0" }}>
             {ordered.map((x, i) => (
               <div key={x.k} className="adm-row" style={{ padding: "8px 12px", background: "var(--p-background)", borderRadius: 6, border: "1px solid var(--p-border-subdued)" }}>
                 <input
@@ -231,7 +231,7 @@ function Dashboard() {
       </div>
 
       {/* Analytics & System Health Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 16, marginBottom: 16 }}>
         {/* Visitors Chart */}
         <section className="adm-card" style={{ margin: 0 }}>
           <div className="adm-top" style={{ marginBottom: 10, paddingBottom: 8 }}>

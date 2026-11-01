@@ -144,7 +144,7 @@ function EventsManager() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "360px 1fr", gap: 24, alignItems: "start" }}>
+      <div className="adm-events-layout">
         {/* Left Column: Campaign List & Controls */}
         <div>
           <Card title={`All Campaigns (${events.length})`}>

@@ -199,7 +199,7 @@ function LoyaltyAdmin() {
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: "flex", gap: 6, borderBottom: "1px solid var(--p-border-subdued)", marginBottom: 20 }}>
+      <div className="adm-tabs" style={{ borderBottom: "1px solid var(--p-border-subdued)", marginBottom: 20 }}>
         <button
           type="button"
           className={`adm-btn ${activeTab === "settings" ? "primary" : "ghost"}`}
@@ -854,15 +854,16 @@ function LoyaltyAdmin() {
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 12,
+                        gap: 10,
                         background: "#f9fafb",
-                        padding: "10px 14px",
+                        padding: "10px 12px",
                         borderRadius: 6,
                         border: "1px solid var(--p-border-subdued)",
+                        flexWrap: "wrap",
                       }}
                     >
                       <span style={{ fontWeight: 700, width: 28, fontSize: 13 }}>#{idx + 1}</span>
-                      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                      <div style={{ flex: "1 1 160px", display: "flex", flexDirection: "column" }}>
                         <span style={{ fontSize: 10, color: "#71717a", textTransform: "uppercase" }}>Slot Label</span>
                         <input
                           type="text"
@@ -881,7 +882,7 @@ function LoyaltyAdmin() {
                           }}
                         />
                       </div>
-                      <div style={{ width: 160, display: "flex", flexDirection: "column" }}>
+                      <div style={{ flex: "1 1 120px", display: "flex", flexDirection: "column" }}>
                         <span style={{ fontSize: 10, color: "#71717a", textTransform: "uppercase" }}>Coupon Code</span>
                         <input
                           type="text"
@@ -900,7 +901,7 @@ function LoyaltyAdmin() {
                           }}
                         />
                       </div>
-                      <div style={{ width: 90, display: "flex", flexDirection: "column" }}>
+                      <div style={{ flex: "0 1 80px", minWidth: 70, display: "flex", flexDirection: "column" }}>
                         <span style={{ fontSize: 10, color: "#71717a", textTransform: "uppercase" }}>Weight (%)</span>
                         <input
                           type="number"
@@ -933,10 +934,13 @@ function LoyaltyAdmin() {
                 <div
                   style={{
                     background: "#050505",
-                    padding: 24,
+                    padding: "16px 12px",
                     borderRadius: 8,
                     display: "flex",
                     justifyContent: "center",
+                    width: "100%",
+                    boxSizing: "border-box",
+                    overflow: "hidden",
                   }}
                 >
                   <div
@@ -948,19 +952,22 @@ function LoyaltyAdmin() {
                       borderRadius: 4,
                       overflow: "hidden",
                       display: "flex",
+                      flexWrap: "wrap",
                       boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
                     }}
                   >
                     {/* Left side: Plinko */}
                     <div
                       style={{
-                        flex: 1,
-                        padding: "24px 20px",
+                        flex: "1 1 280px",
+                        minWidth: 260,
+                        padding: "24px 16px",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
                         position: "relative",
                         color: "#fff",
+                        boxSizing: "border-box",
                       }}
                     >
                       <span style={{ position: "absolute", top: 12, left: 14, fontSize: 18, opacity: 0.6 }}>✕</span>
@@ -1004,7 +1011,7 @@ function LoyaltyAdmin() {
                     </div>
 
                     {/* Right side: Model Photo */}
-                    <div style={{ flex: 1, background: "#ffffff", minHeight: 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ flex: "1 1 240px", minWidth: 240, background: "#ffffff", minHeight: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <img
                         src={settings.ball_drop_config?.modelImage || "/cdn/shop/files/ball-drop-model.jpg"}
                         alt="Model Preview"

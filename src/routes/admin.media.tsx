@@ -44,7 +44,7 @@ function Media() {
         <input placeholder="https://… image link" value={link} onChange={(e) => setLink(e.target.value)} style={{ maxWidth: 300 }} />
         <button className="adm-btn ghost" disabled={!/^https?:\/\//.test(link)} onClick={() => { save([{ id: uid(), name: link.split("/").pop() || "image", url: link, alt: "", caption: "", type: "image", size: 0, source: "link", addedAt: new Date().toISOString() }, ...media]); setLink(""); }}>Add link</button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: cur ? "1fr 320px" : "1fr", gap: 18 }}>
+      <div className={cur ? "adm-media-layout" : ""} style={{ display: "grid", gap: 18 }}>
         <div className="adm-media">
           {list.length ? list.map((m) => <button key={m.id} type="button" className={sel === m.id ? "on" : ""} onClick={() => setSel(m.id)}>
             <img src={m.url.startsWith("//") ? "https:" + m.url : m.url} alt={m.alt} loading="lazy" /><span>{m.name}</span></button>) : <p>No files match.</p>}

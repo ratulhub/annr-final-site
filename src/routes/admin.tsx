@@ -102,8 +102,10 @@ function GroupIcon({ iconKey }: { iconKey: NavGroup["iconKey"] }) {
 function GlobalSearch() {
   const s = useAdmin();
   const [open, setOpen] = useState(false);
+  const [mobSearchOpen, setMobSearchOpen] = useState(false);
   const [term, setTerm] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const mobInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -114,6 +116,7 @@ function GlobalSearch() {
       }
       if (e.key === "Escape") {
         setOpen(false);
+        setMobSearchOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -132,6 +135,7 @@ function GlobalSearch() {
     { label: "Collections", to: "/admin/collections" },
     { label: "Discounts & Coupons", to: "/admin/discounts" },
     { label: "Campaigns & Events", to: "/admin/events" },
+    { label: "VIP Loyalty & Ball Drop", to: "/admin/loyalty" },
     { label: "Theme & Design", to: "/admin/theme" },
     { label: "Page Sections", to: "/admin/sections" },
     { label: "Website Pages", to: "/admin/website" },
@@ -144,148 +148,221 @@ function GlobalSearch() {
 
   const hasResults = matchedProducts.length > 0 || matchedOrders.length > 0 || matchedCustomers.length > 0 || matchedPages.length > 0;
 
-  return (
-    <div style={{ position: "relative", flex: "1 1 280px", maxWidth: 440, minWidth: 180 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          background: "#f1f2f4",
-          border: "1px solid #d2d5d8",
-          borderRadius: 8,
-          padding: "5px 12px",
-          cursor: "text",
-        }}
-        onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50); }}
-      >
-        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#6d7175" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="9" cy="9" r="6" />
-          <line x1="15" y1="15" x2="19" y2="19" />
-        </svg>
-        <input
-          ref={inputRef}
-          type="text"
-          name="annr_search_control_palette"
-          id="annr_search_control_palette"
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          data-lpignore="true"
-          data-1p-ignore="true"
-          placeholder="Search products, orders, pages… (Ctrl+K)"
-          value={term}
-          onChange={(e) => { setTerm(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          style={{
-            border: "none",
-            background: "transparent",
-            outline: "none",
-            fontSize: 13,
-            color: "var(--p-text)",
-            width: "100%",
-            padding: 0,
-            margin: 0,
-          }}
-        />
-        {term ? (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setTerm(""); }}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#6d7175", fontSize: 12, padding: "0 2px" }}
-            title="Clear search"
-          >
-            ✕
-          </button>
-        ) : (
-          <kbd style={{ fontSize: 11, background: "#ffffff", border: "1px solid #d2d5d8", borderRadius: 4, padding: "1px 5px", color: "#6d7175", fontFamily: "inherit" }}>
-            ⌘K
-          </kbd>
-        )}
-      </div>
-
-      {open && q && (
+  const renderDropdown = () => (
+    <div
+      className="adm-card adm-search-results-panel"
+      style={{
+        position: "absolute",
+        top: "calc(100% + 6px)",
+        left: 0,
+        right: 0,
+        zIndex: 110,
+        padding: 8,
+        maxHeight: 380,
+        overflowY: "auto",
+        boxShadow: "0 8px 30px rgba(0, 0, 0, 0.2)",
+        margin: 0,
+      }}
+    >
+      {!hasResults ? (
+        <div style={{ padding: "16px", textAlign: "center", color: "var(--p-text-subdued)", fontSize: 13 }}>
+          No results found for “{term}”
+        </div>
+      ) : (
         <>
-          <div style={{ position: "fixed", inset: 0, zIndex: 50 }} onClick={() => setOpen(false)} />
-          <div
-            className="adm-card"
-            style={{
-              position: "absolute",
-              top: "calc(100% + 6px)",
-              left: 0,
-              right: 0,
-              zIndex: 51,
-              padding: 8,
-              maxHeight: 380,
-              overflowY: "auto",
-              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.15)",
-              margin: 0,
-            }}
-          >
-            {!hasResults ? (
-              <div style={{ padding: "16px", textAlign: "center", color: "var(--p-text-subdued)", fontSize: 13 }}>
-                No results found for “{term}”
-              </div>
-            ) : (
-              <>
-                {matchedPages.length > 0 && (
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--p-text-subdued)", padding: "4px 8px", textTransform: "uppercase" }}>Pages & Tools</div>
-                    {matchedPages.map((p) => (
-                      <Link
-                        key={p.to}
-                        to={p.to}
-                        onClick={() => { setOpen(false); setTerm(""); }}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6, textDecoration: "none", color: "var(--p-text)", fontSize: 13 }}
-                      >
-                        <span style={{ color: "var(--p-interactive)" }}>→</span>
-                        <b>{p.label}</b>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                {matchedProducts.length > 0 && (
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--p-text-subdued)", padding: "4px 8px", textTransform: "uppercase" }}>Products</div>
-                    {matchedProducts.map((p) => (
-                      <Link
-                        key={p.handle}
-                        to="/admin/products/$handle"
-                        params={{ handle: p.handle }}
-                        onClick={() => { setOpen(false); setTerm(""); }}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6, textDecoration: "none", color: "var(--p-text)", fontSize: 13 }}
-                      >
-                        {p.images?.[0] && <img src={p.images[0]} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: "cover" }} />}
-                        <span style={{ flex: 1 }}>{p.title}</span>
-                        <span className={`adm-tag ${p.status === "active" ? "active" : "draft"}`} style={{ fontSize: 10 }}>{p.status}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                {matchedOrders.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--p-text-subdued)", padding: "4px 8px", textTransform: "uppercase" }}>Orders</div>
-                    {matchedOrders.map((o) => (
-                      <Link
-                        key={o.id}
-                        to="/admin/orders"
-                        onClick={() => { setOpen(false); setTerm(""); }}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6, textDecoration: "none", color: "var(--p-text)", fontSize: 13 }}
-                      >
-                        <b>{o.id}</b>
-                        <span style={{ flex: 1 }}>{o.customer}</span>
-                        <span>{o.total}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+          {matchedPages.length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--p-text-subdued)", padding: "4px 8px", textTransform: "uppercase" }}>Pages & Tools</div>
+              {matchedPages.map((p) => (
+                <Link
+                  key={p.to}
+                  to={p.to}
+                  onClick={() => { setOpen(false); setMobSearchOpen(false); setTerm(""); }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px", borderRadius: 6, textDecoration: "none", color: "var(--p-text)", fontSize: 13 }}
+                >
+                  <span style={{ color: "var(--p-interactive)" }}>→</span>
+                  <b>{p.label}</b>
+                </Link>
+              ))}
+            </div>
+          )}
+          {matchedProducts.length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--p-text-subdued)", padding: "4px 8px", textTransform: "uppercase" }}>Products</div>
+              {matchedProducts.map((p) => (
+                <Link
+                  key={p.handle}
+                  to="/admin/products/$handle"
+                  params={{ handle: p.handle }}
+                  onClick={() => { setOpen(false); setMobSearchOpen(false); setTerm(""); }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px", borderRadius: 6, textDecoration: "none", color: "var(--p-text)", fontSize: 13 }}
+                >
+                  {p.images?.[0] && <img src={p.images[0]} alt="" style={{ width: 28, height: 28, borderRadius: 4, objectFit: "cover" }} />}
+                  <span style={{ flex: 1 }}>{p.title}</span>
+                  <span className={`adm-tag ${p.status === "active" ? "active" : "draft"}`} style={{ fontSize: 10 }}>{p.status}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+          {matchedOrders.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--p-text-subdued)", padding: "4px 8px", textTransform: "uppercase" }}>Orders</div>
+              {matchedOrders.map((o) => (
+                <Link
+                  key={o.id}
+                  to="/admin/orders"
+                  onClick={() => { setOpen(false); setMobSearchOpen(false); setTerm(""); }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px", borderRadius: 6, textDecoration: "none", color: "var(--p-text)", fontSize: 13 }}
+                >
+                  <b>{o.id}</b>
+                  <span style={{ flex: 1 }}>{o.customer}</span>
+                  <span>{o.total}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>
+  );
+
+  return (
+    <>
+      {/* Mobile Search Trigger Icon */}
+      <button
+        type="button"
+        className="adm-icon mob adm-mob-search-btn"
+        onClick={() => {
+          setMobSearchOpen(true);
+          setTimeout(() => mobInputRef.current?.focus(), 60);
+        }}
+        aria-label="Search admin panel"
+        title="Search (Ctrl+K)"
+      >
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="9" cy="9" r="6" />
+          <line x1="15" y1="15" x2="19" y2="19" />
+        </svg>
+      </button>
+
+      {/* Mobile Search Full-Width Overlay */}
+      {mobSearchOpen && (
+        <div className="adm-mob-search-overlay">
+          <div className="adm-mob-search-bar">
+            <button
+              type="button"
+              className="adm-icon"
+              onClick={() => { setMobSearchOpen(false); setTerm(""); }}
+              aria-label="Close search"
+            >
+              ←
+            </button>
+            <div className="adm-mob-search-field">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#6d7175" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="9" r="6" />
+                <line x1="15" y1="15" x2="19" y2="19" />
+              </svg>
+              <input
+                ref={mobInputRef}
+                type="text"
+                placeholder="Search products, orders, pages…"
+                value={term}
+                onChange={(e) => setTerm(e.target.value)}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+              />
+              {term && (
+                <button
+                  type="button"
+                  onClick={() => setTerm("")}
+                  style={{ background: "none", border: "none", color: "#6d7175", fontSize: 13, padding: "0 6px", cursor: "pointer" }}
+                  aria-label="Clear query"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+          {q && (
+            <div style={{ position: "relative", width: "100%", padding: "0 10px" }}>
+              <div style={{ position: "fixed", inset: 0, top: 52, zIndex: 105 }} onClick={() => setMobSearchOpen(false)} />
+              {renderDropdown()}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Desktop Search Bar */}
+      <div className="adm-desk-search" style={{ position: "relative", flex: "1 1 280px", maxWidth: 440, minWidth: 180 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "#f1f2f4",
+            border: "1px solid #d2d5d8",
+            borderRadius: 8,
+            padding: "5px 12px",
+            cursor: "text",
+          }}
+          onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50); }}
+        >
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#6d7175" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="9" r="6" />
+            <line x1="15" y1="15" x2="19" y2="19" />
+          </svg>
+          <input
+            ref={inputRef}
+            type="text"
+            name="annr_search_control_palette"
+            id="annr_search_control_palette"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            data-lpignore="true"
+            data-1p-ignore="true"
+            placeholder="Search products, orders, pages… (Ctrl+K)"
+            value={term}
+            onChange={(e) => { setTerm(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            style={{
+              border: "none",
+              background: "transparent",
+              outline: "none",
+              fontSize: 13,
+              color: "var(--p-text)",
+              width: "100%",
+              padding: 0,
+              margin: 0,
+            }}
+          />
+          {term ? (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setTerm(""); }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#6d7175", fontSize: 12, padding: "0 2px" }}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          ) : (
+            <kbd style={{ fontSize: 11, background: "#ffffff", border: "1px solid #d2d5d8", borderRadius: 4, padding: "1px 5px", color: "#6d7175", fontFamily: "inherit" }}>
+              ⌘K
+            </kbd>
+          )}
+        </div>
+
+        {open && q && (
+          <>
+            <div style={{ position: "fixed", inset: 0, zIndex: 50 }} onClick={() => setOpen(false)} />
+            {renderDropdown()}
+          </>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -337,9 +414,19 @@ function AdminLayout() {
   return (
     <div className={`adm${collapsed ? " collapsed" : ""}${mobile ? " mobile-open" : ""}`}>
       <aside className="adm-side">
-        <div className="adm-logo">
-          AnnR
-          <small>Admin Panel</small>
+        <div className="adm-side-top">
+          <div className="adm-logo">
+            AnnR
+            <small>Admin Panel</small>
+          </div>
+          <button
+            type="button"
+            className="adm-side-close mob"
+            onClick={() => setMobile(false)}
+            aria-label="Close sidebar menu"
+          >
+            ✕
+          </button>
         </div>
 
         {path !== "/admin" && path !== "/admin/" && (
@@ -353,8 +440,8 @@ function AdminLayout() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 6,
-                padding: "6px 10px",
-                fontSize: 12,
+                padding: "8px 10px",
+                fontSize: 12.5,
                 fontWeight: 600,
                 cursor: "pointer",
                 background: "#262626",
@@ -362,7 +449,10 @@ function AdminLayout() {
                 color: "#ffffff",
                 borderRadius: 6,
               }}
-              onClick={handleBack}
+              onClick={() => {
+                setMobile(false);
+                handleBack();
+              }}
               title="Go back to previous page"
             >
               ← Back
@@ -370,7 +460,13 @@ function AdminLayout() {
           </div>
         )}
 
-        <nav className="adm-nav">
+        <nav
+          className="adm-nav"
+          onClick={(e) => {
+            const el = (e.target as HTMLElement).closest("a, button");
+            if (el) setMobile(false);
+          }}
+        >
           {NAV_GROUPS.map((g) => (
             <div key={g.group} className="adm-group">
               <div className="adm-group-title" style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -434,12 +530,12 @@ function AdminLayout() {
           {path !== "/admin" && path !== "/admin/" && (
             <button
               type="button"
-              className="adm-btn ghost sm"
+              className="adm-btn ghost sm adm-back-btn"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 5,
-                padding: "6px 12px",
+                padding: "6px 10px",
                 fontSize: 12.5,
                 fontWeight: 600,
                 cursor: "pointer",
@@ -448,18 +544,23 @@ function AdminLayout() {
               onClick={handleBack}
               title="Go back to previous page"
             >
-              ← Back
+              ← <span className="adm-back-label">Back</span>
             </button>
           )}
 
-          <div className="adm-crumbs" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <Link to="/admin" style={{ fontWeight: 600, color: "var(--p-text)" }}>Admin</Link>
-            {crumbs.map((c, idx) => (
-              <span key={idx} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <span style={{ opacity: 0.4 }}>/</span>
-                {c.to ? <Link to={c.to} style={{ textDecoration: "none" }}>{c.label}</Link> : <span style={{ fontWeight: 600, color: "var(--p-text)" }}>{c.label}</span>}
-              </span>
-            ))}
+          <div className="adm-crumbs">
+            <span className="adm-mob-title">
+              {crumbs.length ? crumbs[crumbs.length - 1]?.label : "Dashboard"}
+            </span>
+            <div className="adm-desk-crumbs">
+              <Link to="/admin" style={{ fontWeight: 600, color: "var(--p-text)" }}>Admin</Link>
+              {crumbs.map((c, idx) => (
+                <span key={idx} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ opacity: 0.4 }}>/</span>
+                  {c.to ? <Link to={c.to} style={{ textDecoration: "none" }}>{c.label}</Link> : <span style={{ fontWeight: 600, color: "var(--p-text)" }}>{c.label}</span>}
+                </span>
+              ))}
+            </div>
           </div>
 
           <GlobalSearch />
@@ -469,7 +570,7 @@ function AdminLayout() {
               href="/home.html"
               target="_blank"
               rel="noreferrer"
-              className="adm-tag active"
+              className="adm-tag active adm-live-link"
               style={{ textDecoration: "none", cursor: "pointer", fontWeight: 600, gap: 6 }}
               title="View the live AnnR store in a new tab"
             >
@@ -571,21 +672,74 @@ function Denied({ perm }: { perm: string }) {
 function PublishButton() {
   const dirty = useDirty();
   const mayPublish = can(getSession()?.role, "site.publish");
-  return <span className="adm-row" style={{ gap: 6 }}>
-    <Link to="/admin/publish" className="link">{dirty ? "Unpublished changes" : "All published"}</Link>
-    <button className="adm-btn sm" disabled={!dirty || !mayPublish} onClick={() => { if (!mayPublish) return; publish(); logAuthEvent("site_publish"); }}>Publish</button>
-  </span>;
+  return (
+    <span className="adm-row adm-publish-wrap" style={{ gap: 6 }}>
+      <Link to="/admin/publish" className="link adm-publish-link">
+        {dirty ? "Unpublished changes" : "All published"}
+      </Link>
+      <button
+        className={`adm-btn sm adm-publish-btn ${dirty ? "primary" : "ghost"}`}
+        disabled={!dirty || !mayPublish}
+        onClick={() => {
+          if (!mayPublish) return;
+          publish();
+          logAuthEvent("site_publish");
+        }}
+        title={dirty ? "Unpublished changes pending - click to publish" : "Live storefront is up to date"}
+      >
+        <span
+          style={{
+            display: "inline-block",
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: dirty ? "#f59e0b" : "#10b981",
+            marginRight: 4,
+          }}
+        />
+        <span>Publish</span>
+      </button>
+    </span>
+  );
 }
 
 function Dropdown({ label, aria, children, plain }: { label: ReactNode; aria: string; children: ReactNode; plain?: boolean }) {
   const [open, setOpen] = useState(false);
   const path = useLocation({ select: (l) => l.pathname });
   useEffect(() => setOpen(false), [path]);
-  return <span style={{ position: "relative" }}>
-    <button className={plain ? "adm-btn ghost sm" : "adm-icon"} aria-label={aria} aria-expanded={open} onClick={() => setOpen(!open)}>{label}</button>
-    {open && <><div style={{ position: "fixed", inset: 0, zIndex: 40 }} onClick={() => setOpen(false)} />
-      <div className="adm-card" style={{ position: "absolute", right: 0, top: "110%", zIndex: 41, width: 280, margin: 0, padding: 12 }}>{children}</div></>}
-  </span>;
+  return (
+    <span style={{ position: "relative" }}>
+      <button
+        className={plain ? "adm-btn ghost sm" : "adm-icon"}
+        aria-label={aria}
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        {label}
+      </button>
+      {open && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 120 }} onClick={() => setOpen(false)} />
+          <div
+            className="adm-card adm-dropdown-menu"
+            style={{
+              position: "absolute",
+              right: 0,
+              top: "115%",
+              zIndex: 121,
+              width: 280,
+              maxWidth: "calc(100vw - 24px)",
+              margin: 0,
+              padding: 12,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+            }}
+          >
+            {children}
+          </div>
+        </>
+      )}
+    </span>
+  );
 }
 
 function Notifications() {

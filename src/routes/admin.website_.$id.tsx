@@ -35,7 +35,7 @@ function EditPage() {
         <label className="adm-field"><span>Search title</span><input value={page.seoTitle} onChange={(e) => save({ seoTitle: e.target.value })} /></label>
         <label className="adm-field"><span>Search description</span><input value={page.seoDescription} onChange={(e) => save({ seoDescription: e.target.value })} /></label>
       </div></Card>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 18 }}>
+      <div className="adm-two-col" style={{ gap: 18 }}>
         <div>
           {page.blocks.map((b, i) => <div className="adm-card" key={b.id}>
             <div className="adm-row" style={{ justifyContent: "space-between", marginBottom: 10 }}>

@@ -91,15 +91,15 @@ function Products() {
 
       {/* Filter and Bulk Action Controls */}
       <div className="adm-card" style={{ padding: 14, marginBottom: 16 }}>
-        <div className="adm-row" style={{ justifyContent: "space-between" }}>
-          <div className="adm-row" style={{ flex: 1, minWidth: 260 }}>
+        <div className="adm-row" style={{ justifyContent: "space-between", gap: 10 }}>
+          <div className="adm-row" style={{ flex: "1 1 240px", gap: 8 }}>
             <input
               placeholder="Search products..."
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              style={{ maxWidth: 300 }}
+              style={{ flex: "1 1 180px", minWidth: 140 }}
             />
-            <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 160 }}>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ flex: "0 1 160px", minWidth: 120 }}>
               <option value="all">All statuses ({s.products.length})</option>
               <option value="active">Active only ({s.products.filter((p) => p.status === "active").length})</option>
               <option value="draft">Drafts only ({s.products.filter((p) => p.status === "draft").length})</option>
@@ -111,7 +111,7 @@ function Products() {
               </button>
             )}
           </div>
-          <div className="adm-row">
+          <div className="adm-row" style={{ gap: 6 }}>
             <button className="adm-btn ghost sm" onClick={() => setAll("active")}>
               Set active
             </button>
@@ -123,7 +123,8 @@ function Products() {
       </div>
 
       {/* Products Table */}
-      <div className="adm-card" style={{ padding: 0, overflowX: "auto" }}>
+      <div className="adm-table-scroll-hint">↔ Swipe horizontally to view full table</div>
+      <div className="adm-card adm-table-wrap" style={{ padding: 0 }}>
         <table>
           <thead>
             <tr>

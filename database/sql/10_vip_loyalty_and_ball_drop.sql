@@ -893,6 +893,8 @@ begin
 end;
 $$;
 
+
+
 grant execute on function public.get_published_site_config() to anon, authenticated;
 grant execute on function public.register_vip_member to anon, authenticated;
 grant execute on function public.validate_referral_coupon to anon, authenticated;
@@ -900,3 +902,4 @@ grant execute on function public.request_vip_withdrawal to authenticated;
 grant execute on function public.admin_process_withdrawal to authenticated;
 grant execute on function public.place_store_order to anon, authenticated;
 grant execute on function public.update_store_order_status to authenticated;
+
