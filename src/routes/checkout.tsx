@@ -192,13 +192,33 @@ function CheckoutPage() {
         if (appliedCoupon?.code) {
           const rawMembers = localStorage.getItem("annr-vip-members");
           if (rawMembers) {
-            const members = JSON.parse(rawMembers);
-            const owner = members.find((m: any) => m.referral_code?.toUpperCase() === appliedCoupon.code.toUpperCase());
-            if (owner) {
-              owner.pending_points = (owner.pending_points || 0) + 100;
-              owner.total_earned_points = (owner.total_earned_points || 0) + 100;
-              localStorage.setItem("annr-vip-members", JSON.stringify(members));
-            }
+            try {
+              const members = JSON.parse(rawMembers);
+              const owner = members.find((m: any) => m.referral_code?.toUpperCase() === appliedCoupon.code.toUpperCase());
+              if (owner) {
+                owner.pending_points = (owner.pending_points || 0) + 100;
+                owner.total_earned_points = (owner.total_earned_points || 0) + 100;
+                localStorage.setItem("annr-vip-members", JSON.stringify(members));
+              }
+            } catch {}
+          }
+
+          // Also update active VIP member session if matching
+          const rawSess = localStorage.getItem("annr_vip_member_session");
+          if (rawSess) {
+            try {
+              const sess = JSON.parse(rawSess);
+              const matchCode = (sess.coupon?.code || sess.member?.referral_code || "").toUpperCase();
+              if (matchCode === appliedCoupon.code.toUpperCase()) {
+                sess.member = sess.member || {};
+                sess.coupon = sess.coupon || {};
+                sess.member.pending_points = (sess.member.pending_points || 0) + 100;
+                sess.member.total_earned_points = (sess.member.total_earned_points || 0) + 100;
+                sess.coupon.times_used = (sess.coupon.times_used || 0) + 1;
+                sess.coupon.total_points_generated = (sess.coupon.total_points_generated || 0) + 100;
+                localStorage.setItem("annr_vip_member_session", JSON.stringify(sess));
+              }
+            } catch {}
           }
         }
       } catch {}
