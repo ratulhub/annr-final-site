@@ -1,5 +1,10 @@
 # Redirect rules for AnnR Storefront
 # Root path redirects to the storefront home page
-/           /home.html   302
-/index.html /home.html   302
-
+/                   /home.html   302
+/index.html         /home.html   302
+/account            /account/login/index.html   302
+/account/           /account/login/index.html   302
+/vip                /account/login/index.html   302
+/vip/               /account/login/index.html   302
+/account/login      /account/login/index.html   302
+/account/register   /account/register/index.html   302

@@ -305,6 +305,14 @@ async function route(request: Request): Promise<Response> {
       }
     }
 
+    // Clean VIP & Account route redirects
+    if (/^\/(account|vip)\/?$/i.test(url.pathname)) {
+      return new Response(null, {
+        status: 302,
+        headers: { location: `/account/login/index.html${url.search}` },
+      });
+    }
+
     const target = staticPagePath(url.pathname, url.searchParams.get("page"));
     if (target) return new Response(null, { status: 302, headers: { location: target } });
   }

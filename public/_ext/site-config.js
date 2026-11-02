@@ -1200,349 +1200,489 @@
         } catch(e) { return null; }
       }
 
-      function openVipModal() {
-        var existing = document.getElementById("adm-vip-hub-modal");
-        if (existing) existing.remove();
+      function renderInPageVipHub() {
+        var container = document.querySelector(".vip-form__wrapper") || document.querySelector(".customer-register-form-wrapper");
+        if (!container) return;
 
         var member = getSessionMember();
         var st = getVipSettings();
         var pointVal = Number(st.point_value_bdt) || 1.0;
+        var isSignupTab = window.location.pathname.indexOf("register") !== -1 || window.location.search.indexOf("tab=signup") !== -1;
 
-        var contentHtml = "";
         if (!member) {
-          // Unauthenticated: Sign Up / Sign In Tabs
-          contentHtml =
-            "<div style='background:#09090b;color:#ffffff;max-width:440px;width:94%;padding:28px 24px;border:1px solid #27272a;box-shadow:0 24px 64px rgba(0,0,0,0.9);font:12px/1.5 \"NB Architekt Std\",sans-serif;position:relative;max-height:90vh;overflow-y:auto;border-radius:4px'>" +
-              "<button type='button' data-close style='position:absolute;top:16px;right:16px;background:none;border:0;color:#fff;font-size:18px;cursor:pointer;opacity:.6'>✕</button>" +
-              "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#a1a1aa;text-transform:uppercase;margin-bottom:6px'>ANNR VIP LOYALTY PROGRAM</div>" +
-              "<div style='font:20px/1.1 \"Druk Wide\",sans-serif;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px'>MEMBER VAULT</div>" +
-              "<div style='display:flex;gap:8px;border-bottom:1px solid #27272a;margin-bottom:18px'>" +
-                "<button type='button' id='vip-tab-signup' style='background:none;border:none;border-bottom:2px solid #fff;color:#fff;font:11px/1.2 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;padding:8px 12px;cursor:pointer'>CREATE ACCOUNT</button>" +
-                "<button type='button' id='vip-tab-login' style='background:none;border:none;border-bottom:2px solid transparent;color:#71717a;font:11px/1.2 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;padding:8px 12px;cursor:pointer'>SIGN IN</button>" +
+          // Unauthenticated view: High-converting Sign In / Create VIP Account tabs
+          var contentHtml =
+            "<div id='vip-inpage-hub' style='color:#ffffff;font-family:\"NB Architekt Std\",sans-serif;width:100%;max-width:520px;margin:0 auto;padding:10px 0'>" +
+              // Tabs
+              "<div style='display:flex;gap:4px;border-bottom:1px solid #27272a;margin-bottom:20px;padding-bottom:2px'>" +
+                "<button type='button' id='vip-tab-signin' style='background:none;border:none;border-bottom:2px solid " + (isSignupTab ? "transparent" : "#fa9442") + ";color:" + (isSignupTab ? "#71717a" : "#ffffff") + ";font:12px/1.4 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;padding:8px 16px;cursor:pointer;text-transform:uppercase'>SIGN IN</button>" +
+                "<button type='button' id='vip-tab-create' style='background:none;border:none;border-bottom:2px solid " + (isSignupTab ? "#fa9442" : "transparent") + ";color:" + (isSignupTab ? "#ffffff" : "#71717a") + ";font:12px/1.4 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;padding:8px 16px;cursor:pointer;text-transform:uppercase'>CREATE VIP ACCOUNT (+৳100)</button>" +
               "</div>" +
 
-              "<form id='vip-signup-form' style='display:flex;flex-direction:column;gap:12px'>" +
-                "<div style='background:#18181b;padding:10px 12px;border:1px solid #27272a;border-radius:3px;font-size:11px;color:#d4d4d8'>" +
-                  "✨ Join VIP today: Get <strong>100 Welcome Points (৳100)</strong> + your own referral coupon to earn cash points whenever friends shop!" +
+              // Sign In Form
+              "<form id='vip-inpage-login-form' style='display:" + (isSignupTab ? "none" : "flex") + ";flex-direction:column;gap:14px'>" +
+                "<div style='font-size:11px;color:#a1a1aa;margin-bottom:4px;line-height:1.5'>Sign in to your VIP account to check referral count, view coupon earnings in ৳, and request instant cash payouts.</div>" +
+                "<div>" +
+                  "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:5px'>Email or Mobile Phone *</label>" +
+                  "<input type='text' id='vip-login-ident' required placeholder='017XXXXXXXX or email@example.com' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:12px 14px;font-size:13px;border-radius:3px;box-sizing:border-box'>" +
                 "</div>" +
-                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Full Name *</label><input type='text' id='vip-name' required placeholder='e.g. Ratul Ahmed' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
-                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Mobile Phone Number *</label><input type='tel' id='vip-phone' required placeholder='017XXXXXXXX' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
-                "<label style='display:flex;align-items:center;gap:8px;font-size:11px;color:#a1a1aa;cursor:pointer'><input type='checkbox' id='vip-whatsapp' checked style='accent-color:#22c55e'> This number is on WhatsApp</label>" +
-                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Email Address *</label><input type='email' id='vip-email' required placeholder='ratul@example.com' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
-                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Password *</label><input type='password' id='vip-pass' required minlength='6' placeholder='Min 6 characters' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
-                "<div style='display:grid;grid-template-columns:1fr 1fr;gap:10px'>" +
-                  "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Division *</label><select id='vip-division' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px;font-size:12px;border-radius:3px'>" + Object.keys(BD_GEO).map(function(d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("") + "</select></div>" +
-                  "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>District *</label><select id='vip-district' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px;font-size:12px;border-radius:3px'></select></div>" +
+                "<div>" +
+                  "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:5px'>Password *</label>" +
+                  "<input type='password' id='vip-login-pass' required placeholder='••••••••' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:12px 14px;font-size:13px;border-radius:3px;box-sizing:border-box'>" +
                 "</div>" +
-                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Thana / Upazila</label><input type='text' id='vip-upazila' placeholder='e.g. Dhanmondi / Mirpur' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
-                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Delivery Address *</label><input type='text' id='vip-address' required placeholder='House, Road, Area' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px'></div>" +
-                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Friend's Referral Code (Optional)</label><input type='text' id='vip-ref-code' placeholder='e.g. VIP-RATUL88' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:8px 10px;font-size:12px;border-radius:3px;font-family:monospace;letter-spacing:1px'></div>" +
-                "<button type='submit' style='background:#fff;color:#000;border:none;padding:12px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-top:6px;border-radius:3px'>ACTIVATE VIP MEMBERSHIP →</button>" +
+                "<button type='submit' style='background:#ffffff;color:#000000;border:none;padding:14px;font:12px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-top:6px;border-radius:3px;transition:opacity .2s'>SIGN IN TO VAULT →</button>" +
+                "<div style='display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px'>" +
+                  "<span style='color:#71717a'>New member?</span>" +
+                  "<a href='#' id='vip-switch-signup' style='color:#fa9442;text-decoration:none;font-weight:700'>Create VIP Account (+৳100 Welcome Bonus) →</a>" +
+                "</div>" +
               "</form>" +
 
-              "<form id='vip-login-form' style='display:none;flex-direction:column;gap:14px'>" +
-                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Email or Phone *</label><input type='text' id='login-ident' required placeholder='Email or phone number' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:10px;font-size:12px;border-radius:3px'></div>" +
-                "<div><label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Password *</label><input type='password' id='login-pass' required placeholder='Enter password' style='width:100%;background:#18181b;border:1px solid #27272a;color:#fff;padding:10px;font-size:12px;border-radius:3px'></div>" +
-                "<button type='submit' style='background:#fff;color:#000;border:none;padding:12px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-top:8px;border-radius:3px'>SIGN IN TO VAULT →</button>" +
+              // Sign Up Form (Bangladesh Customer Fields)
+              "<form id='vip-inpage-signup-form' style='display:" + (isSignupTab ? "flex" : "none") + ";flex-direction:column;gap:12px'>" +
+                "<div style='background:#18181b;padding:12px 14px;border:1px solid #27272a;border-left:3px solid #fa9442;border-radius:3px;font-size:11px;color:#d4d4d8;line-height:1.5'>" +
+                  "✨ <strong>ANNR VIP PASS</strong> — Activate your membership today: Receive <strong>100 Reward Points (৳100 Welcome Gift)</strong> + your exclusive referral coupon to earn <strong>৳100 cash</strong> every time your friends shop!" +
+                "</div>" +
+                "<div>" +
+                  "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Full Name *</label>" +
+                  "<input type='text' id='vip-reg-name' required placeholder='e.g. Ratul Ahmed' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:10px 12px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                "</div>" +
+                "<div>" +
+                  "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Mobile Phone Number (Bangladesh 11 Digits) *</label>" +
+                  "<input type='tel' id='vip-reg-phone' required placeholder='017XXXXXXXX' pattern='^01[3-9][0-9]{8}$' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:10px 12px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                "</div>" +
+                "<label style='display:flex;align-items:center;gap:8px;font-size:11px;color:#a1a1aa;cursor:pointer'>" +
+                  "<input type='checkbox' id='vip-reg-wa' checked style='accent-color:#22c55e'> This mobile number is active on WhatsApp" +
+                "</label>" +
+                "<div>" +
+                  "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Email Address *</label>" +
+                  "<input type='email' id='vip-reg-email' required placeholder='ratul@example.com' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:10px 12px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                "</div>" +
+                "<div>" +
+                  "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Password (Min 6 Characters) *</label>" +
+                  "<input type='password' id='vip-reg-pass' required minlength='6' placeholder='••••••••' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:10px 12px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                "</div>" +
+                "<div style='display:grid;grid-template-columns:1fr 1fr;gap:10px'>" +
+                  "<div>" +
+                    "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Division *</label>" +
+                    "<select id='vip-reg-division' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:10px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                      Object.keys(BD_GEO).map(function(d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("") +
+                    "</select>" +
+                  "</div>" +
+                  "<div>" +
+                    "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>District *</label>" +
+                    "<select id='vip-reg-district' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:10px;font-size:12px;border-radius:3px;box-sizing:border-box'></select>" +
+                  "</div>" +
+                "</div>" +
+                "<div>" +
+                  "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Thana / Upazila</label>" +
+                  "<input type='text' id='vip-reg-thana' placeholder='e.g. Dhanmondi / Gulshan / Mirpur' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:10px 12px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                "</div>" +
+                "<div>" +
+                  "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Delivery Address *</label>" +
+                  "<input type='text' id='vip-reg-addr' required placeholder='House, Road, Area' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:10px 12px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                "</div>" +
+                "<div>" +
+                  "<label style='display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:4px'>Friend's Referral Coupon Code (Optional)</label>" +
+                  "<input type='text' id='vip-reg-refcode' placeholder='e.g. VIP-RATUL88' style='width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:10px 12px;font-size:12px;border-radius:3px;font-family:monospace;letter-spacing:1px;box-sizing:border-box'>" +
+                "</div>" +
+                "<button type='submit' style='background:#ffffff;color:#000000;border:none;padding:14px;font:12px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-top:6px;border-radius:3px'>ACTIVATE VIP MEMBERSHIP & CLAIM ৳100 →</button>" +
+                "<div style='display:flex;justify-content:center;margin-top:6px;font-size:11px'>" +
+                  "<a href='#' id='vip-switch-signin' style='color:#71717a;text-decoration:none'>Already a member? <span style='color:#fa9442;font-weight:700'>Sign in →</span></a>" +
+                "</div>" +
               "</form>" +
             "</div>";
-        } else {
-          // Member VIP Dashboard
-          var availPts = Number(member.available_points || 0);
-          var pendPts = Number(member.pending_points || 0);
-          var cashValue = Math.round(availPts * pointVal);
-          var refCode = member.referral_code || "VIP-ANNR" + Math.floor(100 + Math.random() * 899);
 
-          // Get past withdrawals
+          container.innerHTML = contentHtml;
+
+          // Wire Tabs Switch
+          var tabSignIn = container.querySelector("#vip-tab-signin");
+          var tabCreate = container.querySelector("#vip-tab-create");
+          var formLogin = container.querySelector("#vip-inpage-login-form");
+          var formSignup = container.querySelector("#vip-inpage-signup-form");
+          var switchSignup = container.querySelector("#vip-switch-signup");
+          var switchSignin = container.querySelector("#vip-switch-signin");
+
+          function showLogin() {
+            if (tabSignIn) { tabSignIn.style.color = "#ffffff"; tabSignIn.style.borderBottomColor = "#fa9442"; }
+            if (tabCreate) { tabCreate.style.color = "#71717a"; tabCreate.style.borderBottomColor = "transparent"; }
+            if (formLogin) formLogin.style.display = "flex";
+            if (formSignup) formSignup.style.display = "none";
+          }
+          function showSignup() {
+            if (tabCreate) { tabCreate.style.color = "#ffffff"; tabCreate.style.borderBottomColor = "#fa9442"; }
+            if (tabSignIn) { tabSignIn.style.color = "#71717a"; tabSignIn.style.borderBottomColor = "transparent"; }
+            if (formSignup) formSignup.style.display = "flex";
+            if (formLogin) formLogin.style.display = "none";
+          }
+
+          if (tabSignIn) tabSignIn.onclick = showLogin;
+          if (tabCreate) tabCreate.onclick = showSignup;
+          if (switchSignup) switchSignup.onclick = function(e) { e.preventDefault(); showSignup(); };
+          if (switchSignin) switchSignin.onclick = function(e) { e.preventDefault(); showLogin(); };
+
+          // Division / District Dynamic Select
+          var divSelect = container.querySelector("#vip-reg-division");
+          var distSelect = container.querySelector("#vip-reg-district");
+          if (divSelect && distSelect) {
+            var updateDistricts = function(dVal) {
+              var dists = BD_GEO[dVal] || [];
+              distSelect.innerHTML = dists.map(function(d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("");
+            };
+            updateDistricts(divSelect.value);
+            divSelect.onchange = function() { updateDistricts(divSelect.value); };
+          }
+
+          // Handle Sign In Submit
+          if (formLogin) {
+            formLogin.onsubmit = function(e) {
+              e.preventDefault();
+              var ident = (container.querySelector("#vip-login-ident").value || "").trim().toLowerCase();
+
+              var rawM = localStorage.getItem("annr-vip-members");
+              var members = rawM ? JSON.parse(rawM) : [];
+              var found = members.find(function(m) {
+                return (m.email && m.email.toLowerCase() === ident) || (m.phone && m.phone.replace(/[^0-9]/g, "") === ident.replace(/[^0-9]/g, ""));
+              });
+
+              if (!found) {
+                alert("No VIP account found with that email or phone number. Please check or create an account.");
+                return;
+              }
+
+              // Set active session
+              localStorage.setItem("annr_vip_session", JSON.stringify({ email: found.email, phone: found.phone, name: found.full_name }));
+              renderInPageVipHub();
+            };
+          }
+
+          // Handle Sign Up Submit
+          if (formSignup) {
+            formSignup.onsubmit = function(e) {
+              e.preventDefault();
+              var name = (container.querySelector("#vip-reg-name").value || "").trim();
+              var phone = (container.querySelector("#vip-reg-phone").value || "").trim();
+              var isWa = container.querySelector("#vip-reg-wa").checked;
+              var email = (container.querySelector("#vip-reg-email").value || "").trim().toLowerCase();
+              var div = container.querySelector("#vip-reg-division").value;
+              var dist = container.querySelector("#vip-reg-district").value;
+              var thana = (container.querySelector("#vip-reg-thana").value || "").trim();
+              var addr = (container.querySelector("#vip-reg-addr").value || "").trim();
+              var refInput = (container.querySelector("#vip-reg-refcode").value || "").trim().toUpperCase();
+
+              // Bangladesh phone check
+              if (!/^01[3-9]\d{8}$/.test(phone)) {
+                alert("Please enter a valid 11-digit Bangladesh mobile number (e.g. 017XXXXXXXX)");
+                return;
+              }
+
+              var rawM = localStorage.getItem("annr-vip-members");
+              var members = rawM ? JSON.parse(rawM) : [];
+              var dup = members.find(function(m) { return m.email === email || m.phone === phone; });
+              if (dup) {
+                alert("An account with this email or phone number already exists. Please sign in.");
+                showLogin();
+                return;
+              }
+
+              var generatedCode = "VIP-" + name.replace(/[^a-zA-Z]/g, "").slice(0, 5).toUpperCase() + Math.floor(10 + Math.random() * 89);
+              var newMember = {
+                id: "vip-" + Date.now().toString(36),
+                email: email,
+                full_name: name,
+                phone: phone,
+                is_whatsapp: isWa,
+                division: div,
+                district: dist,
+                upazila: thana,
+                full_address: addr,
+                tier: "Silver",
+                available_points: 100, // ৳100 Welcome Gift
+                pending_points: 0,
+                total_earned_points: 100,
+                total_referred_orders: 0,
+                withdrawn_points: 0,
+                referral_code: generatedCode,
+                referred_by_code: refInput,
+                status: "active",
+                created_at: new Date().toISOString()
+              };
+
+              members.push(newMember);
+              localStorage.setItem("annr-vip-members", JSON.stringify(members));
+              localStorage.setItem("annr_vip_session", JSON.stringify({ email: email, phone: phone, name: name }));
+
+              // Register to referral coupons registry
+              var rawCoupons = localStorage.getItem("annr-referral-coupons");
+              var coupons = rawCoupons ? JSON.parse(rawCoupons) : [];
+              coupons.push({
+                code: generatedCode,
+                owner_email: email,
+                owner_name: name,
+                discount_type: "percentage",
+                discount_value: 10,
+                points_reward: 100,
+                status: "active"
+              });
+              localStorage.setItem("annr-referral-coupons", JSON.stringify(coupons));
+
+              alert("🎉 Welcome to AnnR VIP! 100 Reward Points (৳100) have been credited to your wallet.");
+              renderInPageVipHub();
+            };
+          }
+
+        } else {
+          // ==========================================
+          // LOGGED IN: COMPREHENSIVE VIP MEMBER DASHBOARD
+          // ==========================================
+          var availPts = Number(member.available_points || 0);
+          var earnedPts = Number(member.total_earned_points || 0);
+          var referredOrders = Number(member.total_referred_orders || 0);
+          var withdrawnPts = Number(member.withdrawn_points || 0);
+
+          var cashAvailable = Math.round(availPts * pointVal);
+          var totalIncomeEarned = Math.round(earnedPts * pointVal);
+          var totalWithdrawnCash = Math.round(withdrawnPts * pointVal);
+
+          var refCode = member.referral_code || ("VIP-" + (member.full_name || "MEMBER").replace(/[^a-zA-Z]/g, "").slice(0, 5).toUpperCase() + "88");
+
+          // Fetch withdrawals for this member
           var allW = [];
           try {
             var rawW = localStorage.getItem("annr-withdrawals");
             if (rawW) allW = JSON.parse(rawW);
           } catch(e) {}
-          var userW = allW.filter(function(w) { return w.member_email === member.email; });
+          var userW = allW.filter(function(w) { return w.member_email === member.email || (w.member_id && w.member_id === member.id); });
 
-          contentHtml =
-            "<div style='background:#09090b;color:#ffffff;max-width:480px;width:94%;padding:28px 24px;border:1px solid #27272a;box-shadow:0 24px 64px rgba(0,0,0,0.9);font:12px/1.5 \"NB Architekt Std\",sans-serif;position:relative;max-height:90vh;overflow-y:auto;border-radius:4px'>" +
-              "<button type='button' data-close style='position:absolute;top:16px;right:16px;background:none;border:0;color:#fff;font-size:18px;cursor:pointer;opacity:.6'>✕</button>" +
-              "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#a1a1aa;text-transform:uppercase;margin-bottom:6px'>VIP MEMBER HUB // " + esc(member.tier || "SILVER") + " TIER</div>" +
-              "<div style='font:20px/1.1 \"Druk Wide\",sans-serif;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px'>" + esc(member.full_name || "MEMBER") + "</div>" +
-
-              // Wallet Card
-              "<div style='background:#18181b;border:1px solid #27272a;padding:16px;border-radius:4px;margin-bottom:16px'>" +
-                "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>" +
-                  "<span style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa'>Available Balance</span>" +
-                  "<span style='font-size:10px;color:#22c55e;font-weight:700'>1 PT = ৳" + pointVal.toFixed(2) + "</span>" +
+          var dashboardHtml =
+            "<div id='vip-inpage-hub' style='color:#ffffff;font-family:\"NB Architekt Std\",sans-serif;width:100%;max-width:580px;margin:0 auto;padding:10px 0'>" +
+              // Top Member Header
+              "<div style='border-bottom:1px solid #27272a;padding-bottom:16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px'>" +
+                "<div>" +
+                  "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#fa9442;text-transform:uppercase;margin-bottom:6px'>VIP MEMBER HUB // " + esc(member.tier || "SILVER") + " TIER</div>" +
+                  "<div style='font:22px/1.1 \"Druk Wide\",sans-serif;text-transform:uppercase;letter-spacing:1px;color:#ffffff'>" + esc(member.full_name || "VIP MEMBER") + "</div>" +
+                  "<div style='font-size:11px;color:#71717a;margin-top:4px'>📱 " + esc(member.phone || "") + " · ✉️ " + esc(member.email || "") + "</div>" +
                 "</div>" +
-                "<div style='display:flex;align-items:baseline;gap:8px'>" +
-                  "<span style='font:26px/1 \"Druk Wide\",sans-serif'>" + availPts + "</span>" +
-                  "<span style='font-size:11px;color:#a1a1aa;font-weight:700'>PTS</span>" +
-                  "<span style='font:18px/1 \"NB Architekt Std\",sans-serif;margin-left:auto;color:#22c55e;font-weight:700'>= ৳" + cashValue + "</span>" +
-                "</div>" +
-                (pendPts > 0 ? "<div style='font-size:10px;color:#f59e0b;margin-top:6px'>⏳ " + pendPts + " points pending delivery & return window</div>" : "") +
+                "<button type='button' id='inpage-signout-btn' style='background:none;border:1px solid #27272a;color:#a1a1aa;padding:7px 14px;font:10px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1px;cursor:pointer;text-transform:uppercase;border-radius:3px;transition:all .2s'>SIGN OUT</button>" +
               "</div>" +
 
-              // Referral Coupon Card
-              "<div style='background:#18181b;border:1px solid #27272a;padding:16px;border-radius:4px;margin-bottom:16px'>" +
-                "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:6px'>Your Personal Referral Coupon</div>" +
-                "<div style='display:flex;align-items:center;justify-content:space-between;background:#09090b;padding:10px 12px;border:1px dashed #3f3f46;border-radius:3px;margin-bottom:8px'>" +
-                  "<span style='font:16px/1 \"FK Grotesk SemiMono\",monospace;font-weight:700;letter-spacing:2px;color:#fff'>" + esc(refCode) + "</span>" +
-                  "<button type='button' id='vip-copy-code' style='background:#fff;color:#000;border:none;padding:6px 12px;font:9px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;border-radius:2px'>COPY CODE</button>" +
+              // 4 PRO METRIC CARDS GRID (Requested by user: how much referred, how much incomed from coupon, wallet, withdrawn)
+              "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px'>" +
+                // Card 1: How much referred
+                "<div style='background:#111113;border:1px solid #27272a;padding:16px;border-radius:4px'>" +
+                  "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:6px'>FRIENDS REFERRED</div>" +
+                  "<div style='font:24px/1 \"Druk Wide\",sans-serif;color:#ffffff;margin-bottom:4px'>" + referredOrders + " <span style='font-size:12px;font-family:sans-serif;color:#a1a1aa'>ORDERS</span></div>" +
+                  "<div style='font-size:10px;color:#71717a'>Completed orders using your coupon</div>" +
                 "</div>" +
-                "<p style='font-size:11px;color:#a1a1aa;margin:0 0 8px'>Give friends <strong>10% OFF</strong>. You earn <strong>100 points (৳100 cash)</strong> on every order they place using your code!</p>" +
-                "<button type='button' id='vip-copy-link' style='background:none;border:1px solid #3f3f46;color:#fff;padding:6px 10px;font-size:10px;letter-spacing:1px;cursor:pointer;border-radius:2px;width:100%'>COPY DIRECT REFERRAL LINK</button>" +
+
+                // Card 2: How much income earned from coupon
+                "<div style='background:#111113;border:1px solid #27272a;padding:16px;border-radius:4px;border-left:3px solid #22c55e'>" +
+                  "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:6px'>COUPON CASH INCOME</div>" +
+                  "<div style='font:24px/1 \"Druk Wide\",sans-serif;color:#22c55e;margin-bottom:4px'>৳" + totalIncomeEarned.toLocaleString() + "</div>" +
+                  "<div style='font-size:10px;color:#71717a'>Total earnings from coupon referrals</div>" +
+                "</div>" +
+
+                // Card 3: Available Balance
+                "<div style='background:#111113;border:1px solid #27272a;padding:16px;border-radius:4px'>" +
+                  "<div style='display:flex;justify-content:space-between;margin-bottom:6px'>" +
+                    "<span style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa'>AVAILABLE BALANCE</span>" +
+                    "<span style='font-size:9px;color:#fa9442'>1 PT = ৳" + pointVal.toFixed(2) + "</span>" +
+                  "</div>" +
+                  "<div style='font:24px/1 \"Druk Wide\",sans-serif;color:#ffffff;margin-bottom:4px'>" + availPts + " <span style='font-size:12px;font-family:sans-serif;color:#a1a1aa'>PTS</span></div>" +
+                  "<div style='font-size:11px;color:#22c55e;font-weight:700'>= ৳" + cashAvailable.toLocaleString() + " BDT CASH</div>" +
+                "</div>" +
+
+                // Card 4: Total Withdrawn
+                "<div style='background:#111113;border:1px solid #27272a;padding:16px;border-radius:4px'>" +
+                  "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:6px'>TOTAL WITHDRAWN</div>" +
+                  "<div style='font:24px/1 \"Druk Wide\",sans-serif;color:#ffffff;margin-bottom:4px'>৳" + totalWithdrawnCash.toLocaleString() + "</div>" +
+                  "<div style='font-size:10px;color:#71717a'>Successfully paid to MFS</div>" +
+                "</div>" +
               "</div>" +
 
-              // Cash Payout Form
-              "<details style='background:#18181b;border:1px solid #27272a;padding:14px;border-radius:4px;margin-bottom:16px'>" +
-                "<summary style='cursor:pointer;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:11px;color:#fff'>💸 Request Cash Payout (bKash / Nagad / Bank)</summary>" +
-                "<form id='vip-payout-form' style='display:flex;flex-direction:column;gap:10px;margin-top:12px'>" +
-                  "<div><label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Payout Method *</label><select id='payout-method' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:8px;font-size:11px;border-radius:3px'><option value='bKash'>bKash (Personal)</option><option value='Nagad'>Nagad (Personal)</option><option value='Rocket'>Rocket</option><option value='Bank Transfer'>Bank Transfer</option></select></div>" +
-                  "<div><label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Account Number *</label><input type='text' id='payout-account' required placeholder='017XXXXXXXX' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:8px;font-size:11px;border-radius:3px'></div>" +
-                  "<div><label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Account Name *</label><input type='text' id='payout-name' required value='" + esc(member.full_name) + "' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:8px;font-size:11px;border-radius:3px'></div>" +
-                  "<div><label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Points to Cash Out (Min 100) *</label><input type='number' id='payout-pts' min='100' max='" + availPts + "' value='" + Math.max(100, Math.min(availPts, 500)) + "' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:8px;font-size:11px;border-radius:3px'></div>" +
-                  "<button type='submit' style='background:#22c55e;color:#000;border:none;padding:10px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:3px;margin-top:4px'>SUBMIT WITHDRAWAL REQUEST →</button>" +
+              // PERSONAL REFERRAL COUPON BOX
+              "<div style='background:#18181b;border:1px solid #27272a;padding:20px;border-radius:4px;margin-bottom:20px'>" +
+                "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#fa9442;margin-bottom:6px;font-weight:700'>YOUR PERSONAL VIP REFERRAL COUPON</div>" +
+                "<div style='font-size:11px;color:#d4d4d8;margin-bottom:14px;line-height:1.5'>" +
+                  "Share your coupon with friends. When they use your code at checkout, they get <strong>10% OFF</strong>, and you earn <strong>100 Points (= ৳100 Cash)</strong> added to your wallet!" +
+                "</div>" +
+
+                "<div style='display:flex;align-items:center;justify-content:space-between;background:#09090b;padding:12px 16px;border:1px dashed #52525b;border-radius:3px;margin-bottom:12px;flex-wrap:wrap;gap:10px'>" +
+                  "<span style='font:18px/1 \"FK Grotesk SemiMono\",monospace;font-weight:700;letter-spacing:2px;color:#ffffff'>" + esc(refCode) + "</span>" +
+                  "<button type='button' id='inpage-copy-code' style='background:#ffffff;color:#000000;border:none;padding:8px 16px;font:10px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;border-radius:2px'>COPY CODE</button>" +
+                "</div>" +
+
+                "<button type='button' id='inpage-copy-link' style='background:none;border:1px solid #3f3f46;color:#ffffff;padding:9px 14px;font:11px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1px;cursor:pointer;border-radius:2px;width:100%;transition:background .2s'>🔗 COPY DIRECT STORE REFERRAL LINK</button>" +
+              "</div>" +
+
+              // CASH OUT / WITHDRAWAL REQUEST ACCORDION
+              "<details style='background:#18181b;border:1px solid #27272a;padding:16px;border-radius:4px;margin-bottom:20px' open>" +
+                "<summary style='cursor:pointer;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:11px;color:#ffffff;user-select:none'>💸 Request Instant Cash Payout (bKash / Nagad / Rocket / Bank)</summary>" +
+                "<form id='inpage-payout-form' style='display:flex;flex-direction:column;gap:12px;margin-top:14px'>" +
+                  "<div style='display:grid;grid-template-columns:1fr 1fr;gap:10px'>" +
+                    "<div>" +
+                      "<label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Payout Method *</label>" +
+                      "<select id='inpage-payout-method' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:10px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                        "<option value='bKash'>bKash (Personal)</option>" +
+                        "<option value='Nagad'>Nagad (Personal)</option>" +
+                        "<option value='Rocket'>Rocket</option>" +
+                        "<option value='Bank Transfer'>Bank Transfer</option>" +
+                      "</select>" +
+                    "</div>" +
+                    "<div>" +
+                      "<label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Account Number *</label>" +
+                      "<input type='text' id='inpage-payout-account' required placeholder='017XXXXXXXX' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:10px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                    "</div>" +
+                  "</div>" +
+                  "<div style='display:grid;grid-template-columns:1fr 1fr;gap:10px'>" +
+                    "<div>" +
+                      "<label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Account Holder Name *</label>" +
+                      "<input type='text' id='inpage-payout-name' required value='" + esc(member.full_name || "") + "' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:10px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                    "</div>" +
+                    "<div>" +
+                      "<label style='display:block;font-size:9px;text-transform:uppercase;color:#a1a1aa;margin-bottom:4px'>Points to Cash Out (Min 100) *</label>" +
+                      "<input type='number' id='inpage-payout-pts' min='100' max='" + availPts + "' value='" + Math.max(100, Math.min(availPts, 500)) + "' style='width:100%;background:#09090b;border:1px solid #27272a;color:#fff;padding:10px;font-size:12px;border-radius:3px;box-sizing:border-box'>" +
+                    "</div>" +
+                  "</div>" +
+                  "<div id='inpage-payout-preview' style='font-size:11px;color:#22c55e;font-weight:700;margin-top:2px'>You will receive: ৳" + Math.round(Math.max(100, Math.min(availPts, 500)) * pointVal) + " BDT</div>" +
+                  "<button type='submit' style='background:#22c55e;color:#000000;border:none;padding:12px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:3px;margin-top:4px'>SUBMIT WITHDRAWAL REQUEST →</button>" +
                 "</form>" +
               "</details>" +
 
-              // Past Payout History
+              // PAST WITHDRAWAL REQUESTS TABLE
               (userW.length > 0 ?
-                "<div style='margin-bottom:16px'>" +
-                  "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:6px'>Recent Payout Requests</div>" +
+                "<div style='margin-bottom:20px'>" +
+                  "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:8px'>RECENT PAYOUT REQUESTS</div>" +
                   userW.map(function(w) {
                     var badgeCol = w.status === "paid" ? "#22c55e" : w.status === "approved" ? "#3b82f6" : w.status === "rejected" ? "#ef4444" : "#f59e0b";
-                    return "<div style='display:flex;justify-content:space-between;align-items:center;background:#18181b;padding:8px 10px;border-radius:3px;margin-bottom:6px;font-size:11px'>" +
-                      "<div><div><strong>৳" + esc(w.money_amount_bdt) + "</strong> via " + esc(w.payout_method) + "</div><div style='font-size:9px;color:#71717a'>" + esc(w.account_number) + " · " + (w.created_at ? w.created_at.slice(0, 10) : "") + (w.transaction_reference ? " · TrxID: " + esc(w.transaction_reference) : "") + "</div></div>" +
-                      "<span style='color:" + badgeCol + ";text-transform:uppercase;font-size:9px;font-weight:700;letter-spacing:1px'>" + esc(w.status) + "</span>" +
+                    return "<div style='display:flex;justify-content:space-between;align-items:center;background:#111113;border:1px solid #27272a;padding:10px 14px;border-radius:3px;margin-bottom:8px;font-size:11px'>" +
+                      "<div>" +
+                        "<div><strong>৳" + esc(w.money_amount_bdt) + "</strong> via " + esc(w.payout_method) + " (" + esc(w.points_amount) + " PTS)</div>" +
+                        "<div style='font-size:10px;color:#71717a;margin-top:2px'>" + esc(w.account_number) + " · " + (w.created_at ? w.created_at.slice(0, 10) : "") + (w.transaction_reference ? " · TrxID: " + esc(w.transaction_reference) : "") + "</div>" +
+                      "</div>" +
+                      "<span style='color:" + badgeCol + ";text-transform:uppercase;font-size:10px;font-weight:700;letter-spacing:1px;border:1px solid " + badgeCol + ";padding:3px 8px;border-radius:2px'>" + esc(w.status) + "</span>" +
                     "</div>";
                   }).join("") +
                 "</div>" : "") +
 
-              "<button type='button' id='vip-signout-btn' style='background:none;border:1px solid #27272a;color:#71717a;width:100%;padding:10px;font:10px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1.5px;cursor:pointer;text-transform:uppercase;border-radius:3px'>SIGN OUT</button>" +
+              // CONTINUE SHOPPING BUTTON
+              "<div style='display:flex;gap:10px;margin-top:20px'>" +
+                "<a href='/collections/all/index.html' style='flex:1;text-align:center;background:#ffffff;color:#000000;text-decoration:none;padding:12px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-radius:3px'>CONTINUE SHOPPING →</a>" +
+              "</div>" +
             "</div>";
-        }
 
-        var modal = overlay("adm-vip-hub-modal", contentHtml,
-          "position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px"
-        );
-        if (!modal) return;
+          container.innerHTML = dashboardHtml;
 
-        modal.addEventListener("click", function(e) {
-          if (e.target === modal || e.target.hasAttribute("data-close")) modal.remove();
-        });
-
-        // Tabs toggle
-        var tabSignup = modal.querySelector("#vip-tab-signup");
-        var tabLogin = modal.querySelector("#vip-tab-login");
-        var formSignup = modal.querySelector("#vip-signup-form");
-        var formLogin = modal.querySelector("#vip-login-form");
-        if (tabSignup && tabLogin && formSignup && formLogin) {
-          tabSignup.onclick = function() {
-            tabSignup.style.color = "#fff"; tabSignup.style.borderBottomColor = "#fff";
-            tabLogin.style.color = "#71717a"; tabLogin.style.borderBottomColor = "transparent";
-            formSignup.style.display = "flex"; formLogin.style.display = "none";
-          };
-          tabLogin.onclick = function() {
-            tabLogin.style.color = "#fff"; tabLogin.style.borderBottomColor = "#fff";
-            tabSignup.style.color = "#71717a"; tabSignup.style.borderBottomColor = "transparent";
-            formSignup.style.display = "none"; formLogin.style.display = "flex";
-          };
-        }
-
-        // Division -> District dropdown sync
-        var divSelect = modal.querySelector("#vip-division");
-        var distSelect = modal.querySelector("#vip-district");
-        if (divSelect && distSelect) {
-          var updateDistricts = function(dVal) {
-            var dists = BD_GEO[dVal] || [];
-            distSelect.innerHTML = dists.map(function(d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("");
-          };
-          updateDistricts(divSelect.value);
-          divSelect.onchange = function() { updateDistricts(divSelect.value); };
-        }
-
-        // Sign Up submission
-        if (formSignup) {
-          formSignup.onsubmit = function(e) {
-            e.preventDefault();
-            var name = modal.querySelector("#vip-name").value.trim();
-            var phone = modal.querySelector("#vip-phone").value.trim();
-            var isWhatsapp = modal.querySelector("#vip-whatsapp").checked;
-            var email = modal.querySelector("#vip-email").value.trim().toLowerCase();
-            var pass = modal.querySelector("#vip-pass").value;
-            var div = modal.querySelector("#vip-division").value;
-            var dist = modal.querySelector("#vip-district").value;
-            var upazila = modal.querySelector("#vip-upazila").value.trim();
-            var addr = modal.querySelector("#vip-address").value.trim();
-            var refCode = modal.querySelector("#vip-ref-code").value.trim().toUpperCase();
-
-            // Check existing
-            var rawM = localStorage.getItem("annr-vip-members");
-            var members = rawM ? JSON.parse(rawM) : [];
-            var dup = members.find(function(m) { return m.email === email || m.phone === phone; });
-            if (dup) {
-              alert("An account with this email or phone already exists. Please sign in.");
-              tabLogin.click();
-              return;
-            }
-
-            var generatedCode = "VIP-" + name.replace(/[^a-zA-Z]/g, "").slice(0, 5).toUpperCase() + Math.floor(10 + Math.random() * 89);
-            var newMember = {
-              id: "vip-" + Date.now().toString(36),
-              email: email,
-              full_name: name,
-              phone: phone,
-              is_whatsapp: isWhatsapp,
-              division: div,
-              district: dist,
-              upazila: upazila,
-              full_address: addr,
-              tier: "Silver",
-              available_points: 100, // 100 welcome points = ৳100
-              pending_points: 0,
-              total_earned_points: 100,
-              referral_code: generatedCode,
-              referred_by_code: refCode,
-              status: "active",
-              created_at: new Date().toISOString()
+          // Wire Copy Code
+          var copyCodeBtn = container.querySelector("#inpage-copy-code");
+          if (copyCodeBtn) {
+            copyCodeBtn.onclick = function() {
+              navigator.clipboard.writeText(refCode).then(function() {
+                copyCodeBtn.textContent = "✓ COPIED";
+                setTimeout(function() { copyCodeBtn.textContent = "COPY CODE"; }, 2000);
+              });
             };
+          }
 
-            members.push(newMember);
-            localStorage.setItem("annr-vip-members", JSON.stringify(members));
-            localStorage.setItem("annr_vip_session", JSON.stringify({ email: email, name: name, phone: phone }));
+          // Wire Copy Link
+          var copyLinkBtn = container.querySelector("#inpage-copy-link");
+          if (copyLinkBtn) {
+            copyLinkBtn.onclick = function() {
+              var shareUrl = window.location.origin + "/collections/all/index.html?ref=" + encodeURIComponent(refCode);
+              navigator.clipboard.writeText(shareUrl).then(function() {
+                copyLinkBtn.textContent = "✓ STORE LINK COPIED!";
+                setTimeout(function() { copyLinkBtn.textContent = "🔗 COPY DIRECT STORE REFERRAL LINK"; }, 2000);
+              });
+            };
+          }
 
-            // Also register to referral coupons table
-            var rawCoupons = localStorage.getItem("annr-referral-coupons");
-            var coupons = rawCoupons ? JSON.parse(rawCoupons) : [];
-            coupons.push({
-              code: generatedCode,
-              owner_email: email,
-              owner_name: name,
-              discount_type: "percentage",
-              discount_value: 10,
-              points_reward: 100,
-              status: "active"
-            });
-            localStorage.setItem("annr-referral-coupons", JSON.stringify(coupons));
+          // Points to cash live calculation
+          var ptsInput = container.querySelector("#inpage-payout-pts");
+          var prevEl = container.querySelector("#inpage-payout-preview");
+          if (ptsInput && prevEl) {
+            ptsInput.oninput = function() {
+              var p = Number(ptsInput.value) || 0;
+              prevEl.textContent = "You will receive: ৳" + Math.round(p * pointVal) + " BDT";
+            };
+          }
 
-            alert("🎉 Welcome to AnnR VIP! 100 Reward Points (৳100) have been credited to your wallet.");
-            openVipModal();
-          };
-        }
+          // Withdrawal form submission
+          var payoutForm = container.querySelector("#inpage-payout-form");
+          if (payoutForm) {
+            payoutForm.onsubmit = function(e) {
+              e.preventDefault();
+              var method = container.querySelector("#inpage-payout-method").value;
+              var acc = (container.querySelector("#inpage-payout-account").value || "").trim();
+              var accName = (container.querySelector("#inpage-payout-name").value || "").trim();
+              var pts = Number(container.querySelector("#inpage-payout-pts").value);
 
-        // Sign In submission
-        if (formLogin) {
-          formLogin.onsubmit = function(e) {
-            e.preventDefault();
-            var ident = modal.querySelector("#login-ident").value.trim().toLowerCase();
-            var rawM = localStorage.getItem("annr-vip-members");
-            var members = rawM ? JSON.parse(rawM) : [];
-            var found = members.find(function(m) { return m.email === ident || m.phone === ident; });
-            if (!found) {
-              alert("No VIP account found with that email or phone.");
-              return;
-            }
-            localStorage.setItem("annr_vip_session", JSON.stringify({ email: found.email, name: found.full_name, phone: found.phone }));
-            openVipModal();
-          };
-        }
+              if (pts > availPts) {
+                alert("Insufficient points. Available points balance: " + availPts);
+                return;
+              }
+              if (pts < 100) {
+                alert("Minimum withdrawal is 100 points (৳" + Math.round(100 * pointVal) + ")");
+                return;
+              }
 
-        // Member dashboard actions
-        var copyCodeBtn = modal.querySelector("#vip-copy-code");
-        if (copyCodeBtn && member) {
-          copyCodeBtn.onclick = function() {
-            navigator.clipboard.writeText(member.referral_code).then(function() {
-              copyCodeBtn.textContent = "COPIED";
-              setTimeout(function() { copyCodeBtn.textContent = "COPY CODE"; }, 2000);
-            });
-          };
-        }
+              // Deduct points
+              var rawM = localStorage.getItem("annr-vip-members");
+              var members = rawM ? JSON.parse(rawM) : [];
+              var curM = members.find(function(m) { return m.email === member.email; });
+              if (curM) {
+                curM.available_points = Math.max(0, (curM.available_points || 0) - pts);
+                curM.withdrawn_points = (curM.withdrawn_points || 0) + pts;
+                localStorage.setItem("annr-vip-members", JSON.stringify(members));
+              }
 
-        var copyLinkBtn = modal.querySelector("#vip-copy-link");
-        if (copyLinkBtn && member) {
-          copyLinkBtn.onclick = function() {
-            var shareUrl = window.location.origin + "/collections/all/index.html?ref=" + encodeURIComponent(member.referral_code);
-            navigator.clipboard.writeText(shareUrl).then(function() {
-              copyLinkBtn.textContent = "✓ REFERRAL LINK COPIED!";
-              setTimeout(function() { copyLinkBtn.textContent = "COPY DIRECT REFERRAL LINK"; }, 2000);
-            });
-          };
-        }
+              // Create withdrawal entry
+              var rawW = localStorage.getItem("annr-withdrawals");
+              var withdrawals = rawW ? JSON.parse(rawW) : [];
+              withdrawals.unshift({
+                id: "w-" + Date.now().toString(36),
+                member_id: member.id,
+                member_name: member.full_name,
+                member_email: member.email,
+                points_amount: pts,
+                money_amount_bdt: Math.round(pts * pointVal),
+                payout_method: method,
+                account_number: acc,
+                account_holder_name: accName,
+                status: "pending",
+                created_at: new Date().toISOString()
+              });
+              localStorage.setItem("annr-withdrawals", JSON.stringify(withdrawals));
 
-        // Payout form submission
-        var payoutForm = modal.querySelector("#vip-payout-form");
-        if (payoutForm && member) {
-          payoutForm.onsubmit = function(e) {
-            e.preventDefault();
-            var method = modal.querySelector("#payout-method").value;
-            var acc = modal.querySelector("#payout-account").value.trim();
-            var accName = modal.querySelector("#payout-name").value.trim();
-            var pts = Number(modal.querySelector("#payout-pts").value);
-            var avail = Number(member.available_points || 0);
+              alert("✓ Withdrawal request for ৳" + Math.round(pts * pointVal) + " submitted successfully! The admin will review and disburse your payment.");
+              renderInPageVipHub();
+            };
+          }
 
-            if (pts > avail) {
-              alert("Insufficient points. Available: " + avail);
-              return;
-            }
-            if (pts < 100) {
-              alert("Minimum withdrawal is 100 points (৳" + (100 * pointVal) + ")");
-              return;
-            }
-
-            // Deduct points
-            var rawM = localStorage.getItem("annr-vip-members");
-            var members = rawM ? JSON.parse(rawM) : [];
-            var targetMember = members.find(function(m) { return m.email === member.email; });
-            if (targetMember) {
-              targetMember.available_points -= pts;
-              targetMember.withdrawn_points = (targetMember.withdrawn_points || 0) + pts;
-              localStorage.setItem("annr-vip-members", JSON.stringify(members));
-            }
-
-            // Create withdrawal request
-            var rawW = localStorage.getItem("annr-withdrawals");
-            var withdrawals = rawW ? JSON.parse(rawW) : [];
-            withdrawals.unshift({
-              id: "w-" + Date.now().toString(36),
-              member_id: member.id,
-              member_name: member.full_name,
-              member_email: member.email,
-              points_amount: pts,
-              money_amount_bdt: pts * pointVal,
-              payout_method: method,
-              account_number: acc,
-              account_holder_name: accName,
-              status: "pending",
-              created_at: new Date().toISOString()
-            });
-            localStorage.setItem("annr-withdrawals", JSON.stringify(withdrawals));
-
-            alert("✓ Withdrawal request for ৳" + (pts * pointVal) + " submitted successfully! Admin will review and process payout.");
-            openVipModal();
-          };
-        }
-
-        // Sign out
-        var signoutBtn = modal.querySelector("#vip-signout-btn");
-        if (signoutBtn) {
-          signoutBtn.onclick = function() {
-            localStorage.removeItem("annr_vip_session");
-            openVipModal();
-          };
+          // Sign out button
+          var signoutBtn = container.querySelector("#inpage-signout-btn");
+          if (signoutBtn) {
+            signoutBtn.onclick = function() {
+              localStorage.removeItem("annr_vip_session");
+              renderInPageVipHub();
+            };
+          }
         }
       }
 
-      // Attach listener to all VIP triggers in storefront
-      document.addEventListener("click", function(e) {
-        var a = e.target.closest && e.target.closest(".js-vip-page-link, [href*='/account/login'], [href*='/account'], a[href*='vip']");
-        if (a) {
-          var href = a.getAttribute("href") || "";
-          if (!/^https?:\/\/(?!localhost)/i.test(href)) {
-            e.preventDefault();
-            e.stopPropagation();
-            openVipModal();
-          }
+      // Fallback helper in case other scripts invoke openVipModal
+      function openVipModal() {
+        if (window.location.pathname.indexOf("/account") !== -1) {
+          renderInPageVipHub();
+        } else {
+          window.location.href = "/account/login/index.html";
         }
-      }, true);
+      }
+
+      // Run on page load if on an account / VIP page
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", renderInPageVipHub);
+      } else {
+        renderInPageVipHub();
+      }
     })();
 
     // 6. Interactive Vault Ball Drop Campaign (Split-Screen Streetwear Design)
@@ -1627,7 +1767,7 @@
 
             // Left Side: Plinko Interactive Game
             "<div style='flex:1;min-width:" + (isMobile ? "100%" : "320px") + ";max-width:" + (isMobile ? "100%" : "480px") + ";background:#111113;padding:28px 24px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative'>" +
-              "<div style='display:flex;justify-content:center;margin-bottom:8px'><span class='icon icon-logo' style='display:inline-block;width:110px;height:42px;background-color:#ffffff;-webkit-mask:url(/cdn/shop/t/75/assets/image_logo.svg) no-repeat center/contain;mask:url(/cdn/shop/t/75/assets/image_logo.svg) no-repeat center/contain'></span></div>" +
+              "<div style='display:flex;justify-content:center;margin-bottom:8px'><span style='font:28px/1 \"Druk Wide\",sans-serif;font-weight:900;letter-spacing:3px;color:#ffffff;text-transform:uppercase'>ANNR</span></div>" +
               "<div style='font:22px/1.1 \"Druk Wide\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffffff;margin-bottom:12px;text-align:center'>" + esc(bdConfig.title || "TAP TO DROP") + "</div>" +
 
               "<button type='button' id='adm-bd-drop-btn' style='background:#ffffff;color:#000000;border:none;border-radius:24px;padding:9px 28px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-bottom:14px;box-shadow:0 4px 14px rgba(255,255,255,0.25);transition:transform 0.15s'>" + esc(bdConfig.buttonText || "TRY YOUR LUCK") + "</button>" +
