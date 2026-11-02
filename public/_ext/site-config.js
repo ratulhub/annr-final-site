@@ -72,7 +72,13 @@
   }
 
   // Search Engine & Catalog
+  // Search Engine & Dynamic Catalog
   var baseCatalog = [];
+  try {
+    var cachedCat = sessionStorage.getItem("annr_base_catalog_cache");
+    if (cachedCat) baseCatalog = JSON.parse(cachedCat);
+  } catch (e) {}
+
   function loadBaseCatalog() {
     try {
       fetch("/_ext/catalog.json").then(function (r) {
@@ -80,6 +86,7 @@
       }).then(function (data) {
         if (Array.isArray(data)) {
           baseCatalog = data;
+          try { sessionStorage.setItem("annr_base_catalog_cache", JSON.stringify(data)); } catch (err) {}
           if (tpl === "search") setupSearchPage();
         }
       }).catch(function () {});
@@ -96,6 +103,23 @@
         list.push(p);
       }
     });
+
+    // Merge live admin products so any newly created/edited product appears immediately without republish
+    try {
+      var rawAdm = localStorage.getItem("shihiko-admin-v1");
+      if (rawAdm) {
+        var admParsed = JSON.parse(rawAdm);
+        if (admParsed && Array.isArray(admParsed.products)) {
+          admParsed.products.forEach(function (p) {
+            if (p && p.handle) {
+              if (!map[p.handle]) list.push(p);
+              map[p.handle] = Object.assign({}, map[p.handle] || {}, p);
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
     if (cfg && Array.isArray(cfg.catalog)) {
       cfg.catalog.forEach(function (p) {
         if (p && p.handle) {
@@ -118,24 +142,91 @@
     });
   }
 
+  var SEARCH_SYNONYMS = {
+    "tshirt": "tee",
+    "t-shirt": "tee",
+    "shirt": "tee",
+    "sweatshirt": "hoodie",
+    "hoody": "hoodie",
+    "sweater": "hoodie",
+    "jacket": "jacket",
+    "coat": "jacket",
+    "pant": "jeans",
+    "pants": "jeans",
+    "trouser": "jeans",
+    "trousers": "jeans",
+    "jogger": "joggers",
+    "bottom": "jeans",
+    "bottoms": "jeans",
+    "cap": "hat",
+    "beanie": "hat",
+    "sock": "socks"
+  };
+
   function searchProducts(query) {
     var q = String(query || "").trim().toLowerCase();
-    var terms = q.split(/\s+/).filter(Boolean);
+    var rawTerms = q.split(/\s+/).filter(Boolean);
     var all = getFullCatalog();
-    if (!terms.length) return all.filter(function (p) { return !p.status || p.status === "active"; });
+    if (!rawTerms.length) return all.filter(function (p) { return !p.status || p.status === "active"; });
 
-    return all.filter(function (p) {
-      if (p.status && p.status !== "active") return false;
+    var terms = rawTerms.map(function (t) { return SEARCH_SYNONYMS[t] || t; });
+
+    var scored = [];
+    for (var i = 0; i < all.length; i++) {
+      var p = all[i];
+      if (p.status && p.status !== "active") continue;
       var o = (P && P[p.handle]) || {};
-      if (o.status && o.status !== "active") return false;
+      if (o.status && o.status !== "active") continue;
+
       var title = (o.title || p.title || "").toLowerCase();
       var desc = (o.description || p.description || "").toLowerCase();
       var handle = (p.handle || "").toLowerCase();
       var tags = (p.tags || "").toLowerCase();
       var type = (p.type || "").toLowerCase();
-      var hay = title + " " + desc + " " + handle + " " + tags + " " + type;
-      return terms.every(function (t) { return hay.indexOf(t) >= 0; });
-    });
+
+      var matchedAll = true;
+      var score = 0;
+
+      for (var j = 0; j < terms.length; j++) {
+        var t = terms[j];
+        var rawT = rawTerms[j];
+        var termMatched = false;
+
+        if (title.indexOf(t) >= 0 || title.indexOf(rawT) >= 0) {
+          score += 100;
+          if (title.indexOf(t) === 0 || title.indexOf(rawT) === 0) score += 50; // starts with
+          termMatched = true;
+        }
+        if (handle.indexOf(t) >= 0 || handle.indexOf(rawT) >= 0) {
+          score += 60;
+          termMatched = true;
+        }
+        if (tags.indexOf(t) >= 0 || tags.indexOf(rawT) >= 0) {
+          score += 40;
+          termMatched = true;
+        }
+        if (type.indexOf(t) >= 0 || type.indexOf(rawT) >= 0) {
+          score += 30;
+          termMatched = true;
+        }
+        if (desc.indexOf(t) >= 0 || desc.indexOf(rawT) >= 0) {
+          score += 10;
+          termMatched = true;
+        }
+
+        if (!termMatched) {
+          matchedAll = false;
+          break;
+        }
+      }
+
+      if (matchedAll) {
+        scored.push({ p: p, score: score });
+      }
+    }
+
+    scored.sort(function (a, b) { return b.score - a.score; });
+    return scored.map(function (item) { return item.p; });
   }
 
   window.annrSearchProducts = searchProducts;
@@ -144,7 +235,21 @@
     var q = String(query || "").trim();
     if (!q) return "";
     var matches = searchProducts(q).slice(0, 10);
-    if (!matches.length) return "";
+    if (!matches.length) {
+      return "<div id='shopify-section-predictive-search-new' class='shopify-section'>" +
+        "<div id='predictive-search-new-results'>" +
+          "<div style='padding:24px 16px;text-align:center;font:11px/1.6 \"NB Architekt Std\",sans-serif;letter-spacing:1px;text-transform:uppercase;color:#888'>" +
+            "<div style='margin-bottom:10px;font-weight:700;color:#aaa'>No direct matches for “" + esc(q) + "”</div>" +
+            "<div style='font-size:10px;opacity:.7'>Popular collections: " +
+              "<a href='/collections/all/index.html' style='color:#fff;margin:0 4px;text-decoration:underline'>All</a> · " +
+              "<a href='/search/index.html?q=hoodie' style='color:#fff;margin:0 4px;text-decoration:underline'>Hoodies</a> · " +
+              "<a href='/search/index.html?q=jacket' style='color:#fff;margin:0 4px;text-decoration:underline'>Jackets</a> · " +
+              "<a href='/search/index.html?q=tee' style='color:#fff;margin:0 4px;text-decoration:underline'>Tees</a>" +
+            "</div>" +
+          "</div>" +
+        "</div>" +
+      "</div>";
+    }
 
     var cards = matches.map(function (p) {
       return renderProductCardHtml(p, P && P[p.handle]);
@@ -392,13 +497,32 @@
     var inpLive = document.getElementById("search");
     if (inpLive && !inpLive.__annrBound) {
       inpLive.__annrBound = true;
+      var liveDebounce = null;
       inpLive.addEventListener("input", function () {
-        var hasVal = !!inpLive.value.trim();
+        var val = inpLive.value.trim();
         if (clearBtn) {
-          clearBtn.style.display = hasVal ? "" : "none";
-          clearBtn.classList.toggle("hide", !hasVal);
+          clearBtn.style.display = val ? "" : "none";
+          clearBtn.classList.toggle("hide", !val);
         }
+        clearTimeout(liveDebounce);
+        liveDebounce = setTimeout(function () {
+          var newUrl = val ? ("/search/index.html?type=product&q=" + encodeURIComponent(val)) : "/search/index.html";
+          history.replaceState(null, "", newUrl);
+          setupSearchPage();
+        }, 220);
       });
+    }
+
+    // Inject mobile-optimized styling for touch targets & iOS zoom prevention
+    if (!document.getElementById("adm-search-mobile-css")) {
+      var sStyle = document.createElement("style");
+      sStyle.id = "adm-search-mobile-css";
+      sStyle.textContent =
+        "input[type='search'], #search, #header-search-new-input { font-size: 16px !important; -webkit-text-size-adjust: 100%; touch-action: manipulation; }" +
+        ".js-clear-search-input { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; }" +
+        ".collection-product-grid { display: grid; gap: 16px; }" +
+        "@media (max-width: 767px) { .collection-product-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; } }";
+      (document.head || document.documentElement).appendChild(sStyle);
     }
 
     document.querySelectorAll(".collection-filter-option-value input[name='sort_by']").forEach(function (radio) {
@@ -1687,7 +1811,25 @@
 
     // 6. Interactive Vault Ball Drop Campaign (Split-Screen Streetwear Design)
     function initBallDrop() {
-      // 1. Immediately clean up any existing triggers, timers, or modals
+      // 1. Force cleanup stale local storage keys on client
+      try {
+        if (!localStorage.getItem("annr_bd_v2_sanitized")) {
+          var raw = localStorage.getItem("annr-loyalty-settings-v1") || localStorage.getItem("annr-loyalty-settings");
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            parsed.ball_drop_enabled = false;
+            if (parsed.ball_drop_config) {
+              parsed.ball_drop_config.autoPopup = false;
+              parsed.ball_drop_config.showFloatingTrigger = false;
+            }
+            localStorage.setItem("annr-loyalty-settings-v1", JSON.stringify(parsed));
+            localStorage.setItem("annr-loyalty-settings", JSON.stringify(parsed));
+          }
+          localStorage.setItem("annr_bd_v2_sanitized", "1");
+        }
+      } catch (e) {}
+
+      // 2. Immediately clean up any existing triggers, timers, or modals
       if (window.__annr_bd_timer) {
         clearTimeout(window.__annr_bd_timer);
         window.__annr_bd_timer = null;
@@ -1701,7 +1843,7 @@
       try {
         var rawSt = localStorage.getItem("annr-loyalty-settings-v1") || localStorage.getItem("annr-loyalty-settings");
         if (rawSt) loyaltySt = JSON.parse(rawSt);
-      } catch(e) {}
+      } catch (e) {}
 
       // Fallback to site config ballDrop
       var siteBd = (cfg && cfg.site && cfg.site.ballDrop) || (S && S.ballDrop) || {};
@@ -1714,8 +1856,16 @@
         isEnabled = siteBd.enabled;
       }
 
-      // If disabled, stop completely and return
+      // If disabled, stop completely, clear any modal or timer, and return
       if (isEnabled !== true) {
+        if (window.__annr_bd_timer) {
+          clearTimeout(window.__annr_bd_timer);
+          window.__annr_bd_timer = null;
+        }
+        var exM = document.getElementById("adm-ball-drop-modal");
+        if (exM) exM.remove();
+        var exTr = document.getElementById("adm-ball-drop-trigger");
+        if (exTr) exTr.remove();
         return;
       }
 
@@ -1760,10 +1910,12 @@
         ];
 
         var isMobile = window.innerWidth < 768;
+        var canvasW = isMobile ? Math.min(320, window.innerWidth - 64) : 340;
+        var canvasH = isMobile ? 240 : 260;
         var modalHtml =
           "<div style='background:#111113;border:1px solid #27272a;max-width:920px;width:95%;border-radius:4px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.95);position:relative;display:flex;flex-direction:" + (isMobile ? "column" : "row") + ";max-height:92vh;overflow-y:auto'>" +
             // Close Button
-            "<button type='button' data-close style='position:absolute;top:16px;left:16px;background:none;border:none;color:#ffffff;font-size:22px;cursor:pointer;opacity:.75;line-height:1;z-index:20'>✕</button>" +
+            "<button type='button' data-close style='position:absolute;top:10px;right:14px;background:none;border:none;color:#ffffff;font-size:26px;cursor:pointer;opacity:.85;line-height:1;z-index:40;padding:6px 12px;touch-action:manipulation'>✕</button>" +
 
             // Left Side: Plinko Interactive Game
             "<div style='flex:1;min-width:" + (isMobile ? "100%" : "320px") + ";max-width:" + (isMobile ? "100%" : "480px") + ";background:#111113;padding:28px 24px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative'>" +
@@ -1773,7 +1925,7 @@
               "<button type='button' id='adm-bd-drop-btn' style='background:#ffffff;color:#000000;border:none;border-radius:24px;padding:9px 28px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-bottom:14px;box-shadow:0 4px 14px rgba(255,255,255,0.25);transition:transform 0.15s'>" + esc(bdConfig.buttonText || "TRY YOUR LUCK") + "</button>" +
 
               "<div style='background:#111113;position:relative;display:flex;justify-content:center;margin-bottom:10px'>" +
-                "<canvas id='adm-bd-canvas' width='340' height='260' style='display:block;background:transparent'></canvas>" +
+                "<canvas id='adm-bd-canvas' width='" + canvasW + "' height='" + canvasH + "' style='display:block;background:transparent'></canvas>" +
               "</div>" +
 
               // Result Banner

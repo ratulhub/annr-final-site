@@ -1,10 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { setSite, uid, publish } from "../admin/store";
 import { BackBtn, Card } from "../admin/ui";
 import { Chk, ColorF, useSite } from "../admin/site/fields";
 import type { CampaignEvent } from "../admin/site/types";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import {
+  getLoyaltySettings,
+  saveLoyaltySettings,
+  type LoyaltySettings,
+  DEFAULT_LOYALTY_SETTINGS,
+} from "../lib/loyalty";
 
 export const Route = createFileRoute("/admin/events")({ component: EventsManager });
 
@@ -51,6 +57,56 @@ function EventsManager() {
   const events = site.events || [];
   const [selectedId, setSelectedId] = useState<string | null>(events[0]?.id || null);
   const [search, setSearch] = useState("");
+  const [loyaltySettings, setLoyaltySettings] = useState<LoyaltySettings>(DEFAULT_LOYALTY_SETTINGS);
+  const [ballDropLoading, setBallDropLoading] = useState(false);
+  const [ballDropSaved, setBallDropSaved] = useState(false);
+  const [isEditingBallDrop, setIsEditingBallDrop] = useState(false);
+
+  useEffect(() => {
+    getLoyaltySettings().then((s) => {
+      setLoyaltySettings(s);
+    });
+  }, []);
+
+  const handleToggleBallDrop = async () => {
+    const nextEnabled = !loyaltySettings.ball_drop_enabled;
+    const updated: LoyaltySettings = {
+      ...loyaltySettings,
+      ball_drop_enabled: nextEnabled,
+      ball_drop_config: {
+        ...loyaltySettings.ball_drop_config,
+        autoPopup: nextEnabled ? Boolean(loyaltySettings.ball_drop_config?.autoPopup) : false,
+      },
+    };
+    setLoyaltySettings(updated);
+    setBallDropLoading(true);
+    await saveLoyaltySettings(updated);
+    try {
+      setSite("ballDrop", {
+        ...updated.ball_drop_config,
+        enabled: nextEnabled,
+      } as any);
+      publish();
+    } catch {}
+    setBallDropLoading(false);
+    setBallDropSaved(true);
+    setTimeout(() => setBallDropSaved(false), 3500);
+  };
+
+  const handleSaveBallDropConfig = async () => {
+    setBallDropLoading(true);
+    await saveLoyaltySettings(loyaltySettings);
+    try {
+      setSite("ballDrop", {
+        ...loyaltySettings.ball_drop_config,
+        enabled: loyaltySettings.ball_drop_enabled,
+      } as any);
+      publish();
+    } catch {}
+    setBallDropLoading(false);
+    setBallDropSaved(true);
+    setTimeout(() => setBallDropSaved(false), 3500);
+  };
 
   const saveEvents = (next: CampaignEvent[]) => {
     setSite("events", next);
@@ -100,9 +156,27 @@ function EventsManager() {
     updateEvent(id, { status: nextStatus });
   };
 
-  const stopAllEvents = () => {
-    if (confirm("Stop all currently running gift campaigns and events?")) {
+  const stopAllEvents = async () => {
+    if (confirm("Stop all currently running campaigns (including Ball Drop and all gift events)?")) {
       saveEvents(events.map((e) => ({ ...e, status: "paused" })));
+      if (loyaltySettings.ball_drop_enabled) {
+        const stopped: LoyaltySettings = {
+          ...loyaltySettings,
+          ball_drop_enabled: false,
+          ball_drop_config: {
+            ...loyaltySettings.ball_drop_config,
+            autoPopup: false,
+          },
+        };
+        setLoyaltySettings(stopped);
+        setBallDropLoading(true);
+        await saveLoyaltySettings(stopped);
+        try {
+          setSite("ballDrop", { ...stopped.ball_drop_config, enabled: false } as any);
+          publish();
+        } catch {}
+        setBallDropLoading(false);
+      }
     }
   };
 
@@ -165,9 +239,9 @@ function EventsManager() {
           </div>
         </div>
         <div className="adm-row" style={{ gap: 8 }}>
-          {activeCount > 0 ? (
+          {activeCount > 0 || loyaltySettings.ball_drop_enabled ? (
             <button className="adm-btn danger" onClick={stopAllEvents}>
-              Stop all ({activeCount} live)
+              Stop all ({activeCount + (loyaltySettings.ball_drop_enabled ? 1 : 0)} live)
             </button>
           ) : (
             <button className="adm-btn ghost" onClick={startAllEvents}>
@@ -178,6 +252,449 @@ function EventsManager() {
             + New Campaign
           </button>
         </div>
+      </div>
+
+      {ballDropSaved && (
+        <div
+          style={{
+            background: "#22c55e",
+            color: "#052e16",
+            padding: "12px 18px",
+            borderRadius: 8,
+            marginBottom: 20,
+            fontWeight: 700,
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxShadow: "0 4px 14px rgba(34, 197, 94, 0.3)",
+          }}
+        >
+          <span>✓ Ball Drop Campaign settings successfully saved & synced to live store!</span>
+          <button
+            type="button"
+            onClick={() => setBallDropSaved(false)}
+            style={{ background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* FEATURED: Interactive Ball Drop / Lucky Sphere Campaign Controller */}
+      <div
+        style={{
+          marginBottom: 24,
+          background: "#111113",
+          border: `2px solid ${loyaltySettings.ball_drop_enabled ? "#22c55e" : "#3f3f46"}`,
+          borderRadius: 12,
+          padding: "20px 24px",
+          color: "#ffffff",
+          boxShadow: loyaltySettings.ball_drop_enabled
+            ? "0 8px 30px rgba(34, 197, 94, 0.15)"
+            : "0 4px 20px rgba(0,0,0,0.3)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <span style={{ fontSize: 20 }}>⚡</span>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: 0.5, color: "#ffffff" }}>
+                Interactive Ball Drop Campaign
+              </h2>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: 1,
+                  padding: "4px 10px",
+                  borderRadius: 20,
+                  textTransform: "uppercase",
+                  background: loyaltySettings.ball_drop_enabled ? "#166534" : "#7f1d1d",
+                  color: loyaltySettings.ball_drop_enabled ? "#86efac" : "#fca5a5",
+                }}
+              >
+                {loyaltySettings.ball_drop_enabled ? "● LIVE ON SITE" : "● STOPPED / OFF"}
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: 12, color: "#a1a1aa", maxWidth: 680, lineHeight: 1.5 }}>
+              {loyaltySettings.ball_drop_enabled
+                ? "The interactive split-screen TAP TO DROP mini-game is currently visible on the live storefront."
+                : "The Ball Drop mini-game popup is COMPLETELY STOPPED and will NOT trigger or appear to any visitors."}
+            </p>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              disabled={ballDropLoading}
+              onClick={handleToggleBallDrop}
+              style={{
+                background: loyaltySettings.ball_drop_enabled ? "#ef4444" : "#22c55e",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 20px",
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: "pointer",
+                boxShadow: loyaltySettings.ball_drop_enabled
+                  ? "0 4px 14px rgba(239, 68, 68, 0.4)"
+                  : "0 4px 14px rgba(34, 197, 94, 0.4)",
+                transition: "transform 0.15s ease",
+              }}
+            >
+              {loyaltySettings.ball_drop_enabled ? "🛑 STOP CAMPAIGN NOW" : "⚡ TURN ON CAMPAIGN"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsEditingBallDrop(!isEditingBallDrop)}
+              style={{
+                background: "#27272a",
+                color: "#ffffff",
+                border: "1px solid #3f3f46",
+                borderRadius: 8,
+                padding: "10px 18px",
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              {isEditingBallDrop ? "▲ Hide Options" : "⚙️ Edit Campaign Options & Prizes"}
+            </button>
+          </div>
+        </div>
+
+        {/* Expandable Options Editor */}
+        {isEditingBallDrop && (
+          <div
+            style={{
+              marginTop: 20,
+              paddingTop: 20,
+              borderTop: "1px solid #27272a",
+              display: "flex",
+              flexDirection: "column",
+              gap: 20,
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: 16,
+              }}
+            >
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#d4d4d8" }}>
+                  Campaign Headline Title
+                </label>
+                <input
+                  type="text"
+                  value={loyaltySettings.ball_drop_config?.title || ""}
+                  onChange={(e) =>
+                    setLoyaltySettings({
+                      ...loyaltySettings,
+                      ball_drop_config: {
+                        ...loyaltySettings.ball_drop_config,
+                        title: e.target.value,
+                      },
+                    })
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    background: "#18181b",
+                    border: "1px solid #3f3f46",
+                    color: "#ffffff",
+                    borderRadius: 6,
+                    fontSize: 13,
+                  }}
+                  placeholder="e.g. TAP TO DROP"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#d4d4d8" }}>
+                  Drop Button Text
+                </label>
+                <input
+                  type="text"
+                  value={loyaltySettings.ball_drop_config?.buttonText || ""}
+                  onChange={(e) =>
+                    setLoyaltySettings({
+                      ...loyaltySettings,
+                      ball_drop_config: {
+                        ...loyaltySettings.ball_drop_config,
+                        buttonText: e.target.value,
+                      },
+                    })
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    background: "#18181b",
+                    border: "1px solid #3f3f46",
+                    color: "#ffffff",
+                    borderRadius: 6,
+                    fontSize: 13,
+                  }}
+                  placeholder="e.g. TRY YOUR LUCK"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6, color: "#d4d4d8" }}>
+                  Model Banner Image URL
+                </label>
+                <input
+                  type="text"
+                  value={loyaltySettings.ball_drop_config?.modelImage || ""}
+                  onChange={(e) =>
+                    setLoyaltySettings({
+                      ...loyaltySettings,
+                      ball_drop_config: {
+                        ...loyaltySettings.ball_drop_config,
+                        modelImage: e.target.value,
+                      },
+                    })
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    background: "#18181b",
+                    border: "1px solid #3f3f46",
+                    color: "#ffffff",
+                    borderRadius: 6,
+                    fontSize: 13,
+                  }}
+                  placeholder="/cdn/shop/files/ball-drop-model.jpg"
+                />
+              </div>
+            </div>
+
+            {/* Triggers & Popup Settings */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: 16,
+                background: "#18181b",
+                padding: 16,
+                borderRadius: 8,
+                border: "1px solid #27272a",
+              }}
+            >
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(loyaltySettings.ball_drop_config?.autoPopup)}
+                  onChange={(e) =>
+                    setLoyaltySettings({
+                      ...loyaltySettings,
+                      ball_drop_config: {
+                        ...loyaltySettings.ball_drop_config,
+                        autoPopup: e.target.checked,
+                      },
+                    })
+                  }
+                  style={{ marginTop: 3 }}
+                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>Auto-popup on visitor page load</div>
+                  <div style={{ fontSize: 11, color: "#a1a1aa", marginTop: 2 }}>
+                    Default: OFF. When enabled, modal opens automatically after delay.
+                  </div>
+                </div>
+              </label>
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 4, color: "#d4d4d8" }}>
+                  Auto-popup Delay (Seconds)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={loyaltySettings.ball_drop_config?.autoPopupDelay || 5}
+                  onChange={(e) =>
+                    setLoyaltySettings({
+                      ...loyaltySettings,
+                      ball_drop_config: {
+                        ...loyaltySettings.ball_drop_config,
+                        autoPopupDelay: Number(e.target.value) || 5,
+                      },
+                    })
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    background: "#09090b",
+                    border: "1px solid #3f3f46",
+                    color: "#ffffff",
+                    borderRadius: 6,
+                    fontSize: 13,
+                  }}
+                />
+              </div>
+
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(loyaltySettings.ball_drop_config?.showFloatingTrigger)}
+                  onChange={(e) =>
+                    setLoyaltySettings({
+                      ...loyaltySettings,
+                      ball_drop_config: {
+                        ...loyaltySettings.ball_drop_config,
+                        showFloatingTrigger: e.target.checked,
+                      },
+                    })
+                  }
+                  style={{ marginTop: 3 }}
+                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>Floating Trigger Badge</div>
+                  <div style={{ fontSize: 11, color: "#a1a1aa", marginTop: 2 }}>
+                    Shows floating '⚡ BALL DROP' button at bottom corner of the site.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {/* Multiple Prize Options (5 Slots) */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "#e4e4e7" }}>
+                  Prize Landing Slots & Coupons (5 Slots)
+                </h3>
+                <span style={{ fontSize: 11, color: "#a1a1aa" }}>
+                  Configure what prizes and discount coupons visitors can win
+                </span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {(loyaltySettings.ball_drop_config?.prizes || []).map((prize, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "60px 1.5fr 1fr 100px",
+                      gap: 12,
+                      alignItems: "center",
+                      background: "#18181b",
+                      padding: "8px 14px",
+                      borderRadius: 6,
+                      border: "1px solid #27272a",
+                    }}
+                  >
+                    <span style={{ fontWeight: 800, fontSize: 12, color: "#f3795b" }}>Slot #{idx + 1}</span>
+                    <input
+                      type="text"
+                      value={prize.label}
+                      onChange={(e) => {
+                        const newPrizes = [...(loyaltySettings.ball_drop_config?.prizes || [])];
+                        newPrizes[idx] = { ...newPrizes[idx], label: e.target.value };
+                        setLoyaltySettings({
+                          ...loyaltySettings,
+                          ball_drop_config: { ...loyaltySettings.ball_drop_config, prizes: newPrizes },
+                        });
+                      }}
+                      placeholder="Prize label"
+                      style={{
+                        padding: "6px 10px",
+                        background: "#09090b",
+                        border: "1px solid #3f3f46",
+                        color: "#ffffff",
+                        borderRadius: 4,
+                        fontSize: 12,
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={prize.code || ""}
+                      onChange={(e) => {
+                        const newPrizes = [...(loyaltySettings.ball_drop_config?.prizes || [])];
+                        newPrizes[idx] = { ...newPrizes[idx], code: e.target.value };
+                        setLoyaltySettings({
+                          ...loyaltySettings,
+                          ball_drop_config: { ...loyaltySettings.ball_drop_config, prizes: newPrizes },
+                        });
+                      }}
+                      placeholder="Coupon Code"
+                      style={{
+                        padding: "6px 10px",
+                        background: "#09090b",
+                        border: "1px solid #3f3f46",
+                        color: "#ffffff",
+                        borderRadius: 4,
+                        fontSize: 12,
+                        fontFamily: "monospace",
+                      }}
+                    />
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={prize.weight}
+                        onChange={(e) => {
+                          const newPrizes = [...(loyaltySettings.ball_drop_config?.prizes || [])];
+                          newPrizes[idx] = { ...newPrizes[idx], weight: Number(e.target.value) || 10 };
+                          setLoyaltySettings({
+                            ...loyaltySettings,
+                            ball_drop_config: { ...loyaltySettings.ball_drop_config, prizes: newPrizes },
+                          });
+                        }}
+                        style={{
+                          width: "60px",
+                          padding: "6px 8px",
+                          background: "#09090b",
+                          border: "1px solid #3f3f46",
+                          color: "#ffffff",
+                          borderRadius: 4,
+                          fontSize: 12,
+                        }}
+                      />
+                      <span style={{ fontSize: 11, color: "#a1a1aa" }}>%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, paddingTop: 10 }}>
+              <button
+                type="button"
+                disabled={ballDropLoading}
+                onClick={handleSaveBallDropConfig}
+                style={{
+                  background: "#ffffff",
+                  color: "#000000",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "10px 24px",
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  letterSpacing: 0.5,
+                  boxShadow: "0 4px 14px rgba(255,255,255,0.2)",
+                }}
+              >
+                {ballDropLoading ? "Saving to Live Store..." : "💾 Save & Apply to Live Store"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="adm-events-layout">

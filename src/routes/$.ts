@@ -172,15 +172,34 @@ function esc(t: unknown): string {
   return String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
 }
 
+const SEARCH_SYNONYMS: Record<string, string> = {
+  tshirt: "tee",
+  "t-shirt": "tee",
+  shirt: "tee",
+  sweatshirt: "hoodie",
+  hoody: "hoodie",
+  sweater: "hoodie",
+  jacket: "jacket",
+  pant: "jeans",
+  pants: "jeans",
+  trouser: "jeans",
+  trousers: "jeans",
+  jogger: "joggers",
+  cap: "hat",
+  beanie: "hat",
+  sock: "socks",
+};
+
 function buildPredictiveSearchHtml(query: string): string {
-  const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  if (!terms.length) {
+  const rawTerms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!rawTerms.length) {
     return `<div id="shopify-section-predictive-search-new" class="shopify-section"><div id="predictive-search-new-results"><div class="header-search-new__result-products" data-header-search-new-result-products></div></div></div>`;
   }
+  const terms = rawTerms.map((t) => SEARCH_SYNONYMS[t] || t);
   const matches = ((catalog.products || []) as Array<Record<string, unknown>>).filter((p) => {
     if (p["status"] && p["status"] !== "active") return false;
     const hay = `${p["title"] || ""} ${p["description"] || ""} ${p["handle"] || ""} ${p["type"] || ""} ${p["tags"] || ""}`.toLowerCase();
-    return terms.every((t) => hay.includes(t));
+    return terms.every((t, i) => hay.includes(t) || hay.includes(rawTerms[i]));
   }).slice(0, 10);
 
   if (!matches.length) {
