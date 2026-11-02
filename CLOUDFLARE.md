@@ -79,3 +79,4 @@ npx wrangler deploy
 - **Static Assets Binding**: `env.ASSETS` points to `.output/public` (serves static storefront, fonts, CDN images, CSS, and JS).
 - **Server Entry**: `.output/server/index.mjs` handles SSR, cart API pass-through, and dynamic rewrites.
 - **Security & Headers**: Static caching and security headers defined in [`public/_headers`](./public/_headers).
+
