@@ -118,14 +118,14 @@ export function siteDefaults(): SiteConfig {
       },
     ],
     ballDrop: {
-      enabled: true,
+      enabled: false,
       title: "TAP TO DROP",
       subtitle: "Try your luck to unlock instant exclusive discounts and free items.",
       buttonText: "TRY YOUR LUCK",
       modelImage: "/cdn/shop/files/ball-drop-model.jpg",
-      autoPopup: true,
-      autoPopupDelay: 3,
-      showFloatingTrigger: true,
+      autoPopup: false,
+      autoPopupDelay: 5,
+      showFloatingTrigger: false,
       prizes: [
         { id: "p1", label: "Free item", couponCode: "FREEGIFT", discount: "Free Item", weight: 10, color: "#e10600" },
         { id: "p2", label: "5% off", couponCode: "LUCK5", discount: "5%", weight: 35, color: "#3b82f6" },

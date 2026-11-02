@@ -1546,28 +1546,46 @@
     })();
 
     // 6. Interactive Vault Ball Drop Campaign (Split-Screen Streetwear Design)
-    (function initBallDrop() {
-      // Remove any legacy triggers or modals
+    function initBallDrop() {
+      // 1. Immediately clean up any existing triggers, timers, or modals
+      if (window.__annr_bd_timer) {
+        clearTimeout(window.__annr_bd_timer);
+        window.__annr_bd_timer = null;
+      }
       var oldTrigger = document.getElementById("adm-ball-drop-trigger");
       if (oldTrigger) oldTrigger.remove();
+      var oldModal = document.getElementById("adm-ball-drop-modal");
+      if (oldModal) oldModal.remove();
 
       var loyaltySt = {};
       try {
-        var rawSt = localStorage.getItem("annr-loyalty-settings");
+        var rawSt = localStorage.getItem("annr-loyalty-settings-v1") || localStorage.getItem("annr-loyalty-settings");
         if (rawSt) loyaltySt = JSON.parse(rawSt);
       } catch(e) {}
 
-      // Master ON / OFF Check
-      var isEnabled = loyaltySt.ball_drop_enabled !== false;
-      if (!isEnabled) return;
+      // Fallback to site config ballDrop
+      var siteBd = (cfg && cfg.site && cfg.site.ballDrop) || (S && S.ballDrop) || {};
 
-      var bdConfig = loyaltySt.ball_drop_config || {
+      // Master ON / OFF Check: STRICTLY OFF BY DEFAULT unless explicitly true
+      var isEnabled = false;
+      if (typeof loyaltySt.ball_drop_enabled === "boolean") {
+        isEnabled = loyaltySt.ball_drop_enabled;
+      } else if (typeof siteBd.enabled === "boolean") {
+        isEnabled = siteBd.enabled;
+      }
+
+      // If disabled, stop completely and return
+      if (isEnabled !== true) {
+        return;
+      }
+
+      var bdConfig = loyaltySt.ball_drop_config || siteBd || {
         title: "TAP TO DROP",
         buttonText: "TRY YOUR LUCK",
         modelImage: "/cdn/shop/files/ball-drop-model.jpg",
-        autoPopup: true,
-        autoPopupDelay: 3,
-        showFloatingTrigger: true,
+        autoPopup: false,
+        autoPopupDelay: 5,
+        showFloatingTrigger: false,
         prizes: [
           { label: "Free item", code: "FREEGIFT", weight: 10 },
           { label: "5% off", code: "LUCK5", weight: 35 },
@@ -1577,8 +1595,8 @@
         ]
       };
 
-      // Floating Trigger Badge (if enabled in admin)
-      if (bdConfig.showFloatingTrigger !== false) {
+      // Floating Trigger Badge (only if explicitly enabled in admin)
+      if (bdConfig.showFloatingTrigger === true) {
         var trigger = document.createElement("div");
         trigger.id = "adm-ball-drop-trigger";
         trigger.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:99975;background:#111113;color:#ffffff;border:1px solid #27272a;border-radius:40px;padding:9px 18px;font:11px/1 'NB Architekt Std',sans-serif;letter-spacing:1px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.85);transition:transform .2s,border-color .2s;user-select:none";
@@ -1601,14 +1619,15 @@
           { label: "10% off", code: "LUCK10" }
         ];
 
+        var isMobile = window.innerWidth < 768;
         var modalHtml =
-          "<div style='background:#111113;border:1px solid #27272a;max-width:920px;width:95%;border-radius:4px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.95);position:relative;display:flex;flex-direction:row'>" +
+          "<div style='background:#111113;border:1px solid #27272a;max-width:920px;width:95%;border-radius:4px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.95);position:relative;display:flex;flex-direction:" + (isMobile ? "column" : "row") + ";max-height:92vh;overflow-y:auto'>" +
             // Close Button
             "<button type='button' data-close style='position:absolute;top:16px;left:16px;background:none;border:none;color:#ffffff;font-size:22px;cursor:pointer;opacity:.75;line-height:1;z-index:20'>✕</button>" +
 
             // Left Side: Plinko Interactive Game
-            "<div style='flex:1;min-width:320px;max-width:480px;background:#111113;padding:28px 24px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative'>" +
-              "<div style='font-family:\"Rockybilly\",cursive,sans-serif;font-size:36px;color:#ffffff;line-height:1;margin-bottom:8px;text-align:center'>AnnR</div>" +
+            "<div style='flex:1;min-width:" + (isMobile ? "100%" : "320px") + ";max-width:" + (isMobile ? "100%" : "480px") + ";background:#111113;padding:28px 24px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative'>" +
+              "<div style='display:flex;justify-content:center;margin-bottom:8px'><span class='icon icon-logo' style='display:inline-block;width:110px;height:42px;background-color:#ffffff;-webkit-mask:url(/cdn/shop/t/75/assets/image_logo.svg) no-repeat center/contain;mask:url(/cdn/shop/t/75/assets/image_logo.svg) no-repeat center/contain'></span></div>" +
               "<div style='font:22px/1.1 \"Druk Wide\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffffff;margin-bottom:12px;text-align:center'>" + esc(bdConfig.title || "TAP TO DROP") + "</div>" +
 
               "<button type='button' id='adm-bd-drop-btn' style='background:#ffffff;color:#000000;border:none;border-radius:24px;padding:9px 28px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-bottom:14px;box-shadow:0 4px 14px rgba(255,255,255,0.25);transition:transform 0.15s'>" + esc(bdConfig.buttonText || "TRY YOUR LUCK") + "</button>" +
@@ -1628,10 +1647,11 @@
               "</div>" +
             "</div>" +
 
-            // Right Side: Model Banner Image
-            "<div style='flex:1;background:#ffffff;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:480px'>" +
-              "<img src='" + esc(safeImg(bdConfig.modelImage || "/cdn/shop/files/ball-drop-model.jpg")) + "' alt='AnnR Model' style='width:100%;height:100%;object-fit:cover;display:block'>" +
-            "</div>" +
+            // Right Side: Model Banner Image (desktop)
+            (isMobile ? "" :
+              "<div style='flex:1;background:#000000;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:480px'>" +
+                "<img src='" + esc(safeImg(bdConfig.modelImage || "/cdn/shop/files/ball-drop-model.jpg")) + "' alt='AnnR Model' style='width:100%;height:100%;object-fit:cover;display:block'>" +
+              "</div>") +
           "</div>";
 
         var modal = overlay("adm-ball-drop-modal", modalHtml,
@@ -1832,12 +1852,12 @@
         };
       }
 
-      // Auto-popup for visitors on page load (if enabled in admin)
-      if (bdConfig.autoPopup !== false) {
+      // Auto-popup for visitors on page load (ONLY IF EXPLICITLY ENABLED IN ADMIN)
+      if (bdConfig.autoPopup === true) {
         try {
           if (sessionStorage.getItem("annr_bd_popup_seen") !== "1") {
-            var delayMs = (Number(bdConfig.autoPopupDelay) || 3) * 1000;
-            setTimeout(function() {
+            var delayMs = (Number(bdConfig.autoPopupDelay) || 5) * 1000;
+            window.__annr_bd_timer = setTimeout(function() {
               if (sessionStorage.getItem("annr_bd_popup_seen") !== "1") {
                 openBallDropGame();
               }
@@ -1845,17 +1865,29 @@
           }
         } catch(e) {}
       }
-    })();
+
+      // Wire navbar "FREE GIFT" link to open Ball Drop game if enabled
+      var fgLinks = document.querySelectorAll(".header-new__action[href*='free-gift'], a[href*='ball-drop']");
+      fgLinks.forEach(function(l) {
+        l.onclick = function(e) {
+          e.preventDefault();
+          openBallDropGame();
+        };
+      });
+    }
+
+    initBallDrop();
   }
   window.shihikoApply = apply;
   window.addEventListener("shihiko:collection:loaded", function () { apply(); });
   window.addEventListener("popstate", function () { setTimeout(apply, 0); });
   whenReady(apply);
 
-  // Background sync published config from Supabase
+  // Background sync published config and loyalty/campaign settings from Supabase
   (function syncPublishedFromSupabase() {
     if (preview) return;
     try {
+      // 1. Sync published site config versions
       fetch("https://aooydxydkyjtulhduexa.supabase.co/rest/v1/site_config_versions?is_published=eq.true&select=config&limit=1", {
         headers: { "apikey": "sb_publishable_rWZ3_sO_15nX-jMpRMrnng_CrRhuJK5" }
       })
@@ -1868,6 +1900,31 @@
             localStorage.setItem("shihiko-site-config", remoteStr);
             refreshState();
             apply();
+          }
+        }
+      }).catch(function() {});
+
+      // 2. Sync loyalty & ball drop settings from Supabase
+      fetch("https://aooydxydkyjtulhduexa.supabase.co/rest/v1/loyalty_settings?id=eq.1&select=*&limit=1", {
+        headers: { "apikey": "sb_publishable_rWZ3_sO_15nX-jMpRMrnng_CrRhuJK5" }
+      })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(rows) {
+        if (rows && rows.length > 0) {
+          var remoteSt = rows[0];
+          var stStr = JSON.stringify(remoteSt);
+          localStorage.setItem("annr-loyalty-settings", stStr);
+          localStorage.setItem("annr-loyalty-settings-v1", stStr);
+          // If ball drop is turned OFF in Supabase, purge it instantly
+          if (remoteSt.ball_drop_enabled !== true) {
+            if (window.__annr_bd_timer) {
+              clearTimeout(window.__annr_bd_timer);
+              window.__annr_bd_timer = null;
+            }
+            var exTrig = document.getElementById("adm-ball-drop-trigger");
+            if (exTrig) exTrig.remove();
+            var exModal = document.getElementById("adm-ball-drop-modal");
+            if (exModal) exModal.remove();
           }
         }
       }).catch(function() {});

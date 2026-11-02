@@ -89,15 +89,15 @@ export const DEFAULT_LOYALTY_SETTINGS: LoyaltySettings = {
   pending_days_return_window: 7,
   coupon_prefix: "VIP-",
   allowed_payout_methods: ["bkash", "nagad", "rocket", "bank"],
-  ball_drop_enabled: true,
+  ball_drop_enabled: false,
   ball_drop_config: {
     title: "TAP TO DROP",
     subtitle: "Try your luck to unlock instant exclusive discounts and free items.",
     buttonText: "TRY YOUR LUCK",
     modelImage: "/cdn/shop/files/ball-drop-model.jpg",
-    autoPopup: true,
-    autoPopupDelay: 3,
-    showFloatingTrigger: true,
+    autoPopup: false,
+    autoPopupDelay: 5,
+    showFloatingTrigger: false,
     playsPerCustomer: 1,
     prizes: [
       { label: "Free item", code: "FREEGIFT", weight: 10 },
@@ -112,6 +112,7 @@ export const DEFAULT_LOYALTY_SETTINGS: LoyaltySettings = {
 
 const LOCAL_VIP_KEY = "annr-vip-wallet-v1";
 const LOCAL_SETTINGS_KEY = "annr-loyalty-settings-v1";
+const LEGACY_SETTINGS_KEY = "annr-loyalty-settings";
 const LOCAL_WITHDRAWALS_KEY = "annr-withdrawals-v1";
 const LOCAL_MEMBERS_KEY = "annr-vip-members";
 
@@ -128,7 +129,13 @@ export async function getLoyaltySettings(): Promise<LoyaltySettings> {
         .maybeSingle();
 
       if (!error && data) {
-        return data as LoyaltySettings;
+        const res = data as LoyaltySettings;
+        try {
+          const str = JSON.stringify(res);
+          localStorage.setItem(LOCAL_SETTINGS_KEY, str);
+          localStorage.setItem(LEGACY_SETTINGS_KEY, str);
+        } catch {}
+        return res;
       }
     } catch {
       // Fallback below
@@ -137,7 +144,7 @@ export async function getLoyaltySettings(): Promise<LoyaltySettings> {
 
   // Fallback to localStorage if offline/demo
   try {
-    const raw = localStorage.getItem(LOCAL_SETTINGS_KEY);
+    const raw = localStorage.getItem(LOCAL_SETTINGS_KEY) || localStorage.getItem(LEGACY_SETTINGS_KEY);
     if (raw) return JSON.parse(raw);
   } catch {
     // Ignore error
@@ -149,6 +156,7 @@ export async function getLoyaltySettings(): Promise<LoyaltySettings> {
  * Save loyalty settings (admin only)
  */
 export async function saveLoyaltySettings(settings: Partial<LoyaltySettings>): Promise<{ ok: boolean; error?: string }> {
+  let savedToDb = false;
   if (isSupabaseConfigured()) {
     try {
       const { error } = await supabase
@@ -156,18 +164,30 @@ export async function saveLoyaltySettings(settings: Partial<LoyaltySettings>): P
         .upsert({ id: 1, ...settings, updated_at: new Date().toISOString() });
 
       if (error) {
-        return { ok: false, error: error.message };
+        console.warn("Supabase loyalty_settings upsert error:", error.message);
+      } else {
+        savedToDb = true;
       }
     } catch (e: any) {
-      return { ok: false, error: e?.message || "Failed to save settings" };
+      console.warn("Supabase loyalty_settings network error:", e?.message);
     }
   }
 
-  // Always update local cache
+  // Always update local caches across all keys
   try {
     const current = await getLoyaltySettings();
     const updated = { ...current, ...settings };
-    localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(updated));
+    const str = JSON.stringify(updated);
+    localStorage.setItem(LOCAL_SETTINGS_KEY, str);
+    localStorage.setItem(LEGACY_SETTINGS_KEY, str);
+
+    // Trigger instant custom event for live listeners
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("annr:loyalty:updated", { detail: updated }));
+      if (typeof (window as any).shihikoApply === "function") {
+        (window as any).shihikoApply();
+      }
+    }
   } catch {
     // Ignore error
   }

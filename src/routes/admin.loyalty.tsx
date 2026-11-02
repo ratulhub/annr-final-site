@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { BackBtn, Card } from "../admin/ui";
+import { setSite, publish } from "../admin/store";
 import {
   getLoyaltySettings,
   saveLoyaltySettings,
@@ -104,6 +105,13 @@ function LoyaltyAdmin() {
   const handleSaveSettings = async () => {
     setLoading(true);
     const res = await saveLoyaltySettings(settings);
+    try {
+      setSite("ballDrop", {
+        ...settings.ball_drop_config,
+        enabled: settings.ball_drop_enabled,
+      } as any);
+      publish();
+    } catch {}
     setLoading(false);
     if (res.ok) {
       setSavedSuccess(true);
@@ -683,19 +691,36 @@ function LoyaltyAdmin() {
                       : "The campaign is hidden and will not trigger or appear on the storefront."}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  className={`adm-btn ${settings.ball_drop_enabled ? "danger" : "primary"}`}
-                  style={{ minWidth: 120, fontWeight: 700 }}
-                  onClick={() =>
-                    setSettings({
-                      ...settings,
-                      ball_drop_enabled: !settings.ball_drop_enabled,
-                    })
-                  }
-                >
-                  {settings.ball_drop_enabled ? "TURN OFF" : "TURN ON"}
-                </button>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    className={`adm-btn ${settings.ball_drop_enabled ? "danger" : "primary"}`}
+                    style={{ minWidth: 160, fontWeight: 700, padding: "10px 18px", fontSize: 13 }}
+                    onClick={async () => {
+                      const nextEnabled = !settings.ball_drop_enabled;
+                      const updated = { ...settings, ball_drop_enabled: nextEnabled };
+                      setSettings(updated);
+                      setLoading(true);
+                      await saveLoyaltySettings(updated);
+                      try {
+                        setSite("ballDrop", {
+                          ...updated.ball_drop_config,
+                          enabled: nextEnabled,
+                        } as any);
+                        publish();
+                      } catch {}
+                      setLoading(false);
+                      setSavedSuccess(true);
+                      setTimeout(() => setSavedSuccess(false), 3000);
+                    }}
+                  >
+                    {settings.ball_drop_enabled ? "🛑 STOP / TURN OFF NOW" : "⚡ ACTIVATE / TURN ON NOW"}
+                  </button>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: settings.ball_drop_enabled ? "#16a34a" : "#dc2626" }}>
+                    {settings.ball_drop_enabled ? "● LIVE (SYNCED TO DB)" : "● STOPPED (OFFLINE ON SITE)"}
+                  </span>
+                </div>
               </div>
 
               {/* Display & Trigger Settings */}
@@ -707,7 +732,7 @@ function LoyaltyAdmin() {
                   <label className="adm-check">
                     <input
                       type="checkbox"
-                      checked={settings.ball_drop_config?.autoPopup !== false}
+                      checked={Boolean(settings.ball_drop_config?.autoPopup)}
                       onChange={(e) =>
                         setSettings({
                           ...settings,
@@ -718,7 +743,7 @@ function LoyaltyAdmin() {
                         })
                       }
                     />
-                    <span>Auto-popup on visitor page load</span>
+                    <span>Auto-popup on visitor page load (Default: OFF to prevent annoyance)</span>
                   </label>
 
                   <label className="adm-field">
@@ -727,7 +752,7 @@ function LoyaltyAdmin() {
                       type="number"
                       min={1}
                       max={30}
-                      value={settings.ball_drop_config?.autoPopupDelay || 3}
+                      value={settings.ball_drop_config?.autoPopupDelay || 5}
                       onChange={(e) =>
                         setSettings({
                           ...settings,
@@ -743,7 +768,7 @@ function LoyaltyAdmin() {
                   <label className="adm-check">
                     <input
                       type="checkbox"
-                      checked={settings.ball_drop_config?.showFloatingTrigger !== false}
+                      checked={Boolean(settings.ball_drop_config?.showFloatingTrigger)}
                       onChange={(e) =>
                         setSettings({
                           ...settings,
@@ -842,11 +867,50 @@ function LoyaltyAdmin() {
                 </div>
               </div>
 
-              {/* Prize Slots Editor (5 Slots) */}
+              {/* Prize Slots Editor */}
               <div style={{ borderTop: "1px solid var(--p-border-subdued)", paddingTop: 16 }}>
-                <h3 style={{ margin: "0 0 12px", fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
-                  3. Landing Prize Slots (Left to Right)
-                </h3>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                  <h3 style={{ margin: 0, fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
+                    3. Landing Prize Slots ({settings.ball_drop_config?.prizes?.length || 0} Slots)
+                  </h3>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="adm-btn plain"
+                      style={{ fontSize: 11, padding: "4px 10px" }}
+                      onClick={() => {
+                        const defaultPrizes = [
+                          { label: "Free item", code: "FREEGIFT", weight: 10 },
+                          { label: "5% off", code: "LUCK5", weight: 35 },
+                          { label: "Free shipping", code: "FREESHIP", weight: 20 },
+                          { label: "৳500 off", code: "ANNR500", weight: 15 },
+                          { label: "10% off", code: "LUCK10", weight: 20 },
+                        ];
+                        setSettings({
+                          ...settings,
+                          ball_drop_config: { ...settings.ball_drop_config, prizes: defaultPrizes },
+                        });
+                      }}
+                    >
+                      ↺ Restore Default Prizes
+                    </button>
+                    <button
+                      type="button"
+                      className="adm-btn primary"
+                      style={{ fontSize: 11, padding: "4px 12px" }}
+                      onClick={() => {
+                        const cur = settings.ball_drop_config?.prizes || [];
+                        const next = [...cur, { label: "15% off", code: "LUCK15", weight: 10 }];
+                        setSettings({
+                          ...settings,
+                          ball_drop_config: { ...settings.ball_drop_config, prizes: next },
+                        });
+                      }}
+                    >
+                      + Add Prize Slot
+                    </button>
+                  </div>
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {settings.ball_drop_config?.prizes?.map((prize, idx) => (
                     <div
@@ -868,7 +932,7 @@ function LoyaltyAdmin() {
                         <input
                           type="text"
                           value={prize.label}
-                          placeholder="e.g. Free item / 5% off"
+                          placeholder="e.g. Free item / 5% off / ৳500 off"
                           style={{ padding: "6px 8px", borderRadius: 4, border: "1px solid #d2d5d8" }}
                           onChange={(e) => {
                             const nextPrizes = [...(settings.ball_drop_config?.prizes || [])];
@@ -921,6 +985,22 @@ function LoyaltyAdmin() {
                           }}
                         />
                       </div>
+                      {((settings.ball_drop_config?.prizes?.length || 0) > 2) && (
+                        <button
+                          type="button"
+                          className="adm-btn danger plain"
+                          style={{ padding: "6px 8px", fontSize: 12, marginTop: 14 }}
+                          onClick={() => {
+                            const nextPrizes = (settings.ball_drop_config?.prizes || []).filter((_, i) => i !== idx);
+                            setSettings({
+                              ...settings,
+                              ball_drop_config: { ...settings.ball_drop_config, prizes: nextPrizes },
+                            });
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -971,7 +1051,19 @@ function LoyaltyAdmin() {
                       }}
                     >
                       <span style={{ position: "absolute", top: 12, left: 14, fontSize: 18, opacity: 0.6 }}>✕</span>
-                      <div style={{ fontFamily: "Rockybilly, cursive", fontSize: 26, marginBottom: 4 }}>AnnR</div>
+                      <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+                        <span
+                          className="icon icon-logo"
+                          style={{
+                            display: "inline-block",
+                            width: 100,
+                            height: 38,
+                            backgroundColor: "#ffffff",
+                            WebkitMask: "url(/cdn/shop/t/75/assets/image_logo.svg) no-repeat center/contain",
+                            mask: "url(/cdn/shop/t/75/assets/image_logo.svg) no-repeat center/contain",
+                          }}
+                        />
+                      </div>
                       <div style={{ fontFamily: "Druk Wide, sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>
                         {settings.ball_drop_config?.title || "TAP TO DROP"}
                       </div>

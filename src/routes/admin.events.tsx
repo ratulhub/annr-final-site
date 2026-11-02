@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { setSite, uid } from "../admin/store";
+import { setSite, uid, publish } from "../admin/store";
 import { BackBtn, Card } from "../admin/ui";
 import { Chk, ColorF, useSite } from "../admin/site/fields";
 import type { CampaignEvent } from "../admin/site/types";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/events")({ component: EventsManager });
 
@@ -51,7 +52,42 @@ function EventsManager() {
   const [selectedId, setSelectedId] = useState<string | null>(events[0]?.id || null);
   const [search, setSearch] = useState("");
 
-  const saveEvents = (next: CampaignEvent[]) => setSite("events", next);
+  const saveEvents = (next: CampaignEvent[]) => {
+    setSite("events", next);
+    publish();
+    if (isSupabaseConfigured()) {
+      (async () => {
+        try {
+          for (const ev of next) {
+            await supabase.from("campaign_events").upsert({
+              slug: ev.id.replace(/^ev-/, "").toLowerCase(),
+              title: ev.title,
+              tag: ev.tag || "",
+              badge_text: ev.badgeText || "",
+              status: ev.status,
+              starts_at: ev.startsAt ? new Date(ev.startsAt).toISOString() : null,
+              ends_at: ev.endsAt ? new Date(ev.endsAt).toISOString() : null,
+              min_spend: Number(ev.minSpend) || 0,
+              discount_code: ev.discountCode || "",
+              gift_item: ev.giftItem || "",
+              gift_value: ev.giftValue || "",
+              gift_image: ev.giftImage || "",
+              gift_description: ev.giftDescription || "",
+              show_top_bar: false,
+              show_ticker: false,
+              show_floating_gift_pill: false,
+              bg: ev.bg || "#050505",
+              text_color: ev.textColor || "#ffffff",
+              accent_color: ev.accentColor || "#e10600",
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "slug" });
+          }
+        } catch (e) {
+          console.warn("campaign_events background sync error:", e);
+        }
+      })();
+    }
+  };
 
   const updateEvent = (id: string, patch: Partial<CampaignEvent>) => {
     saveEvents(events.map((e) => (e.id === id ? { ...e, ...patch } : e)));
