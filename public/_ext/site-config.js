@@ -1394,9 +1394,24 @@
         });
       }
 
-      var IN = "width:100%;background:#111113;border:1px solid #27272a;color:#fff;padding:12px 14px;font-size:16px;border-radius:3px;box-sizing:border-box";
-      var LB = "display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:5px;font-weight:600";
-      var BTN = "background:#ffffff;color:#000000;border:none;padding:14px;font:12px/1 'NB Architekt Std',sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;margin-top:6px;border-radius:3px;width:100%;min-height:46px;box-sizing:border-box";
+      if (!document.getElementById("vip-inpage-styles")) {
+        var st = document.createElement("style");
+        st.id = "vip-inpage-styles";
+        st.textContent = "" +
+          "#vip-inpage-hub { max-width: 540px; margin: 0 auto; color: #fff; font-family: 'NB Architekt Std', sans-serif; }\n" +
+          "#vip-inpage-hub input, #vip-inpage-hub select { transition: border-color .25s ease, box-shadow .25s ease, background .25s ease; }\n" +
+          "#vip-inpage-hub input:focus, #vip-inpage-hub select:focus { border-color: #fa9442 !important; box-shadow: 0 0 14px rgba(250, 148, 66, 0.28) !important; background: rgba(22, 22, 28, 0.95) !important; }\n" +
+          "#vip-inpage-hub input::placeholder { color: rgba(255, 255, 255, 0.32); }\n" +
+          "#vip-inpage-hub select option { background: #121218; color: #ffffff; }\n" +
+          ".vip-alt-btn:hover span.content { border-color: #ffffff !important; background: rgba(255, 255, 255, 0.12) !important; color: #ffffff !important; }\n" +
+          ".vip-alt-btn:hover span.corners { color: #ffffff !important; }\n" +
+          ".vip-perk-chip { background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.08); padding: 10px 12px; border-radius: 2px; }";
+        document.head.appendChild(st);
+      }
+
+      var IN = "width:100%;background:rgba(18,18,24,0.85);border:1px solid rgba(255,255,255,0.15);color:#ffffff;padding:14px 16px;font-size:14px;font-family:'NB Architekt Std',sans-serif;letter-spacing:0.5px;border-radius:2px;box-sizing:border-box;outline:none;";
+      var LB = "display:block;font-family:'FK Grotesk SemiMono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:1.5px;color:#a0a0b2;margin-bottom:6px;font-weight:600;";
+      var BTN = "background:#ffffff;color:#000000;border:none;padding:16px 20px;font:13px/1 'NB Architekt Std',sans-serif;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-top:6px;border-radius:2px;width:100%;min-height:54px;box-sizing:border-box;";
 
       function field(label, inner) { return "<div><label style='" + LB + "'>" + label + "</label>" + inner + "</div>"; }
 
@@ -1404,28 +1419,40 @@
         var n = window.__annrVipNotice; window.__annrVipNotice = null;
         if (!n) return "";
         var c = n.type === "ok" ? "#22c55e" : n.type === "info" ? "#fa9442" : "#ef4444";
-        return "<div role='status' style='border:1px solid " + c + ";border-left:3px solid " + c + ";background:#111113;color:#e4e4e7;padding:12px 14px;font-size:12px;line-height:1.5;border-radius:3px;margin-bottom:16px'>" + esc(n.text) + "</div>";
+        return "<div role='status' style='border:1px solid " + c + ";border-left:3px solid " + c + ";background:rgba(18,18,24,0.9);color:#e4e4e7;padding:12px 14px;font-family:\"FK Grotesk SemiMono\",monospace;font-size:11.5px;line-height:1.5;border-radius:2px;margin-bottom:16px'>" + esc(n.text) + "</div>";
       }
 
       function setBusy(form, busy, label) {
         var b = form && form.querySelector("button[type=submit]");
         if (!b) return;
-        if (busy) { b.__label = b.textContent; b.textContent = label || "PLEASE WAIT…"; b.disabled = true; b.style.opacity = ".6"; }
-        else { b.textContent = b.__label || b.textContent; b.disabled = false; b.style.opacity = "1"; }
+        var textSpan = b.querySelector(".text") || b;
+        if (busy) {
+          b.__label = textSpan.textContent;
+          textSpan.textContent = label || "PLEASE WAIT…";
+          b.disabled = true;
+          b.style.opacity = ".6";
+        } else {
+          textSpan.textContent = b.__label || textSpan.textContent;
+          b.disabled = false;
+          b.style.opacity = "1";
+        }
       }
 
       function showErr(form, text) {
         var box = form.querySelector(".vip-err");
         if (!box) {
           box = document.createElement("div"); box.className = "vip-err"; box.setAttribute("role", "alert");
-          box.style.cssText = "color:#fca5a5;background:#1f0d0d;border:1px solid #7f1d1d;padding:10px 12px;font-size:12px;border-radius:3px;line-height:1.5;margin-bottom:12px";
+          box.style.cssText = "color:#fca5a5;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-left:3px solid #ef4444;padding:12px 14px;font-family:'FK Grotesk SemiMono',monospace;font-size:11.5px;border-radius:2px;line-height:1.5;margin-bottom:14px";
           form.insertBefore(box, form.firstChild);
         }
         box.textContent = text; box.style.display = text ? "" : "none";
       }
 
       function vipContainer() {
-        return document.querySelector(".vip-form__wrapper") || document.querySelector(".customer-register-form-wrapper");
+        return document.querySelector(".vip-login .vip-form__wrapper") ||
+               document.querySelector(".vip-signing .vip-form__wrapper") ||
+               document.querySelector(".customer-register-form-wrapper") ||
+               document.querySelector(".vip-form__wrapper");
       }
 
       function wireGeo(root) {
@@ -1443,8 +1470,11 @@
       function profileFieldsHtml() {
         return field("Full Name *", "<input type='text' id='vip-reg-name' required maxlength='120' autocomplete='name' placeholder='e.g. Md. Abdur Rahim Ratul' style='" + IN + "'>") +
           field("Mobile Number (Bangladesh, 11 digits) *", "<input type='tel' id='vip-reg-phone' required inputmode='numeric' autocomplete='tel' placeholder='017XXXXXXXX' pattern='^01[3-9][0-9]{8}$' style='" + IN + "'>") +
-          "<label style='display:flex;align-items:center;gap:8px;font-size:11px;color:#a1a1aa;cursor:pointer'><input type='checkbox' id='vip-reg-wa' checked style='accent-color:#22c55e;width:18px;height:18px'> This number is on WhatsApp</label>" +
-          "<div style='display:grid;grid-template-columns:1fr 1fr;gap:10px'>" +
+          "<label style='display:flex;align-items:center;gap:10px;font-family:\"FK Grotesk SemiMono\",monospace;font-size:11px;letter-spacing:1px;color:#a0a0b2;cursor:pointer;margin:2px 0 6px 0'>" +
+            "<input type='checkbox' id='vip-reg-wa' checked style='accent-color:#22c55e;width:18px;height:18px;cursor:pointer'>" +
+            "<span>THIS MOBILE NUMBER IS ACTIVE ON WHATSAPP</span>" +
+          "</label>" +
+          "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px'>" +
             field("Division *", "<select id='vip-reg-division' style='" + IN + "'>" + Object.keys(BD_GEO).map(function (d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("") + "</select>") +
             field("District *", "<select id='vip-reg-district' style='" + IN + "'></select>") +
           "</div>" +
@@ -1512,34 +1542,84 @@
 
       function renderAuthForms(c) {
         c.innerHTML =
-          "<div id='vip-inpage-hub' style='color:#fff;font-family:\"NB Architekt Std\",sans-serif;width:100%;max-width:540px;margin:0 auto;padding:10px 0;box-sizing:border-box'>" +
+          "<div id='vip-inpage-hub' style='box-sizing:border-box'>" +
             noticeHtml() +
-            "<div style='text-align:center;margin-bottom:18px'>" +
-              "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#fa9442;text-transform:uppercase;margin-bottom:6px'>ANNR VIP LOYALTY PROGRAM</div>" +
-              "<div style='font:22px/1.1 \"Druk Wide\",sans-serif;font-weight:900;text-transform:uppercase;letter-spacing:1px'>MEMBER VAULT</div>" +
+            "<div style='text-align:center;margin-bottom:22px'>" +
+              "<div style='font:11px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2.5px;color:#fa9442;text-transform:uppercase;margin-bottom:8px'>ANNR VIP ACCESS // REWARDS HUB</div>" +
+              "<div style='font:24px/1.1 \"Druk Wide\",\"NB Architekt Std\",sans-serif;font-weight:900;text-transform:uppercase;letter-spacing:1.5px'>MEMBER VAULT</div>" +
+              "<div style='font:12px/1.5 \"FK Grotesk SemiMono\",monospace;color:#8e8e9e;margin-top:8px;max-width:460px;margin-left:auto;margin-right:auto'>" +
+                "Official AnnR membership portal. Register below to claim your welcome grant, personal referral coupon, and earn instant cash payouts." +
+              "</div>" +
             "</div>" +
 
             // Create VIP Account Form (Default view)
-            "<form id='vip-signup-form' novalidate style='display:flex;flex-direction:column;gap:12px'>" +
-              "<div style='background:#18181b;padding:12px 14px;border:1px solid #27272a;border-radius:4px;font-size:11px;color:#d4d4d8;line-height:1.5'>" +
-                "✨ Join VIP today: Get <strong style='color:#22c55e'>100 Welcome Points (৳100)</strong> + your own referral coupon to earn cash points whenever friends shop!" +
+            "<form id='vip-signup-form' novalidate style='display:flex;flex-direction:column;gap:13px'>" +
+              "<div style='background:rgba(250,148,66,0.06);border:1px solid rgba(250,148,66,0.3);border-left:3px solid #fa9442;padding:14px 16px;border-radius:2px;margin-bottom:6px'>" +
+                "<div style='display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px'>" +
+                  "<span style='font:11px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:1.5px;color:#fa9442;text-transform:uppercase;font-weight:700'>NEW MEMBER PRIVILEGES</span>" +
+                  "<span style='font:9px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:1px;color:#22c55e;border:1px solid rgba(34,197,94,0.4);padding:3px 6px;border-radius:2px;text-transform:uppercase'>GRANT ACTIVE</span>" +
+                "</div>" +
+                "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px'>" +
+                  "<div class='vip-perk-chip'>" +
+                    "<div style='font:9px/1 \"FK Grotesk SemiMono\",monospace;color:#8a8a9a;letter-spacing:1px;text-transform:uppercase'>WELCOME GRANT</div>" +
+                    "<div style='font:14px/1.2 \"NB Architekt Std\",sans-serif;font-weight:700;color:#22c55e;margin-top:4px'>+৳100 CASH PTS</div>" +
+                  "</div>" +
+                  "<div class='vip-perk-chip'>" +
+                    "<div style='font:9px/1 \"FK Grotesk SemiMono\",monospace;color:#8a8a9a;letter-spacing:1px;text-transform:uppercase'>FRIEND COUPON</div>" +
+                    "<div style='font:14px/1.2 \"NB Architekt Std\",sans-serif;font-weight:700;color:#ffffff;margin-top:4px'>10% OFF CODE</div>" +
+                  "</div>" +
+                  "<div class='vip-perk-chip'>" +
+                    "<div style='font:9px/1 \"FK Grotesk SemiMono\",monospace;color:#8a8a9a;letter-spacing:1px;text-transform:uppercase'>REFERRAL ROYALTY</div>" +
+                    "<div style='font:14px/1.2 \"NB Architekt Std\",sans-serif;font-weight:700;color:#fa9442;margin-top:4px'>৳100 / ORDER</div>" +
+                  "</div>" +
+                "</div>" +
               "</div>" +
+
               field("Email Address *", "<input type='email' id='vip-reg-email' required autocomplete='email' autocapitalize='off' inputmode='email' placeholder='you@example.com' style='" + IN + "'>") +
               field("Password (min 6 characters) *", "<input type='password' id='vip-reg-pass' required minlength='6' autocomplete='new-password' placeholder='••••••••' style='" + IN + "'>") +
               profileFieldsHtml() +
-              "<button type='submit' style='" + BTN + ";background:#22c55e;color:#000'>Create VIP account (+৳100) →</button>" +
-              "<div style='font-size:11px;color:#71717a;line-height:1.5;text-align:center'>Your personal VIP referral coupon is created instantly upon registration.</div>" +
-              "<a href='#' id='vip-go-signin' style='color:#71717a;font-size:11px;text-align:center;margin-top:4px'>Already a VIP member? <span style='color:#fa9442;font-weight:700'>Sign in →</span></a>" +
+
+              "<button class='btn btn-vip-orange' type='submit' style='width:100%;min-height:54px;margin-top:10px;cursor:pointer'>" +
+                "<span class='content' style='min-height:54px;padding:18px 24px;border-radius:2px;display:flex;align-items:center;justify-content:center'>" +
+                  "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase'>CREATE VIP ACCOUNT (+৳100)</span></span>" +
+                "</span>" +
+                "<span class='corners'></span>" +
+              "</button>" +
+
+              "<div style='margin-top:20px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.1);text-align:center'>" +
+                "<div style='font:11px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:1.5px;text-transform:uppercase;color:#8a8a9a;margin-bottom:10px'>ALREADY A REGISTERED VIP MEMBER?</div>" +
+                "<button type='button' id='vip-go-signin' class='btn vip-alt-btn' style='width:100%;min-height:52px;cursor:pointer'>" +
+                  "<span class='content' style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.25);color:#ffffff;min-height:52px;padding:17px 22px;border-radius:2px;display:flex;align-items:center;justify-content:center;transition:all .25s ease'>" +
+                    "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase'>SIGN IN TO VIP ACCOUNT</span></span>" +
+                  "</span>" +
+                  "<span class='corners'></span>" +
+                "</button>" +
+              "</div>" +
             "</form>" +
 
             // Sign In Form (Hidden by default, available if already a member)
             "<form id='vip-login-form' novalidate style='display:none;flex-direction:column;gap:14px'>" +
-              "<div style='font-size:11px;color:#a1a1aa;line-height:1.5'>Sign in to your VIP account to check referral count, view coupon earnings in ৳, and request instant cash payouts.</div>" +
+              "<div style='background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-left:3px solid #fa9442;padding:14px 16px;border-radius:2px;font:11px/1.6 \"FK Grotesk SemiMono\",monospace;color:#a0a0b2'>" +
+                "SIGN IN TO ACCESS YOUR VIP REFERRAL WALLET, REVENUE ANALYTICS IN ৳, AND SUBMIT INSTANT CASH PAYOUT REQUESTS." +
+              "</div>" +
               field("Email or Bangladesh Mobile Number *", "<input type='text' id='vip-login-id' required autocomplete='username' autocapitalize='off' placeholder='you@gmail.com or 017XXXXXXXX' style='" + IN + "'>") +
               field("Password *", "<input type='password' id='vip-login-pass' required autocomplete='current-password' placeholder='••••••••' style='" + IN + "'>") +
-              "<button type='submit' style='" + BTN + "'>Sign in to vault →</button>" +
-              "<div style='display:flex;justify-content:center;gap:10px;font-size:11px;margin-top:4px'>" +
-                "<a href='#' id='vip-go-signup' style='color:#fa9442;font-weight:700'>← New to VIP? Create account (+৳100)</a>" +
+
+              "<button class='btn btn-vip-orange' type='submit' style='width:100%;min-height:54px;margin-top:10px;cursor:pointer'>" +
+                "<span class='content' style='min-height:54px;padding:18px 24px;border-radius:2px;display:flex;align-items:center;justify-content:center'>" +
+                  "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase'>SIGN IN TO VIP VAULT</span></span>" +
+                "</span>" +
+                "<span class='corners'></span>" +
+              "</button>" +
+
+              "<div style='margin-top:20px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.1);text-align:center'>" +
+                "<div style='font:11px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:1.5px;text-transform:uppercase;color:#8a8a9a;margin-bottom:10px'>NEW TO ANNR VIP REWARDS?</div>" +
+                "<button type='button' id='vip-go-signup' class='btn vip-alt-btn' style='width:100%;min-height:52px;cursor:pointer'>" +
+                  "<span class='content' style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.25);color:#ffffff;min-height:52px;padding:17px 22px;border-radius:2px;display:flex;align-items:center;justify-content:center;transition:all .25s ease'>" +
+                    "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase'>CREATE VIP ACCOUNT (+৳100 BONUS)</span></span>" +
+                  "</span>" +
+                  "<span class='corners'></span>" +
+                "</button>" +
               "</div>" +
             "</form>" +
           "</div>";
@@ -1549,6 +1629,11 @@
         function showSignin(openSignin) {
           fl.style.display = openSignin ? "flex" : "none";
           fs.style.display = openSignin ? "none" : "flex";
+          try {
+            document.querySelectorAll(".vip-tab-item span").forEach(function(el) {
+              el.textContent = openSignin ? "login" : "signup";
+            });
+          } catch(e) {}
         }
 
         c.querySelector("#vip-go-signup").onclick = function (e) { e.preventDefault(); showSignin(false); };
@@ -1800,78 +1885,98 @@
         var myWithdrawals = allW.filter(function(w) { return w.member_email === m.email || w.vip_member_id === m.id; });
 
         var card = function (label, value, sub, accent) {
-          return "<div style='background:#111113;border:1px solid #27272a;" + (accent ? "border-left:3px solid " + accent + ";" : "") + "padding:16px;border-radius:4px'>" +
-            "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:6px'>" + label + "</div>" +
-            "<div style='font:22px/1 \"Druk Wide\",sans-serif;color:" + (accent || "#fff") + ";margin-bottom:4px;word-break:break-all'>" + value + "</div>" +
-            "<div style='font-size:10px;color:#71717a'>" + sub + "</div></div>";
+          return "<div style='background:rgba(18,18,24,0.85);border:1px solid rgba(255,255,255,0.12);" + (accent ? "border-left:3px solid " + accent + ";" : "") + "padding:16px;border-radius:2px'>" +
+            "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;text-transform:uppercase;letter-spacing:1.5px;color:#a0a0b2;margin-bottom:8px'>" + label + "</div>" +
+            "<div style='font:22px/1 \"Druk Wide\",sans-serif;color:" + (accent || "#fff") + ";margin-bottom:6px;word-break:break-all'>" + value + "</div>" +
+            "<div style='font:10px/1.4 \"FK Grotesk SemiMono\",monospace;color:#8a8a9a'>" + sub + "</div></div>";
         };
 
         var badge = function (st) {
           var col = st === "paid" ? "#22c55e" : st === "approved" ? "#3b82f6" : st === "rejected" ? "#ef4444" : "#f59e0b";
-          return "<span style='color:" + col + ";text-transform:uppercase;font-size:10px;font-weight:700;letter-spacing:1px;border:1px solid " + col + ";padding:3px 8px;border-radius:2px'>" + esc(st) + "</span>";
+          return "<span style='color:" + col + ";text-transform:uppercase;font:9.5px/1 \"FK Grotesk SemiMono\",monospace;font-weight:700;letter-spacing:1.5px;border:1px solid " + col + ";padding:4px 8px;border-radius:2px'>" + esc(st) + "</span>";
         };
 
         c.innerHTML =
           "<div id='vip-inpage-hub' style='color:#fff;font-family:\"NB Architekt Std\",sans-serif;width:100%;max-width:620px;margin:0 auto;padding:10px 0;box-sizing:border-box'>" +
             noticeHtml() +
-            (m.status && m.status !== "active" ? "<div style='border:1px solid #ef4444;color:#fca5a5;padding:10px 12px;font-size:12px;margin-bottom:16px'>Your VIP account is " + esc(m.status) + ". Contact support.</div>" : "") +
+            (m.status && m.status !== "active" ? "<div style='border:1px solid #ef4444;border-left:3px solid #ef4444;background:rgba(239,68,68,0.1);color:#fca5a5;padding:12px 14px;font-size:12px;margin-bottom:16px;border-radius:2px'>Your VIP account is " + esc(m.status) + ". Contact support.</div>" : "") +
 
             // Profile Header
-            "<div style='border-bottom:1px solid #27272a;padding-bottom:16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap'>" +
+            "<div style='border-bottom:1px solid rgba(255,255,255,0.12);padding-bottom:18px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap'>" +
               "<div style='min-width:0'>" +
-                "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#fa9442;text-transform:uppercase;margin-bottom:6px'>VIP MEMBER HUB // " + esc(m.tier || "SILVER") + " TIER</div>" +
-                "<div style='font:20px/1.15 \"Druk Wide\",sans-serif;text-transform:uppercase;word-break:break-word'>" + esc(m.full_name) + "</div>" +
-                "<div style='font-size:11px;color:#71717a;margin-top:4px;word-break:break-all'>" + esc(m.phone || "") + " · " + esc(m.email || "") + "</div>" +
+                "<div style='font:10.5px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#fa9442;text-transform:uppercase;margin-bottom:6px'>VIP MEMBER HUB // " + esc(m.tier || "SILVER") + " TIER</div>" +
+                "<div style='font:22px/1.15 \"Druk Wide\",sans-serif;text-transform:uppercase;word-break:break-word'>" + esc(m.full_name) + "</div>" +
+                "<div style='font:11px/1 \"FK Grotesk SemiMono\",monospace;color:#8a8a9a;margin-top:6px;word-break:break-all'>" + esc(m.phone || "") + " · " + esc(m.email || "") + "</div>" +
               "</div>" +
-              "<button type='button' id='vip-signout-btn' style='background:none;border:1px solid #3f3f46;color:#d4d4d8;padding:10px 14px;font:10px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1px;cursor:pointer;text-transform:uppercase;border-radius:3px;min-height:40px'>Sign Out</button>" +
+              "<button type='button' id='vip-signout-btn' class='btn' style='width:auto;min-width:110px;min-height:44px;cursor:pointer'>" +
+                "<span class='content' style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.22);color:#ffffff;min-height:44px;padding:12px 16px;border-radius:2px;display:flex;align-items:center;justify-content:center;transition:all .2s ease'>" +
+                  "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase'>SIGN OUT</span></span>" +
+                "</span>" +
+                "<span class='corners'></span>" +
+              "</button>" +
             "</div>" +
 
             // Metric Cards Grid
             "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px;margin-bottom:20px'>" +
-              card("Friends Referred", timesUsed + " <span style='font-size:12px;font-family:sans-serif;color:#a1a1aa'>ORDERS</span>", "Completed orders using your coupon") +
+              card("Friends Referred", timesUsed + " <span style='font-size:11px;font-family:monospace;color:#a1a1aa'>ORDERS</span>", "Completed orders using your coupon") +
               card("Coupon Cash Income", tk(couponIncomePts), "Total earnings from coupon referrals", "#22c55e") +
-              card("Available Balance", avail.toLocaleString() + " <span style='font-size:12px;font-family:sans-serif;color:#a1a1aa'>PTS</span>", "= " + tk(avail) + " BDT CASH", "#22c55e") +
+              card("Available Balance", avail.toLocaleString() + " <span style='font-size:11px;font-family:monospace;color:#a1a1aa'>PTS</span>", "= " + tk(avail) + " BDT CASH", "#22c55e") +
               card("Total Withdrawn", tk(m.withdrawn_points || 0), "Successfully paid to MFS") +
             "</div>" +
 
             // Personal Referral Coupon Card
-            "<div style='background:#18181b;border:1px solid #27272a;padding:18px;border-radius:4px;margin-bottom:20px'>" +
-              "<div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#fa9442;margin-bottom:6px;font-weight:700'>Your Personal VIP Referral Coupon</div>" +
-              "<div style='font-size:11px;color:#d4d4d8;margin-bottom:14px;line-height:1.5'>Share your coupon with friends. When they use your code at checkout, they get <strong>" + esc(disc) + "</strong>. And you earn <strong>" + (Number(s.points_per_referral) || 100) + " points (" + tk(s.points_per_referral || 100) + " cash)</strong> added to your wallet!</div>" +
-              "<div style='display:flex;align-items:center;justify-content:space-between;background:#09090b;padding:12px 14px;border:1px dashed #52525b;border-radius:3px;margin-bottom:10px;gap:10px;flex-wrap:wrap'>" +
-                "<span style='font:18px/1 \"FK Grotesk SemiMono\",monospace;font-weight:700;letter-spacing:2px;word-break:break-all'>" + esc(coupon.code || m.referral_code) + "</span>" +
-                "<button type='button' id='vip-copy-code-btn' style='background:#fff;color:#000;border:none;padding:10px 16px;font:10px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;border-radius:2px;min-height:40px'>Copy Code</button>" +
+            "<div style='background:rgba(18,18,24,0.85);border:1px solid rgba(255,255,255,0.12);border-left:3px solid #fa9442;padding:18px;border-radius:2px;margin-bottom:20px'>" +
+              "<div style='font:11px/1 \"FK Grotesk SemiMono\",monospace;text-transform:uppercase;letter-spacing:1.5px;color:#fa9442;margin-bottom:8px;font-weight:700'>YOUR PERSONAL VIP REFERRAL COUPON</div>" +
+              "<div style='font:12px/1.5 \"NB Architekt Std\",sans-serif;color:#d4d4d8;margin-bottom:14px'>Share your coupon with friends. When they use your code at checkout, they get <strong>" + esc(disc) + "</strong>. And you earn <strong>" + (Number(s.points_per_referral) || 100) + " points (" + tk(s.points_per_referral || 100) + " cash)</strong> added to your wallet!</div>" +
+              "<div style='display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.5);padding:12px 16px;border:1px dashed rgba(250,148,66,0.5);border-radius:2px;margin-bottom:12px;gap:10px;flex-wrap:wrap'>" +
+                "<span style='font:18px/1 \"FK Grotesk SemiMono\",monospace;font-weight:700;letter-spacing:2px;color:#ffffff;word-break:break-all'>" + esc(coupon.code || m.referral_code) + "</span>" +
+                "<button type='button' id='vip-copy-code-btn' style='background:#ffffff;color:#000000;border:none;padding:12px 18px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;border-radius:2px;min-height:44px'>COPY CODE</button>" +
               "</div>" +
-              "<button type='button' id='vip-copy-link-btn' style='background:none;border:1px solid #3f3f46;color:#fff;padding:12px;font:11px/1 \"NB Architekt Std\",sans-serif;letter-spacing:1px;cursor:pointer;border-radius:2px;width:100%;min-height:44px'>🔗 Copy Direct Store Referral Link</button>" +
+              "<button type='button' id='vip-copy-link-btn' class='btn' style='width:100%;min-height:48px;cursor:pointer'>" +
+                "<span class='content' style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.22);color:#ffffff;min-height:48px;padding:14px 18px;border-radius:2px;display:flex;align-items:center;justify-content:center;transition:all .2s ease'>" +
+                  "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase'>🔗 COPY DIRECT STORE REFERRAL LINK</span></span>" +
+                "</span>" +
+                "<span class='corners'></span>" +
+              "</button>" +
             "</div>" +
 
             // Instant Cash Payout Form
-            "<details style='background:#18181b;border:1px solid #27272a;padding:16px;border-radius:4px;margin-bottom:20px'" + (avail >= minPts ? " open" : "") + ">" +
-              "<summary style='cursor:pointer;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:11px;min-height:24px'>💸 Request Instant Cash Payout (bKash / Nagad / Rocket / Bank)</summary>" +
+            "<details style='background:rgba(18,18,24,0.85);border:1px solid rgba(255,255,255,0.12);padding:18px;border-radius:2px;margin-bottom:20px'" + (avail >= minPts ? " open" : "") + ">" +
+              "<summary style='cursor:pointer;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;font:11.5px/1.4 \"FK Grotesk SemiMono\",monospace;color:#ffffff;min-height:24px'>REQUEST INSTANT CASH PAYOUT (BKASH / NAGAD / ROCKET / BANK)</summary>" +
               (avail < minPts
-                ? "<div style='font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.5'>Minimum payout is ৳" + Number(s.min_withdrawal_bdt || 100).toLocaleString() + " (" + minPts + " points). You have " + avail + " points. Share your referral code to reach payout!</div>"
-                : "<form id='vip-payout-form' novalidate style='display:flex;flex-direction:column;gap:12px;margin-top:14px'>" +
+                ? "<div style='font:11.5px/1.5 \"FK Grotesk SemiMono\",monospace;color:#a1a1aa;margin-top:14px'>Minimum payout is ৳" + Number(s.min_withdrawal_bdt || 100).toLocaleString() + " (" + minPts + " points). You have " + avail + " points. Share your referral code to reach payout!</div>"
+                : "<form id='vip-payout-form' novalidate style='display:flex;flex-direction:column;gap:12px;margin-top:16px'>" +
                     "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px'>" +
                       field("Payout Method *", "<select id='vip-pay-method' style='" + IN + "'>" + methods.map(function (k) { return "<option value='" + esc(k) + "'>" + esc(mLabel[k] || k) + "</option>"; }).join("") + "</select>") +
                       field("Account Number *", "<input type='text' id='vip-pay-acc' required maxlength='50' inputmode='numeric' placeholder='017XXXXXXXX' style='" + IN + "'>") +
                       field("Account Holder Name *", "<input type='text' id='vip-pay-name' required maxlength='100' value='" + esc(m.full_name) + "' style='" + IN + "'>") +
                       field("Points to Cash Out (Min " + minPts + ") *", "<input type='number' id='vip-pay-pts' min='" + minPts + "' max='" + avail + "' value='" + avail + "' inputmode='numeric' style='" + IN + "'>") +
                     "</div>" +
-                    "<div id='vip-pay-preview' style='font-size:12px;color:#22c55e;font-weight:700'>You will receive " + tk(avail) + "</div>" +
-                    "<button type='submit' style='" + BTN + ";background:#22c55e;color:#000'>Submit Payout Request →</button>" +
+                    "<div id='vip-pay-preview' style='font:12px/1 \"FK Grotesk SemiMono\",monospace;color:#22c55e;font-weight:700;letter-spacing:1px'>YOU WILL RECEIVE " + tk(avail) + "</div>" +
+                    "<button class='btn btn-vip-orange' type='submit' style='width:100%;min-height:52px;margin-top:10px;cursor:pointer'>" +
+                      "<span class='content' style='min-height:52px;padding:16px 20px;border-radius:2px;display:flex;align-items:center;justify-content:center'>" +
+                        "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase'>SUBMIT PAYOUT REQUEST</span></span>" +
+                      "</span>" +
+                      "<span class='corners'></span>" +
+                    "</button>" +
                   "</form>") +
             "</details>" +
 
             // Payout History
-            (myWithdrawals.length ? "<div style='margin-bottom:20px'><div style='font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a1a1aa;margin-bottom:8px'>Payout History</div>" +
+            (myWithdrawals.length ? "<div style='margin-bottom:20px'><div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;text-transform:uppercase;letter-spacing:1.5px;color:#a0a0b2;margin-bottom:10px'>PAYOUT TRANSACTION LOG</div>" +
               myWithdrawals.map(function (w) {
-                return "<div style='display:flex;justify-content:space-between;align-items:center;gap:10px;background:#111113;border:1px solid #27272a;padding:10px 14px;border-radius:3px;margin-bottom:8px;font-size:11px'>" +
-                  "<div style='min-width:0'><div><strong>৳" + Number(w.money_amount_bdt).toLocaleString() + "</strong> via " + esc(mLabel[w.payout_method] || w.payout_method) + " · #" + esc(w.request_number || w.id) + "</div>" +
-                  "<div style='font-size:10px;color:#71717a;margin-top:2px;word-break:break-all'>" + esc(w.account_number) + " · " + esc(String(w.created_at || "").slice(0, 10)) + "</div></div>" +
+                return "<div style='display:flex;justify-content:space-between;align-items:center;gap:10px;background:rgba(18,18,24,0.85);border:1px solid rgba(255,255,255,0.1);padding:12px 14px;border-radius:2px;margin-bottom:8px;font-size:12px'>" +
+                  "<div style='min-width:0'><div style='font-weight:700'>৳" + Number(w.money_amount_bdt).toLocaleString() + " via " + esc(mLabel[w.payout_method] || w.payout_method) + " · #" + esc(w.request_number || w.id) + "</div>" +
+                  "<div style='font:10px/1.4 \"FK Grotesk SemiMono\",monospace;color:#71717a;margin-top:3px;word-break:break-all'>" + esc(w.account_number) + " · " + esc(String(w.created_at || "").slice(0, 10)) + "</div></div>" +
                   badge(w.status || "pending") + "</div>";
               }).join("") + "</div>" : "") +
 
-            "<a href='/collections/all/index.html' style='display:block;text-align:center;background:#fff;color:#000;text-decoration:none;padding:14px;font:11px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-radius:3px;margin-top:10px'>Continue Shopping →</a>" +
+            "<a href='/collections/all/index.html' class='btn' style='display:block;text-decoration:none;margin-top:16px;width:100%;cursor:pointer'>" +
+              "<span class='content' style='background:#ffffff;border:1px solid #ffffff;color:#000000;min-height:52px;padding:16px 20px;border-radius:2px;display:flex;align-items:center;justify-content:center;transition:all .2s ease'>" +
+                "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase'>CONTINUE SHOPPING</span></span>" +
+              "</span>" +
+              "<span class='corners'></span>" +
+            "</a>" +
           "</div>";
 
         // Wire Sign Out
