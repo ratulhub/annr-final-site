@@ -328,7 +328,7 @@ async function route(request: Request): Promise<Response> {
     if (/^\/account\/login\/index\.html$/i.test(url.pathname)) {
       return new Response(null, {
         status: 302,
-        headers: { location: `/vip?mode=login${url.search ? `&${url.search.slice(1)}` : ""}` },
+        headers: { location: `/vip?mode=signup${url.search ? `&${url.search.slice(1)}` : ""}` },
       });
     }
     if (/^\/account\/register\/index\.html$/i.test(url.pathname)) {

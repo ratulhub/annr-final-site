@@ -42,7 +42,7 @@ const emptySignup: SignupForm = {
 };
 
 function VipPage() {
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [mode, setMode] = useState<AuthMode>("signup");
   const [member, setMember] = useState<VipMember | null>(null);
   const [signup, setSignup] = useState<SignupForm>(emptySignup);
   const [loginEmail, setLoginEmail] = useState("");
@@ -171,9 +171,8 @@ function VipPage() {
         await finishVipProfile(signup.email, signup);
       } else {
         setMessage(
-          "Check your email to confirm your account, then return here to finish VIP setup.",
+          "Check your email to confirm your account, then use the direct returning-member access link below.",
         );
-        setMode("login");
       }
     } catch (reason) {
       sessionStorage.removeItem(PENDING_SIGNUP_KEY);
@@ -187,7 +186,7 @@ function VipPage() {
     if (isSupabaseConfigured()) await supabase.auth.signOut();
     localStorage.removeItem(VIP_SESSION_KEY);
     setMember(null);
-    setMode("login");
+    setMode("signup");
     setMessage("You have been signed out.");
   }
 
@@ -330,26 +329,20 @@ function VipPage() {
             {mode === "login" ? "Sign in to your wallet" : "Join AnnR VIP"}
           </h1>
         </div>
-        <div className="mb-5 flex rounded border p-1">
-          <button
-            className={`flex-1 rounded px-3 py-2 text-sm ${mode === "login" ? "bg-primary text-primary-foreground" : ""}`}
-            onClick={() => setMode("login")}
-          >
-            Login
-          </button>
-          <button
-            className={`flex-1 rounded px-3 py-2 text-sm ${mode === "signup" ? "bg-primary text-primary-foreground" : ""}`}
-            onClick={() => setMode("signup")}
-          >
-            Sign up
-          </button>
-        </div>
         {message && (
           <p
             role="status"
             className="mb-4 rounded border border-green-500/40 bg-green-500/10 p-3 text-sm"
           >
             {message}
+            {message.includes("direct returning-member") && (
+              <>
+                {" "}
+                <a className="underline" href="/vip?mode=login">
+                  Open returning-member access
+                </a>
+              </>
+            )}
           </p>
         )}
         {error && (
