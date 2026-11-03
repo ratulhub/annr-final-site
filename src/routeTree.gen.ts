@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as VipRouteImport } from './routes/vip'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminActivityRouteImport } from './routes/admin.activity'
 import { Route as AdminCollectionsRouteImport } from './routes/admin.collections'
@@ -60,6 +62,16 @@ const AdminRoute = AdminRouteImport.update({
 const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VipRoute = VipRouteImport.update({
+  id: '/vip',
+  path: '/vip',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -208,6 +220,8 @@ export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/admin': typeof AdminRouteWithChildren
   '/checkout': typeof CheckoutRoute
+  '/search': typeof SearchRoute
+  '/vip': typeof VipRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/collections': typeof AdminCollectionsRoute
   '/admin/content': typeof AdminContentRoute
@@ -241,6 +255,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/checkout': typeof CheckoutRoute
+  '/search': typeof SearchRoute
+  '/vip': typeof VipRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/collections': typeof AdminCollectionsRoute
   '/admin/content': typeof AdminContentRoute
@@ -276,6 +292,8 @@ export interface FileRoutesById {
   '/$': typeof SplatRoute
   '/admin': typeof AdminRouteWithChildren
   '/checkout': typeof CheckoutRoute
+  '/search': typeof SearchRoute
+  '/vip': typeof VipRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/collections': typeof AdminCollectionsRoute
   '/admin/content': typeof AdminContentRoute
@@ -312,6 +330,8 @@ export interface FileRouteTypes {
     | '/$'
     | '/admin'
     | '/checkout'
+    | '/search'
+    | '/vip'
     | '/admin/activity'
     | '/admin/collections'
     | '/admin/content'
@@ -345,6 +365,8 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/checkout'
+    | '/search'
+    | '/vip'
     | '/admin/activity'
     | '/admin/collections'
     | '/admin/content'
@@ -379,6 +401,8 @@ export interface FileRouteTypes {
     | '/$'
     | '/admin'
     | '/checkout'
+    | '/search'
+    | '/vip'
     | '/admin/activity'
     | '/admin/collections'
     | '/admin/content'
@@ -414,6 +438,8 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   AdminRoute: typeof AdminRouteWithChildren
   CheckoutRoute: typeof CheckoutRoute
+  SearchRoute: typeof SearchRoute
+  VipRoute: typeof VipRoute
   PSlugRoute: typeof PSlugRoute
 }
 
@@ -445,6 +471,20 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout'
       preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vip': {
+      id: '/vip'
+      path: '/vip'
+      fullPath: '/vip'
+      preLoaderRoute: typeof VipRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -713,6 +753,8 @@ const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   AdminRoute: AdminRouteWithChildren,
   CheckoutRoute: CheckoutRoute,
+  SearchRoute: SearchRoute,
+  VipRoute: VipRoute,
   PSlugRoute: PSlugRoute,
 }
 export const routeTree = rootRouteImport

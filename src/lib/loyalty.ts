@@ -230,10 +230,14 @@ export async function registerVipMember(payload: {
         const member = data.member as VipMember;
         try {
           localStorage.setItem(LOCAL_VIP_KEY, JSON.stringify(member));
+          const members = JSON.parse(localStorage.getItem(LOCAL_MEMBERS_KEY) || "[]");
+          const next = Array.isArray(members) ? members.filter((item: VipMember) => item.email !== member.email) : [];
+          next.push(member);
+          localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(next));
         } catch {}
         return { ok: true, member, coupon: data.coupon };
-      } else if (error) {
-        return { ok: false, error: error.message };
+      } else {
+        return { ok: false, error: error?.message || data?.error || "Failed to register VIP member" };
       }
     } catch (e: any) {
       return { ok: false, error: e?.message || "Failed to register" };
@@ -264,6 +268,10 @@ export async function registerVipMember(payload: {
   };
   try {
     localStorage.setItem(LOCAL_VIP_KEY, JSON.stringify(fallbackMember));
+    const members = JSON.parse(localStorage.getItem(LOCAL_MEMBERS_KEY) || "[]");
+    const next = Array.isArray(members) ? members.filter((item: VipMember) => item.email !== fallbackMember.email) : [];
+    next.push(fallbackMember);
+    localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(next));
   } catch {}
   return { ok: true, member: fallbackMember, coupon: { code: refCode, discount_value: 10, discount_type: "percent" } };
 }

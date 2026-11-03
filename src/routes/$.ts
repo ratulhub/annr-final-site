@@ -324,11 +324,24 @@ async function route(request: Request): Promise<Response> {
       }
     }
 
+    // Keep the existing storefront links working while using the synchronized VIP account.
+    if (/^\/account\/login\/index\.html$/i.test(url.pathname)) {
+      return new Response(null, {
+        status: 302,
+        headers: { location: `/vip?mode=login${url.search ? `&${url.search.slice(1)}` : ""}` },
+      });
+    }
+    if (/^\/account\/register\/index\.html$/i.test(url.pathname)) {
+      return new Response(null, {
+        status: 302,
+        headers: { location: `/vip?mode=signup${url.search ? `&${url.search.slice(1)}` : ""}` },
+      });
+    }
     // Clean VIP & Account route redirects
     if (/^\/(account|vip)\/?$/i.test(url.pathname)) {
       return new Response(null, {
         status: 302,
-        headers: { location: `/account/login/index.html${url.search}` },
+        headers: { location: `/vip${url.search}` },
       });
     }
 
