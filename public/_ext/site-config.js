@@ -1459,6 +1459,11 @@
 
         var sessionData = getSessionMember();
         if (sessionData && sessionData.member) {
+          // Hide top redundant tab bar when logged in
+          try {
+            document.querySelectorAll(".vip-tab").forEach(function(el) { el.style.display = "none"; });
+          } catch(e) {}
+
           // Render dashboard immediately with cached session
           renderDashboard(c, sessionData);
 
@@ -1489,15 +1494,23 @@
           return;
         }
 
+        // Clean up static top tabs if present
+        try {
+          document.querySelectorAll(".vip-tab").forEach(function(el) { el.style.display = ""; });
+          document.querySelectorAll(".vip-tab-item[href*='login'], .vip-tab-dec").forEach(function(el) { el.style.display = "none"; });
+          document.querySelectorAll(".vip-tab-item[href*='register']").forEach(function(el) {
+            el.classList.add("active");
+            el.style.cssText = "width:auto;text-align:center;margin:0 auto;display:inline-block;";
+          });
+          document.querySelectorAll(".vip-tab-list").forEach(function(el) {
+            el.style.cssText = "justify-content:center;padding-left:0;width:100%;margin:0 auto;";
+          });
+        } catch(e) {}
+
         renderAuthForms(c);
       }
 
       function renderAuthForms(c) {
-        var isSignup = /register/.test(location.pathname) || /tab=signup/.test(location.search) || !!new URLSearchParams(location.search).get("ref");
-        var tab = function (id, label, on) {
-          return "<button type='button' id='" + id + "' style='flex:1;background:none;border:none;border-bottom:2px solid " + (on ? "#fa9442" : "transparent") + ";color:" + (on ? "#fff" : "#71717a") + ";font:12px/1.4 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.5px;padding:12px 8px;cursor:pointer;text-transform:uppercase;min-height:44px'>" + label + "</button>";
-        };
-
         c.innerHTML =
           "<div id='vip-inpage-hub' style='color:#fff;font-family:\"NB Architekt Std\",sans-serif;width:100%;max-width:540px;margin:0 auto;padding:10px 0;box-sizing:border-box'>" +
             noticeHtml() +
@@ -1505,24 +1518,9 @@
               "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#fa9442;text-transform:uppercase;margin-bottom:6px'>ANNR VIP LOYALTY PROGRAM</div>" +
               "<div style='font:22px/1.1 \"Druk Wide\",sans-serif;font-weight:900;text-transform:uppercase;letter-spacing:1px'>MEMBER VAULT</div>" +
             "</div>" +
-            "<div style='display:flex;gap:4px;border-bottom:1px solid #27272a;margin-bottom:20px'>" +
-              tab("vip-tab-signin", "Sign In", !isSignup) +
-              tab("vip-tab-create", "Create VIP Account (+৳100)", isSignup) +
-            "</div>" +
 
-            // Sign In Form
-            "<form id='vip-login-form' novalidate style='display:" + (isSignup ? "none" : "flex") + ";flex-direction:column;gap:14px'>" +
-              "<div style='font-size:11px;color:#a1a1aa;line-height:1.5'>Sign in to your VIP account to check referral count, view coupon earnings in ৳, and request instant cash payouts.</div>" +
-              field("Email or Bangladesh Mobile Number *", "<input type='text' id='vip-login-id' required autocomplete='username' autocapitalize='off' placeholder='you@gmail.com or 017XXXXXXXX' style='" + IN + "'>") +
-              field("Password *", "<input type='password' id='vip-login-pass' required autocomplete='current-password' placeholder='••••••••' style='" + IN + "'>") +
-              "<button type='submit' style='" + BTN + "'>Sign in to vault →</button>" +
-              "<div style='display:flex;justify-content:space-between;gap:10px;font-size:11px;flex-wrap:wrap;margin-top:4px'>" +
-                "<a href='#' id='vip-go-signup' style='color:#fa9442;font-weight:700'>New to VIP? Create account (+৳100) →</a>" +
-              "</div>" +
-            "</form>" +
-
-            // Create VIP Account Form
-            "<form id='vip-signup-form' novalidate style='display:" + (isSignup ? "flex" : "none") + ";flex-direction:column;gap:12px'>" +
+            // Create VIP Account Form (Default view)
+            "<form id='vip-signup-form' novalidate style='display:flex;flex-direction:column;gap:12px'>" +
               "<div style='background:#18181b;padding:12px 14px;border:1px solid #27272a;border-radius:4px;font-size:11px;color:#d4d4d8;line-height:1.5'>" +
                 "✨ Join VIP today: Get <strong style='color:#22c55e'>100 Welcome Points (৳100)</strong> + your own referral coupon to earn cash points whenever friends shop!" +
               "</div>" +
@@ -1531,26 +1529,30 @@
               profileFieldsHtml() +
               "<button type='submit' style='" + BTN + ";background:#22c55e;color:#000'>Create VIP account (+৳100) →</button>" +
               "<div style='font-size:11px;color:#71717a;line-height:1.5;text-align:center'>Your personal VIP referral coupon is created instantly upon registration.</div>" +
-              "<a href='#' id='vip-go-signin' style='color:#71717a;font-size:11px;text-align:center;margin-top:2px'>Already a VIP member? <span style='color:#fa9442;font-weight:700'>Sign in →</span></a>" +
+              "<a href='#' id='vip-go-signin' style='color:#71717a;font-size:11px;text-align:center;margin-top:4px'>Already a VIP member? <span style='color:#fa9442;font-weight:700'>Sign in →</span></a>" +
+            "</form>" +
+
+            // Sign In Form (Hidden by default, available if already a member)
+            "<form id='vip-login-form' novalidate style='display:none;flex-direction:column;gap:14px'>" +
+              "<div style='font-size:11px;color:#a1a1aa;line-height:1.5'>Sign in to your VIP account to check referral count, view coupon earnings in ৳, and request instant cash payouts.</div>" +
+              field("Email or Bangladesh Mobile Number *", "<input type='text' id='vip-login-id' required autocomplete='username' autocapitalize='off' placeholder='you@gmail.com or 017XXXXXXXX' style='" + IN + "'>") +
+              field("Password *", "<input type='password' id='vip-login-pass' required autocomplete='current-password' placeholder='••••••••' style='" + IN + "'>") +
+              "<button type='submit' style='" + BTN + "'>Sign in to vault →</button>" +
+              "<div style='display:flex;justify-content:center;gap:10px;font-size:11px;margin-top:4px'>" +
+                "<a href='#' id='vip-go-signup' style='color:#fa9442;font-weight:700'>← New to VIP? Create account (+৳100)</a>" +
+              "</div>" +
             "</form>" +
           "</div>";
 
         var fl = c.querySelector("#vip-login-form"), fs = c.querySelector("#vip-signup-form");
-        var tIn = c.querySelector("#vip-tab-signin"), tUp = c.querySelector("#vip-tab-create");
 
-        function showTab(signup) {
-          fl.style.display = signup ? "none" : "flex";
-          fs.style.display = signup ? "flex" : "none";
-          tIn.style.color = signup ? "#71717a" : "#fff";
-          tIn.style.borderBottomColor = signup ? "transparent" : "#fa9442";
-          tUp.style.color = signup ? "#fff" : "#71717a";
-          tUp.style.borderBottomColor = signup ? "#fa9442" : "transparent";
+        function showSignin(openSignin) {
+          fl.style.display = openSignin ? "flex" : "none";
+          fs.style.display = openSignin ? "none" : "flex";
         }
 
-        tIn.onclick = function () { showTab(false); };
-        tUp.onclick = function () { showTab(true); };
-        c.querySelector("#vip-go-signup").onclick = function (e) { e.preventDefault(); showTab(true); };
-        c.querySelector("#vip-go-signin").onclick = function (e) { e.preventDefault(); showTab(false); };
+        c.querySelector("#vip-go-signup").onclick = function (e) { e.preventDefault(); showSignin(false); };
+        c.querySelector("#vip-go-signin").onclick = function (e) { e.preventDefault(); showSignin(true); };
         wireGeo(fs);
 
         // Sign In Form Handler
