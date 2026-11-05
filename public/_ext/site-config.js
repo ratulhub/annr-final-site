@@ -1864,6 +1864,10 @@
         var st = document.createElement("style");
         st.id = "vip-inpage-styles";
         st.textContent = "" +
+          ".header-search-new { position: fixed !important; top: 12px !important; right: 12px !important; bottom: 12px !important; left: 12px !important; z-index: 1300 !important; display: block !important; height: auto !important; max-height: none !important; padding: 0 !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; overflow: hidden !important; }\n" +
+          ".header-search-new.open { opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; }\n" +
+          ".header-search-overflow { display: none !important; }\n" +
+          ".header-search-overflow.open { display: block !important; position: fixed !important; inset: 0 !important; background: rgba(0,0,0,0.6) !important; z-index: 1290 !important; }\n" +
           "body.vip-page, .vip-page .wrapper, .vip-page .wrapper-vip, .vip-page .vip, .vip-page .vip-wrapper, .vip-page .main { background: #f7f4ef !important; color: #111111 !important; min-height: 100vh !important; margin: 0 !important; padding: 0 !important; }\n" +
           ".vip-page .vip-bg, .vip-page .vip-dec, .vip-page .vip-top, .vip-page .vip-tab, .vip-page .vip-admin-link, .vip-page .vip-reset-password, .vip-page .vip-preloader { display: none !important; }\n" +
           ".vip-page .vip-form { padding: 0 !important; margin: 0 !important; background: transparent !important; width: 100% !important; max-width: 100% !important; }\n" +
