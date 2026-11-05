@@ -3690,6 +3690,17 @@
   var q = new URLSearchParams(location.search), pv = { referrer: document.referrer ? new URL(document.referrer).hostname : "Direct" };
   ["utm_source", "utm_medium", "utm_campaign"].forEach(function (k) { if (q.get(k)) pv[k] = q.get(k).slice(0, 60); });
   trackEvent("page_view", pv);
+
+  // AnnR logo navigation handler
+  document.addEventListener("click", function (e) {
+    var logo = e.target && e.target.closest && e.target.closest(".header-logo, .header-new__logo, .icon-logo");
+    if (logo) {
+      if (logo.tagName === "A" && logo.getAttribute("href")) return;
+      e.preventDefault();
+      window.location.href = "/home.html";
+    }
+  });
+
   document.addEventListener("click", function (e) {
     var a = e.target.closest && e.target.closest("a,button"); if (!a) return;
     var href = a.getAttribute("href") || "", label = (a.textContent || a.getAttribute("aria-label") || "").trim().slice(0, 40);
