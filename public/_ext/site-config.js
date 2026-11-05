@@ -2011,7 +2011,7 @@
         var box = form.querySelector(".vip-err");
         if (!box) {
           box = document.createElement("div"); box.className = "vip-err"; box.setAttribute("role", "alert");
-          box.style.cssText = "color:#fca5a5;background:rgba(239,68,68,0.12);border:1px solid #ef4444;border-left:3px solid #ef4444;padding:11px 14px;font-family:'FK Grotesk SemiMono',monospace;font-size:11px;line-height:1.5;margin-bottom:14px";
+          box.style.cssText = "color:#b91c1c;background:#fef2f2;border:1px solid #f87171;border-left:3px solid #dc2626;padding:12px 14px;font-family:'FK Grotesk SemiMono',monospace;font-size:11.5px;line-height:1.5;margin-bottom:16px;border-radius:2px";
           form.insertBefore(box, form.firstChild);
         }
         box.textContent = text; box.style.display = text ? "" : "none";
@@ -2112,10 +2112,11 @@
           return;
         }
 
-        // Restore and wire the authentic top .vip-tab ("LOGIN // SIGNUP") header
+        // Ensure legacy cyberpunk elements are removed from DOM
         try {
-          document.querySelectorAll(".vip-tab").forEach(function(el) { el.style.display = ""; });
-          document.querySelectorAll(".vip-tab-item, .vip-tab-dec").forEach(function(el) { el.style.display = ""; });
+          document.querySelectorAll(".vip-tab, .vip-bg, .vip-dec, .vip-top, .vip-admin-link, .vip-reset-password, .vip-preloader").forEach(function(el) {
+            el.remove();
+          });
         } catch(e) {}
 
         renderAuthForms(c);
@@ -2126,7 +2127,11 @@
         var discLabel = st.friend_discount_type === "fixed" ? ("৳" + Number(st.friend_discount_value || 100) + " OFF") : (Number(st.friend_discount_value || 10) + "% OFF");
         var refPts = Number(st.points_per_referral || 100);
         var welcomePts = Number(st.welcome_bonus_points != null ? st.welcome_bonus_points : 100);
-        var openLoginInitially = (/\/account\/login/.test(location.pathname) && location.hash === "#login") || location.search.indexOf("mode=login") !== -1;
+        var isLoginPage = /\/account\/login/i.test(location.pathname);
+        var isRegisterPage = /\/account\/register/i.test(location.pathname);
+        var openLoginInitially = (isLoginPage && location.hash !== "#register" && location.search.indexOf("mode=register") === -1) ||
+                                 location.hash === "#login" ||
+                                 location.search.indexOf("mode=login") !== -1;
 
         var eyeOpenSvg = "<svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg>";
         var eyeClosedSvg = "<svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24'/><line x1='1' y1='1' x2='23' y2='23'/></svg>";
@@ -2308,7 +2313,7 @@
         var formTitle = c.querySelector("#vip-form-title"), formSub = c.querySelector("#vip-form-sub");
         var switchToLogin = c.querySelector("#vip-switch-to-login"), switchToSignup = c.querySelector("#vip-switch-to-signup");
 
-        function showSignin(openSignin) {
+        function showSignin(openSignin, updateHash) {
           fl.style.display = openSignin ? "block" : "none";
           fs.style.display = openSignin ? "none" : "block";
           if (tabSignup) tabSignup.classList.toggle("active", !openSignin);
@@ -2317,12 +2322,16 @@
           if (formSub) formSub.textContent = openSignin ? "Welcome back to the Vault. Track your rewards and referrals." : "Join the Vault. Earn rewards. Share the experience.";
           showErr(fl, "");
           showErr(fs, "");
+          if (updateHash && window.history && window.history.replaceState) {
+            var newHash = openSignin ? "#login" : "#register";
+            window.history.replaceState(null, "", location.pathname + location.search + newHash);
+          }
         }
 
-        if (tabSignup) tabSignup.onclick = function(e) { e.preventDefault(); showSignin(false); };
-        if (tabSignin) tabSignin.onclick = function(e) { e.preventDefault(); showSignin(true); };
-        if (switchToLogin) switchToLogin.onclick = function(e) { e.preventDefault(); showSignin(true); };
-        if (switchToSignup) switchToSignup.onclick = function(e) { e.preventDefault(); showSignin(false); };
+        if (tabSignup) tabSignup.onclick = function(e) { e.preventDefault(); showSignin(false, true); };
+        if (tabSignin) tabSignin.onclick = function(e) { e.preventDefault(); showSignin(true, true); };
+        if (switchToLogin) switchToLogin.onclick = function(e) { e.preventDefault(); showSignin(true, true); };
+        if (switchToSignup) switchToSignup.onclick = function(e) { e.preventDefault(); showSignin(false, true); };
 
         function wireEye(btn, inp) {
           if (!btn || !inp) return;
@@ -2347,7 +2356,7 @@
           var pw = String(c.querySelector("#vip-login-pass").value || "").trim();
 
           if (!idInput || !pw) {
-            showErr(fl, "Please enter your email/mobile and password.");
+            showErr(fl, "Please enter your email or mobile number and password.");
             return;
           }
 
@@ -2359,83 +2368,126 @@
           var accounts = getVipAccounts();
 
           if (idInput.indexOf("@") !== -1) {
-            email = idInput.toLowerCase();
+            email = idInput.toLowerCase().trim();
           } else {
-            phone = idInput.replace(/[^0-9]/g, "").replace(/^880/, "0");
-            var matched = accounts[phone];
-            if (matched && matched.email) {
-              email = matched.email;
-            } else {
-              try {
-                var rawMembers = localStorage.getItem("annr-vip-members");
-                if (rawMembers) {
-                  var mList = JSON.parse(rawMembers);
-                  var found = mList.find(function(m) { return m.phone && m.phone.replace(/[^0-9]/g, "") === phone; });
-                  if (found) email = found.email;
-                }
-              } catch(err) {}
-            }
+            phone = idInput.replace(/[^0-9]/g, "");
+            if (phone.startsWith("880")) phone = phone.slice(3);
+            if (phone.length === 10 && /^1[3-9]/.test(phone)) phone = "0" + phone;
           }
 
-          if (!email) {
-            setBusy(fl, false);
-            showErr(fl, "No account found for mobile number " + idInput + ". Please sign in with your registered email address or create a VIP account.");
-            return;
+          var acc = (email ? accounts[email] : null) || (phone ? accounts[phone] : null);
+
+          // If not directly in accounts, search annr-vip-members list
+          if (!acc) {
+            try {
+              var rawMembers = localStorage.getItem("annr-vip-members");
+              if (rawMembers) {
+                var mList = JSON.parse(rawMembers);
+                if (Array.isArray(mList)) {
+                  var found = mList.find(function(m) {
+                    if (!m) return false;
+                    if (email && m.email && m.email.toLowerCase().trim() === email) return true;
+                    if (phone && m.phone) {
+                      var normP = m.phone.replace(/[^0-9]/g, "");
+                      if (normP.startsWith("880")) normP = normP.slice(3);
+                      if (normP.length === 10 && /^1[3-9]/.test(normP)) normP = "0" + normP;
+                      if (normP === phone) return true;
+                    }
+                    return false;
+                  });
+                  if (found) {
+                    email = (found.email || email).toLowerCase().trim();
+                    phone = found.phone || phone;
+                    acc = {
+                      email: email,
+                      phone: phone,
+                      name: found.full_name || "VIP Member",
+                      available_points: found.available_points != null ? found.available_points : 100,
+                      member: found,
+                      coupon: { code: found.referral_code || "VIP-ANNR10" }
+                    };
+                  }
+                }
+              }
+            } catch(e) {}
           }
 
           hashPassword(pw).then(function(inputHash) {
-            var acc = accounts[email] || accounts[phone];
-            if (acc && acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw) {
+            if (acc) {
+              if (acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw) {
+                setBusy(fl, false);
+                showErr(fl, "Incorrect password. Please verify your password and try again.");
+                return;
+              }
+
+              // Password verified or newly set
+              if (!acc.passHash) acc.passHash = inputHash;
+
+              var member = acc.member || {
+                full_name: acc.name || "VIP Member",
+                email: acc.email || email,
+                phone: acc.phone || phone,
+                tier: "Silver",
+                available_points: acc.available_points != null ? acc.available_points : 100,
+                total_earned_points: acc.available_points != null ? acc.available_points : 100,
+                referral_code: (acc.coupon && acc.coupon.code) || "VIP-ANNR" + Math.floor(100 + Math.random() * 899),
+                status: "active"
+              };
+
+              var coupon = acc.coupon || {
+                code: member.referral_code || "VIP-ANNR10",
+                discount_value: 10,
+                discount_type: "percent",
+                times_used: 0,
+                total_points_generated: 0
+              };
+
+              saveSessionMember({
+                member: member,
+                coupon: coupon,
+                settings: getVipSettings()
+              });
+              saveVipAccount(acc);
               setBusy(fl, false);
-              showErr(fl, "Incorrect password. Please verify your password and try again.");
+              renderInPageVipHub();
               return;
             }
 
-            callRegisterRpc({
-              p_full_name: (acc && acc.name) || "VIP Member",
-              p_email: email,
-              p_phone: phone || (acc && acc.phone) || "01700000000",
-              p_division: (acc && acc.member && acc.member.division) || "Dhaka",
-              p_district: (acc && acc.member && acc.member.district) || "Dhaka"
-            }).then(function(res) {
-              setBusy(fl, false);
-              if (res.ok && res.data && res.data.member) {
-                var member = res.data.member;
-                var localM = (acc && acc.member) || {};
-                member.available_points = Math.max(Number(localM.available_points || (acc && acc.available_points) || 100), Number(member.available_points || 0));
-                member.total_earned_points = Math.max(Number(localM.total_earned_points || 100), Number(member.total_earned_points || 0));
-                member.withdrawn_points = Math.max(Number(localM.withdrawn_points || 0), Number(member.withdrawn_points || 0));
-                member.friends_referred = Math.max(Number(localM.friends_referred || 0), Number(member.friends_referred || 0));
-
-                var coupon = res.data.coupon || (acc && acc.coupon) || { code: member.referral_code, discount_value: 10, discount_type: "percent" };
-                if (acc && acc.coupon) {
-                  coupon.times_used = Math.max(Number(acc.coupon.times_used || 0), Number(coupon.times_used || 0));
-                  coupon.total_points_generated = Math.max(Number(acc.coupon.total_points_generated || 0), Number(coupon.total_points_generated || 0));
+            // Fallback: Check if Supabase has this user without registering them
+            if (email) {
+              callRegisterRpc({
+                p_full_name: "VIP Member",
+                p_email: email,
+                p_phone: phone || "01700000000",
+                p_division: "Dhaka",
+                p_district: "Dhaka"
+              }).then(function(res) {
+                setBusy(fl, false);
+                if (res.ok && res.data && res.data.member && res.data.existing) {
+                  var m = res.data.member;
+                  var cpn = res.data.coupon || { code: m.referral_code };
+                  saveSessionMember({ member: m, coupon: cpn, settings: res.data.settings || getVipSettings() });
+                  saveVipAccount({
+                    email: email,
+                    phone: m.phone || phone,
+                    name: m.full_name,
+                    passHash: inputHash,
+                    available_points: m.available_points,
+                    member: m,
+                    coupon: cpn
+                  });
+                  renderInPageVipHub();
+                } else {
+                  showErr(fl, "No VIP account found with this email. Please check your credentials or click 'Create Account' to join.");
                 }
-
-                var sess = {
-                  member: member,
-                  coupon: coupon,
-                  settings: res.data.settings || getVipSettings()
-                };
-                saveSessionMember(sess);
-                saveVipAccount({
-                  email: email,
-                  phone: member.phone || phone,
-                  name: member.full_name,
-                  passHash: inputHash,
-                  available_points: member.available_points,
-                  member: member,
-                  coupon: coupon
-                });
-                renderInPageVipHub();
-              } else if (acc && acc.member) {
-                saveSessionMember({ member: acc.member, coupon: acc.coupon || { code: acc.member.referral_code }, settings: getVipSettings() });
-                renderInPageVipHub();
-              } else {
-                showErr(fl, "No VIP account found with this email. Please switch to Create VIP Account.");
-              }
-            });
+              }).catch(function() {
+                setBusy(fl, false);
+                showErr(fl, "No VIP account found with this email. Please check your credentials or click 'Create Account' to join.");
+              });
+            } else {
+              setBusy(fl, false);
+              showErr(fl, "No VIP account found for mobile number " + idInput + ". Please sign in with your registered email or create an account.");
+            }
           });
         };
 
