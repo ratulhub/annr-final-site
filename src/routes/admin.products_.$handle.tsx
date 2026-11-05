@@ -1,11 +1,132 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { setState, useAdmin, type Product, type Variant } from "../admin/store";
+import { setState, publish, useAdmin, type Product, type Variant } from "../admin/store";
 import { Area, BackBtn, Card, RowList, Select, Text, Toggle } from "../admin/ui";
 import { storeFile } from "../admin/services/media";
 import { safeImageUrl } from "../admin/security/sanitize";
 
 export const Route = createFileRoute("/admin/products_/$handle")({ component: Edit });
+
+interface SizeGuideRow {
+  size: string;
+  col1: string;
+  col2: string;
+  col3: string;
+}
+
+interface StructuredSizeGuide {
+  fitType: string;
+  headers: [string, string, string, string];
+  rows: SizeGuideRow[];
+  notes: string;
+}
+
+const SIZE_GUIDE_PRESETS: Record<string, StructuredSizeGuide> = {
+  tee: {
+    fitType: "oversized fit",
+    headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
+    rows: [
+      { size: "S", col1: "57", col2: "70", col3: "21" },
+      { size: "M", col1: "60", col2: "72", col3: "22" },
+      { size: "L", col1: "63", col2: "75", col3: "23" },
+      { size: "XL", col1: "66", col2: "77", col3: "24" },
+      { size: "XXL", col1: "69", col2: "79", col3: "25" },
+    ],
+    notes: "Heavyweight 280 GSM combed cotton. Drop-shoulder oversized streetwear silhouette.",
+  },
+  hoodie: {
+    fitType: "oversized fit",
+    headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
+    rows: [
+      { size: "S", col1: "62", col2: "68", col3: "59" },
+      { size: "M", col1: "65", col2: "71", col3: "61" },
+      { size: "L", col1: "68", col2: "74", col3: "62" },
+      { size: "XL", col1: "71", col2: "76", col3: "63" },
+      { size: "XXL", col1: "74", col2: "79", col3: "64" },
+    ],
+    notes: "480 GSM heavyweight French terry fleece. Boxy drop-shoulder fit.",
+  },
+  longsleeve: {
+    fitType: "relaxed fit",
+    headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
+    rows: [
+      { size: "S", col1: "58", col2: "69", col3: "60" },
+      { size: "M", col1: "61", col2: "72", col3: "62" },
+      { size: "L", col1: "64", col2: "74", col3: "63" },
+      { size: "XL", col1: "67", col2: "77", col3: "65" },
+      { size: "XXL", col1: "70", col2: "79", col3: "66" },
+    ],
+    notes: "Relaxed silhouette with ribbed cuffs.",
+  },
+  jacket: {
+    fitType: "boxy fit",
+    headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
+    rows: [
+      { size: "S", col1: "63", col2: "66", col3: "61" },
+      { size: "M", col1: "66", col2: "68", col3: "62" },
+      { size: "L", col1: "69", col2: "71", col3: "64" },
+      { size: "XL", col1: "72", col2: "73", col3: "65" },
+      { size: "XXL", col1: "75", col2: "75", col3: "67" },
+    ],
+    notes: "Cropped boxy outerwear cut. Size up for extra layering room.",
+  },
+  pants: {
+    fitType: "relaxed fit",
+    headers: ["SIZE", "WAIST", "LENGTH", "INSEAM"],
+    rows: [
+      { size: "S (30)", col1: "76", col2: "104", col3: "74" },
+      { size: "M (32)", col1: "81", col2: "106", col3: "75" },
+      { size: "L (34)", col1: "86", col2: "108", col3: "77" },
+      { size: "XL (36)", col1: "91", col2: "110", col3: "78" },
+      { size: "XXL (38)", col1: "96", col2: "112", col3: "79" },
+    ],
+    notes: "Wide-leg architectural cut. Waist measured flat × 2.",
+  },
+  shorts: {
+    fitType: "relaxed fit",
+    headers: ["SIZE", "WAIST", "LENGTH", "OPENING"],
+    rows: [
+      { size: "S", col1: "74", col2: "48", col3: "31" },
+      { size: "M", col1: "79", col2: "50", col3: "32" },
+      { size: "L", col1: "84", col2: "52", col3: "34" },
+      { size: "XL", col1: "89", col2: "54", col3: "35" },
+      { size: "XXL", col1: "94", col2: "56", col3: "36" },
+    ],
+    notes: "Elasticated drawstring waist with relaxed knee-length cut.",
+  },
+};
+
+function detectDefaultPreset(handle: string, title: string): StructuredSizeGuide {
+  const s = `${handle} ${title}`.toLowerCase();
+  if (/jean|pant|trouser|cargo|jogger|sweatpant/.test(s)) return SIZE_GUIDE_PRESETS.pants!;
+  if (/short/.test(s)) return SIZE_GUIDE_PRESETS.shorts!;
+  if (/jacket|coat|bomber|vest|workwear|windbreaker/.test(s)) return SIZE_GUIDE_PRESETS.jacket!;
+  if (/hoodie|zip|sweatshirt|fleece/.test(s)) return SIZE_GUIDE_PRESETS.hoodie!;
+  if (/longsleeve|long-sleeve|knit|sweater|crewneck|thermal/.test(s)) return SIZE_GUIDE_PRESETS.longsleeve!;
+  return SIZE_GUIDE_PRESETS.tee!;
+}
+
+function parseSizeChart(raw: string | undefined, handle: string, title: string): StructuredSizeGuide {
+  if (raw && raw.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.rows)) {
+        return {
+          fitType: parsed.fitType || "oversized fit",
+          headers: parsed.headers || ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
+          rows: parsed.rows,
+          notes: parsed.notes || "",
+        };
+      }
+    } catch {}
+  }
+  const base = detectDefaultPreset(handle, title);
+  return {
+    ...base,
+    rows: base.rows.map((r) => ({ ...r })),
+    notes: raw && !raw.trim().startsWith("{") ? raw : base.notes,
+  };
+}
 
 function Edit() {
   const { handle } = Route.useParams();
@@ -14,9 +135,31 @@ function Edit() {
   const p = s.products.find((x) => x.handle === handle);
   const [img, setImg] = useState("");
   const [imgErr, setImgErr] = useState("");
+  const [publishedToast, setPublishedToast] = useState(false);
+
   if (!p) return <p>Product not found. <Link className="link" to="/admin/products">Back</Link></p>;
-  const up = (patch: Partial<Product>) => setState((x) => ({ ...x, products: x.products.map((y) => (y.handle === handle ? { ...y, ...patch } : y)) }));
-  const toggleCol = (h: string) => up({ collections: p.collections.includes(h) ? p.collections.filter((c) => c !== h) : [...p.collections, h] });
+
+  const up = (patch: Partial<Product>) => {
+    setState((x) => ({
+      ...x,
+      products: x.products.map((y) => (y.handle === handle ? { ...y, ...patch } : y)),
+    }));
+    // Auto-publish product changes so storefront reflects updates immediately
+    setTimeout(() => {
+      try {
+        publish();
+      } catch {}
+    }, 30);
+  };
+
+  const toggleCol = (h: string) =>
+    up({ collections: p.collections.includes(h) ? p.collections.filter((c) => c !== h) : [...p.collections, h] });
+
+  const sg = parseSizeChart(p.sizeChart, p.handle, p.title);
+  const saveSg = (next: StructuredSizeGuide) => {
+    up({ sizeChart: JSON.stringify(next) });
+  };
+
   return (
     <>
       <div className="adm-top">
@@ -25,7 +168,18 @@ function Edit() {
           <h1>{p.title}</h1>
         </div>
         <div className="adm-row">
-          <span className="adm-saved">Auto-saved</span>
+          <span className="adm-saved">{publishedToast ? "✓ Published Live" : "Auto-saved & Synced"}</span>
+          <button
+            type="button"
+            className="adm-btn primary"
+            onClick={() => {
+              publish();
+              setPublishedToast(true);
+              setTimeout(() => setPublishedToast(false), 2500);
+            }}
+          >
+            Publish to Storefront
+          </button>
           <a className="adm-btn ghost" href={`/products/${p.handle}/index.html`} target="_blank" rel="noreferrer">View</a>
           <button className="adm-btn ghost" onClick={() => { const h = p.handle + "-copy"; setState((x) => ({ ...x, products: [{ ...p, handle: h, title: p.title + " (copy)", status: "draft" }, ...x.products] })); nav({ to: "/admin/products/$handle", params: { handle: h } }); }}>Duplicate</button>
           <button className="adm-btn danger" onClick={() => { if (confirm("Delete this product?")) { setState((x) => ({ ...x, products: x.products.filter((y) => y.handle !== handle) })); nav({ to: "/admin/products" }); } }}>Delete</button>
@@ -39,8 +193,189 @@ function Edit() {
         <Text label="Tags (comma separated)" value={p.tags} onChange={(v) => up({ tags: v })} />
         <Text label="Badge (e.g. NEW, SOLD OUT)" value={p.badge} onChange={(v) => up({ badge: v })} />
         <Area label="Description" value={p.description} onChange={(v) => up({ description: v })} />
-        <Area label="Size chart / extra info" value={p.sizeChart} onChange={(v) => up({ sizeChart: v })} />
       </div></Card>
+
+      <Card
+        title="Size Guide & Fit Table (Interactive Storefront Popup)"
+        subtitle="Customize the Size Guide modal (#sizes-popup) for this product. Enter measurements in CM — INCHES are calculated automatically on the storefront."
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* 1-Click Presets */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--p-text-subdued)" }}>Load Garment Preset:</span>
+            {[
+              { key: "tee", label: "T-Shirt / Tee" },
+              { key: "hoodie", label: "Hoodie / Zip" },
+              { key: "longsleeve", label: "Longsleeve / Knit" },
+              { key: "jacket", label: "Jacket / Outerwear" },
+              { key: "pants", label: "Jeans / Pants" },
+              { key: "shorts", label: "Shorts" },
+            ].map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className="adm-btn ghost sm"
+                onClick={() => {
+                  const preset = SIZE_GUIDE_PRESETS[item.key];
+                  if (preset) saveSg({ ...preset, rows: preset.rows.map((r) => ({ ...r })) });
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Fit Type & Column Headers */}
+          <div className="adm-grid">
+            <label className="adm-field">
+              <span>Garment Fit Type Badge</span>
+              <input
+                type="text"
+                value={sg.fitType}
+                placeholder="e.g. oversized fit, boxy fit, relaxed fit"
+                onChange={(e) => saveSg({ ...sg, fitType: e.target.value })}
+              />
+            </label>
+            <label className="adm-field">
+              <span>Column 2 Header (e.g. CHEST or WAIST)</span>
+              <input
+                type="text"
+                value={sg.headers[1]}
+                onChange={(e) =>
+                  saveSg({ ...sg, headers: [sg.headers[0], e.target.value.toUpperCase(), sg.headers[2], sg.headers[3]] })
+                }
+              />
+            </label>
+            <label className="adm-field">
+              <span>Column 3 Header (e.g. LENGTH)</span>
+              <input
+                type="text"
+                value={sg.headers[2]}
+                onChange={(e) =>
+                  saveSg({ ...sg, headers: [sg.headers[0], sg.headers[1], e.target.value.toUpperCase(), sg.headers[3]] })
+                }
+              />
+            </label>
+            <label className="adm-field">
+              <span>Column 4 Header (e.g. SLEEVE or INSEAM)</span>
+              <input
+                type="text"
+                value={sg.headers[3]}
+                onChange={(e) =>
+                  saveSg({ ...sg, headers: [sg.headers[0], sg.headers[1], sg.headers[2], e.target.value.toUpperCase()] })
+                }
+              />
+            </label>
+          </div>
+
+          {/* Measurement Table Editor (CM + Live IN preview) */}
+          <div style={{ overflowX: "auto", border: "1px solid var(--p-border-subdued)", borderRadius: 6 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#f9fafb", borderBottom: "1px solid var(--p-border-subdued)", textAlign: "left" }}>
+                  <th style={{ padding: "8px 10px" }}>{sg.headers[0]}</th>
+                  <th style={{ padding: "8px 10px" }}>{sg.headers[1]} (CM)</th>
+                  <th style={{ padding: "8px 10px" }}>{sg.headers[2]} (CM)</th>
+                  <th style={{ padding: "8px 10px" }}>{sg.headers[3]} (CM)</th>
+                  <th style={{ padding: "8px 10px", color: "var(--p-text-subdued)", fontSize: 11 }}>Auto Inches Preview</th>
+                  <th style={{ padding: "8px 10px", width: 50 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {sg.rows.map((row, idx) => {
+                  const toIn = (v: string) => {
+                    const n = parseFloat(v);
+                    return Number.isFinite(n) ? (n / 2.54).toFixed(1) + '"' : "-";
+                  };
+                  return (
+                    <tr key={idx} style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
+                      <td style={{ padding: "6px 8px" }}>
+                        <input
+                          type="text"
+                          value={row.size}
+                          style={{ width: 80, fontWeight: 700 }}
+                          onChange={(e) => {
+                            const nextRows = sg.rows.map((r, i) => (i === idx ? { ...r, size: e.target.value } : r));
+                            saveSg({ ...sg, rows: nextRows });
+                          }}
+                        />
+                      </td>
+                      <td style={{ padding: "6px 8px" }}>
+                        <input
+                          type="text"
+                          value={row.col1}
+                          style={{ width: 90 }}
+                          onChange={(e) => {
+                            const nextRows = sg.rows.map((r, i) => (i === idx ? { ...r, col1: e.target.value } : r));
+                            saveSg({ ...sg, rows: nextRows });
+                          }}
+                        />
+                      </td>
+                      <td style={{ padding: "6px 8px" }}>
+                        <input
+                          type="text"
+                          value={row.col2}
+                          style={{ width: 90 }}
+                          onChange={(e) => {
+                            const nextRows = sg.rows.map((r, i) => (i === idx ? { ...r, col2: e.target.value } : r));
+                            saveSg({ ...sg, rows: nextRows });
+                          }}
+                        />
+                      </td>
+                      <td style={{ padding: "6px 8px" }}>
+                        <input
+                          type="text"
+                          value={row.col3}
+                          style={{ width: 90 }}
+                          onChange={(e) => {
+                            const nextRows = sg.rows.map((r, i) => (i === idx ? { ...r, col3: e.target.value } : r));
+                            saveSg({ ...sg, rows: nextRows });
+                          }}
+                        />
+                      </td>
+                      <td style={{ padding: "6px 10px", fontFamily: "monospace", fontSize: 11, color: "var(--p-text-subdued)" }}>
+                        {toIn(row.col1)} / {toIn(row.col2)} / {toIn(row.col3)}
+                      </td>
+                      <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                        {sg.rows.length > 1 && (
+                          <button
+                            type="button"
+                            className="adm-btn danger plain sm"
+                            onClick={() => saveSg({ ...sg, rows: sg.rows.filter((_, i) => i !== idx) })}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button
+              type="button"
+              className="adm-btn ghost sm"
+              onClick={() =>
+                saveSg({
+                  ...sg,
+                  rows: [...sg.rows, { size: "3XL", col1: "72", col2: "81", col3: "26" }],
+                })
+              }
+            >
+              + Add Size Row
+            </button>
+          </div>
+
+          <Area
+            label="Fit Notes / Model Sizing Info (displayed in Size Guide popup & product details)"
+            value={sg.notes}
+            onChange={(v) => saveSg({ ...sg, notes: v })}
+          />
+        </div>
+      </Card>
       <Card title="Pricing"><div className="adm-grid">
         <Text label="Price" value={p.price} onChange={(v) => up({ price: v })} />
         <Text label="Compare-at price" value={p.compareAt} onChange={(v) => up({ compareAt: v })} />

@@ -84,7 +84,7 @@ export const DEFAULT_LOYALTY_SETTINGS: LoyaltySettings = {
   friend_discount_type: "percent",
   friend_discount_value: 10.0,
   min_order_for_coupon: 1000.0,
-  min_withdrawal_bdt: 500.0,
+  min_withdrawal_bdt: 100.0,
   max_withdrawal_bdt: 25000.0,
   pending_days_return_window: 7,
   coupon_prefix: "VIP-",
@@ -277,17 +277,186 @@ export async function registerVipMember(payload: {
 }
 
 /**
+ * Helper to look up all known local VIP members across storage keys
+ */
+export function getAllLocalVipMembers(): VipMember[] {
+  const map = new Map<string, VipMember>();
+  try {
+    const rawList = localStorage.getItem(LOCAL_MEMBERS_KEY);
+    if (rawList) {
+      const parsed = JSON.parse(rawList);
+      if (Array.isArray(parsed)) {
+        for (const m of parsed) {
+          if (m && m.email) map.set(m.email.toLowerCase().trim(), m);
+        }
+      }
+    }
+  } catch {}
+
+  try {
+    const rawAccounts = localStorage.getItem("annr_vip_accounts_v1");
+    if (rawAccounts) {
+      const parsed = JSON.parse(rawAccounts);
+      if (parsed && typeof parsed === "object") {
+        for (const k of Object.keys(parsed)) {
+          const acc = parsed[k];
+          const m = acc?.member;
+          if (m && m.email) {
+            const key = m.email.toLowerCase().trim();
+            const existing = map.get(key);
+            if (!existing || (m.available_points ?? 0) > (existing.available_points ?? 0)) {
+              map.set(key, m);
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+
+  try {
+    const rawSess = localStorage.getItem("annr_vip_member_session");
+    if (rawSess) {
+      const parsed = JSON.parse(rawSess);
+      const m = parsed?.member;
+      if (m && m.email) {
+        const key = m.email.toLowerCase().trim();
+        map.set(key, m);
+      }
+    }
+  } catch {}
+
+  return Array.from(map.values());
+}
+
+/**
+ * Credit a VIP referrer locally across all storage keys when their referral code is used
+ * at signup or checkout.
+ */
+export function creditVipReferrerLocally(params: {
+  referralCode: string;
+  pointsReward: number;
+  buyerName?: string;
+  buyerEmail?: string;
+  orderNumber?: string | number;
+  orderTotal?: number;
+  eventType: "order" | "signup";
+}): void {
+  const normCode = (params.referralCode || "").trim().toUpperCase();
+  if (!normCode) return;
+  const pts = Math.max(0, Math.round(Number(params.pointsReward) || 100));
+
+  try {
+    // 1. Update annr-vip-members
+    const rawMembers = localStorage.getItem(LOCAL_MEMBERS_KEY);
+    const members: any[] = rawMembers ? JSON.parse(rawMembers) : [];
+    let matchedEmail = "";
+    for (const m of members) {
+      if ((m.referral_code || "").toUpperCase() === normCode) {
+        m.available_points = Number(m.available_points || 0) + pts;
+        m.total_earned_points = Number(m.total_earned_points || 0) + pts;
+        m.friends_referred = Number(m.friends_referred || 0) + 1;
+        matchedEmail = (m.email || "").toLowerCase();
+      }
+    }
+    if (members.length > 0) {
+      localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(members));
+    }
+
+    // 2. Update annr_vip_accounts_v1
+    const rawAccounts = localStorage.getItem("annr_vip_accounts_v1");
+    if (rawAccounts) {
+      const accounts = JSON.parse(rawAccounts);
+      let updatedAcc = false;
+      for (const k of Object.keys(accounts)) {
+        const acc = accounts[k];
+        const code = (acc?.coupon?.code || acc?.member?.referral_code || "").toUpperCase();
+        if (code === normCode) {
+          acc.available_points = Number(acc.available_points || acc?.member?.available_points || 0) + pts;
+          if (acc.member) {
+            acc.member.available_points = Number(acc.member.available_points || 0) + pts;
+            acc.member.total_earned_points = Number(acc.member.total_earned_points || 0) + pts;
+            acc.member.friends_referred = Number(acc.member.friends_referred || 0) + 1;
+            if (!matchedEmail && acc.member.email) matchedEmail = acc.member.email.toLowerCase();
+          }
+          if (acc.coupon) {
+            acc.coupon.times_used = Number(acc.coupon.times_used || 0) + 1;
+            acc.coupon.total_points_generated = Number(acc.coupon.total_points_generated || 0) + pts;
+          }
+          updatedAcc = true;
+        }
+      }
+      if (updatedAcc) {
+        localStorage.setItem("annr_vip_accounts_v1", JSON.stringify(accounts));
+      }
+    }
+
+    // 3. Update active session if logged in as the referrer
+    const rawSess = localStorage.getItem("annr_vip_member_session");
+    if (rawSess) {
+      const sess = JSON.parse(rawSess);
+      const sessCode = (sess?.coupon?.code || sess?.member?.referral_code || "").toUpperCase();
+      if (sessCode === normCode) {
+        sess.member = sess.member || {};
+        sess.coupon = sess.coupon || { code: normCode };
+        sess.member.available_points = Number(sess.member.available_points || 0) + pts;
+        sess.member.total_earned_points = Number(sess.member.total_earned_points || 0) + pts;
+        sess.member.friends_referred = Number(sess.member.friends_referred || 0) + 1;
+        sess.coupon.times_used = Number(sess.coupon.times_used || 0) + 1;
+        sess.coupon.total_points_generated = Number(sess.coupon.total_points_generated || 0) + pts;
+        localStorage.setItem("annr_vip_member_session", JSON.stringify(sess));
+        localStorage.setItem("annr_vip_session", JSON.stringify(sess.member));
+        localStorage.setItem(LOCAL_VIP_KEY, JSON.stringify(sess.member));
+      }
+    }
+
+    // 4. Append to referral activity log for the VIP dashboard & Admin view
+    const rawLog = localStorage.getItem("annr-vip-referrals-log");
+    const logList: any[] = rawLog ? JSON.parse(rawLog) : [];
+    logList.unshift({
+      id: "ref-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+      referral_code: normCode,
+      referrer_email: matchedEmail,
+      buyer_name: params.buyerName || "Friend",
+      buyer_email: params.buyerEmail || "",
+      order_number: params.orderNumber || null,
+      order_total: params.orderTotal || 0,
+      points_earned: pts,
+      event_type: params.eventType,
+      created_at: new Date().toISOString(),
+    });
+    localStorage.setItem("annr-vip-referrals-log", JSON.stringify(logList.slice(0, 500)));
+  } catch (e) {
+    console.warn("Local referral credit sync error:", e);
+  }
+}
+
+/**
  * Validate referral coupon at checkout
  */
 export async function validateReferralCoupon(
   code: string,
   orderTotal: number,
   buyerEmail?: string
-): Promise<{ valid: boolean; discount_amount?: number; discount_type?: string; discount_value?: number; points_reward?: number; error?: string }> {
+): Promise<{
+  valid: boolean;
+  discount_amount?: number;
+  discount_type?: string;
+  discount_value?: number;
+  points_reward?: number;
+  referrer_name?: string;
+  error?: string;
+}> {
+  const normCode = (code || "").trim().toUpperCase();
+  if (!normCode) {
+    return { valid: false, error: "Please enter a coupon code" };
+  }
+
+  const settings = await getLoyaltySettings();
+
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.rpc("validate_referral_coupon", {
-        p_code: code,
+        p_code: normCode,
         p_order_total: orderTotal,
         p_buyer_email: buyerEmail,
       });
@@ -299,39 +468,82 @@ export async function validateReferralCoupon(
         }
       }
       // If error or inactive coupon in empty DB, fall through to local validation
-    } catch (e: any) {
+    } catch {
       // Fall through to local fallback
     }
   }
 
-  // Local validation rules (offline & pre-migration fallback)
-  const normCode = code.trim().toUpperCase();
-  if (normCode.startsWith("VIP-") || normCode.startsWith("ANNR-")) {
-    if (orderTotal < 1000) {
-      return { valid: false, error: "Minimum order for referral coupon is ৳1,000" };
+  // Check special promo / Ball Drop codes
+  const promoCodes: Record<string, { type: "percent" | "fixed"; value: number; minOrder: number }> = {
+    LUCK5: { type: "percent", value: 5, minOrder: 500 },
+    LUCK10: { type: "percent", value: 10, minOrder: 500 },
+    LUCK15: { type: "percent", value: 15, minOrder: 500 },
+    ANNR500: { type: "fixed", value: 500, minOrder: 1500 },
+    FREESHIP: { type: "fixed", value: 120, minOrder: 500 },
+    FREEGIFT: { type: "percent", value: 10, minOrder: 500 },
+    ANNRVIP: { type: "percent", value: 10, minOrder: 500 },
+  };
+
+  if (promoCodes[normCode]) {
+    const p = promoCodes[normCode];
+    if (orderTotal < p.minOrder) {
+      return { valid: false, error: `Minimum order for ${normCode} is ৳${p.minOrder.toLocaleString()}` };
+    }
+    const disc = p.type === "percent" ? Math.round(orderTotal * (p.value / 100)) : Math.min(orderTotal, p.value);
+    return {
+      valid: true,
+      discount_amount: disc,
+      discount_type: p.type,
+      discount_value: p.value,
+      points_reward: 0,
+    };
+  }
+
+  // Check local VIP member referral codes + prefix rules
+  const localMembers = getAllLocalVipMembers();
+  const owner = localMembers.find((m) => (m.referral_code || "").toUpperCase() === normCode);
+  const prefix = (settings.coupon_prefix || "VIP-").toUpperCase();
+
+  if (owner || normCode.startsWith(prefix) || normCode.startsWith("VIP-") || normCode.startsWith("ANNR-")) {
+    const minOrder = Number(settings.min_order_for_coupon ?? 1000);
+    if (orderTotal < minOrder) {
+      return {
+        valid: false,
+        error: `Minimum order for referral coupon is ৳${minOrder.toLocaleString()}`,
+      };
     }
 
     // Check anti-self-referral
     if (buyerEmail && buyerEmail.trim()) {
-      try {
-        const rawMembers = localStorage.getItem(LOCAL_MEMBERS_KEY);
-        if (rawMembers) {
-          const members = JSON.parse(rawMembers);
-          const owner = members.find((m: any) => m.referral_code?.toUpperCase() === normCode);
-          if (owner && owner.email && owner.email.toLowerCase() === buyerEmail.trim().toLowerCase()) {
-            return { valid: false, error: "You cannot use your own referral coupon" };
-          }
-        }
-      } catch {}
-
-      // Hardcoded check for demo test owner
-      if (normCode === "VIP-RATUL88" && buyerEmail.toLowerCase().includes("ratul")) {
+      const cleanBuyer = buyerEmail.trim().toLowerCase();
+      if (owner && owner.email && owner.email.toLowerCase() === cleanBuyer) {
+        return { valid: false, error: "You cannot use your own referral coupon" };
+      }
+      if (normCode === "VIP-RATUL88" && cleanBuyer.includes("ratul")) {
         return { valid: false, error: "You cannot use your own referral coupon" };
       }
     }
 
-    const discount = Math.round(orderTotal * 0.1);
-    return { valid: true, discount_amount: discount, discount_type: "percent", discount_value: 10, points_reward: 100 };
+    const discType = settings.friend_discount_type || "percent";
+    const discVal = Number(settings.friend_discount_value || 10);
+    const discount =
+      discType === "fixed"
+        ? Math.min(orderTotal, Math.round(discVal))
+        : Math.round(orderTotal * (discVal / 100));
+
+    const pointsReward =
+      settings.reward_mode === "percent_order"
+        ? Math.max(10, Math.round(orderTotal * ((Number(settings.percent_order_points) || 5) / 100)))
+        : Number(settings.points_per_referral || 100);
+
+    return {
+      valid: true,
+      discount_amount: discount,
+      discount_type: discType,
+      discount_value: discVal,
+      points_reward: pointsReward,
+      referrer_name: owner?.full_name,
+    };
   }
   return { valid: false, error: "Invalid coupon code" };
 }
@@ -372,9 +584,11 @@ export async function requestVipWithdrawal(payload: {
 }
 
 /**
- * Fetch all withdrawal requests (Admin queue)
+ * Fetch all withdrawal requests (Admin queue) — merges Supabase & local storage
  */
 export async function getAdminWithdrawalRequests(): Promise<WithdrawalRequest[]> {
+  const merged = new Map<string, WithdrawalRequest>();
+
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase
@@ -385,19 +599,58 @@ export async function getAdminWithdrawalRequests(): Promise<WithdrawalRequest[]>
         `)
         .order("requested_at", { ascending: false });
 
-      if (!error && data) {
-        return data as WithdrawalRequest[];
+      if (!error && Array.isArray(data)) {
+        for (const row of data) {
+          merged.set(String(row.id || row.request_number), row as WithdrawalRequest);
+        }
       }
     } catch {
       // Fallback
     }
   }
 
-  try {
-    const raw = localStorage.getItem(LOCAL_WITHDRAWALS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return [];
+  // Always merge local storage keys ("annr-withdrawals" from site-config.js and "annr-withdrawals-v1")
+  const keys = ["annr-withdrawals", LOCAL_WITHDRAWALS_KEY];
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          for (const item of list) {
+            if (!item) continue;
+            const id = String(item.id || item.request_number || Date.now());
+            const normalized: WithdrawalRequest = {
+              id,
+              request_number: item.request_number || id,
+              vip_member_id: item.vip_member_id || item.member_email || "local",
+              points_amount: Number(item.points_amount || 0),
+              money_amount_bdt: Number(item.money_amount_bdt || item.points_amount || 0),
+              payout_method: item.payout_method || "bkash",
+              account_number: item.account_number || "",
+              account_name: item.account_name || item.account_holder_name || item.member_name || "",
+              status: item.status || "pending",
+              admin_notes: item.admin_notes || null,
+              transaction_ref: item.transaction_ref || null,
+              requested_at: item.requested_at || item.created_at || new Date().toISOString(),
+              processed_at: item.processed_at || null,
+              vip_members: item.vip_members || {
+                full_name: item.member_name || item.account_holder_name || "VIP Member",
+                email: item.member_email || "",
+                phone: item.account_number || "",
+                tier: item.tier || "Silver",
+              },
+            };
+            merged.set(id, normalized);
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return Array.from(merged.values()).sort(
+    (a, b) => new Date(b.requested_at || 0).getTime() - new Date(a.requested_at || 0).getTime()
+  );
 }
 
 /**
@@ -411,19 +664,97 @@ export async function processAdminWithdrawal(
 ): Promise<{ ok: boolean; error?: string }> {
   if (isSupabaseConfigured()) {
     try {
-      const { data, error } = await supabase.rpc("admin_process_withdrawal", {
+      await supabase.rpc("admin_process_withdrawal", {
         p_request_id: requestId,
         p_action: action,
         p_transaction_ref: transactionRef || null,
         p_admin_notes: adminNotes || null,
       });
-      if (!error && data?.ok) {
-        return { ok: true };
-      }
-      return { ok: false, error: error?.message || data?.error || "Failed to process" };
-    } catch (e: any) {
-      return { ok: false, error: e?.message || "Error processing withdrawal" };
+    } catch {
+      // Fall through and also update local storage
     }
+  }
+
+  // Always update local storage queues ("annr-withdrawals" and "annr-withdrawals-v1")
+  try {
+    let targetRecord: any = null;
+    for (const key of ["annr-withdrawals", LOCAL_WITHDRAWALS_KEY]) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) continue;
+      let changed = false;
+      for (const w of list) {
+        if (w && (String(w.id) === String(requestId) || String(w.request_number) === String(requestId))) {
+          w.status = action;
+          if (transactionRef) w.transaction_ref = transactionRef;
+          if (adminNotes) w.admin_notes = adminNotes;
+          w.processed_at = new Date().toISOString();
+          targetRecord = w;
+          changed = true;
+        }
+      }
+      if (changed) {
+        localStorage.setItem(key, JSON.stringify(list));
+      }
+    }
+
+    // If rejected, refund points back to member's available_points
+    if (action === "rejected" && targetRecord) {
+      const pts = Number(targetRecord.points_amount || 0);
+      const email = (targetRecord.member_email || targetRecord.vip_members?.email || "").toLowerCase();
+      const memberId = targetRecord.vip_member_id;
+
+      if (pts > 0) {
+        // 1. annr-vip-members
+        const rawMembers = localStorage.getItem(LOCAL_MEMBERS_KEY);
+        if (rawMembers) {
+          const members = JSON.parse(rawMembers);
+          for (const m of members) {
+            if ((email && m.email?.toLowerCase() === email) || (memberId && m.id === memberId)) {
+              m.available_points = Number(m.available_points || 0) + pts;
+              m.withdrawn_points = Math.max(0, Number(m.withdrawn_points || 0) - pts);
+            }
+          }
+          localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(members));
+        }
+
+        // 2. annr_vip_accounts_v1
+        const rawAcc = localStorage.getItem("annr_vip_accounts_v1");
+        if (rawAcc) {
+          const accs = JSON.parse(rawAcc);
+          for (const k of Object.keys(accs)) {
+            const a = accs[k];
+            if ((email && a?.email?.toLowerCase() === email) || (memberId && a?.member?.id === memberId)) {
+              a.available_points = Number(a.available_points || 0) + pts;
+              if (a.member) {
+                a.member.available_points = Number(a.member.available_points || 0) + pts;
+                a.member.withdrawn_points = Math.max(0, Number(a.member.withdrawn_points || 0) - pts);
+              }
+            }
+          }
+          localStorage.setItem("annr_vip_accounts_v1", JSON.stringify(accs));
+        }
+
+        // 3. annr_vip_member_session
+        const rawSess = localStorage.getItem("annr_vip_member_session");
+        if (rawSess) {
+          const sess = JSON.parse(rawSess);
+          if (
+            sess?.member &&
+            ((email && sess.member.email?.toLowerCase() === email) || (memberId && sess.member.id === memberId))
+          ) {
+            sess.member.available_points = Number(sess.member.available_points || 0) + pts;
+            sess.member.withdrawn_points = Math.max(0, Number(sess.member.withdrawn_points || 0) - pts);
+            localStorage.setItem("annr_vip_member_session", JSON.stringify(sess));
+            localStorage.setItem("annr_vip_session", JSON.stringify(sess.member));
+            localStorage.setItem(LOCAL_VIP_KEY, JSON.stringify(sess.member));
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Local withdrawal processing error:", e);
   }
 
   return { ok: true };

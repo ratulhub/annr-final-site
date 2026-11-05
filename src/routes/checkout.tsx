@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { BD_DIVISIONS, BD_DISTRICTS_BY_DIVISION, calculateShippingFee, isValidBdPhone } from "../lib/bangladesh-geo";
-import { validateReferralCoupon } from "../lib/loyalty";
+import { validateReferralCoupon, creditVipReferrerLocally } from "../lib/loyalty";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/checkout")({ component: CheckoutPage });
@@ -32,6 +32,7 @@ function CheckoutPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
     discountAmount: number;
+    pointsReward?: number;
     referrerName?: string;
   } | null>(null);
   const [couponError, setCouponError] = useState("");
@@ -40,29 +41,57 @@ function CheckoutPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
+    let loadedItems: CartItem[] = [];
     // Read cart items from localStorage or fallback
     try {
       const raw = localStorage.getItem("annr-cart") || localStorage.getItem("shihiko-cart");
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setItems(parsed);
-          return;
+          loadedItems = parsed;
         }
       }
     } catch {}
 
-    // Default sample item if empty so the checkout page is interactive
-    setItems([
-      {
-        id: "prod-1",
-        title: "AnnR Divine Sanctum Heavyweight Hoodie",
-        price: 4800,
-        quantity: 1,
-        size: "L",
-        image: "/cdn/shop/files/clocked-out-hoodie-black-1.jpg",
-      },
-    ]);
+    if (loadedItems.length === 0) {
+      // Default sample item if empty so the checkout page is interactive
+      loadedItems = [
+        {
+          id: "prod-1",
+          title: "AnnR Divine Sanctum Heavyweight Hoodie",
+          price: 4800,
+          quantity: 1,
+          size: "L",
+          image: "/cdn/shop/files/clocked-out-hoodie-black-1.jpg",
+        },
+      ];
+    }
+    setItems(loadedItems);
+
+    // Pre-fill or auto-apply coupon from URL ?ref= or cart/saved referral code
+    try {
+      const qsRef = new URLSearchParams(window.location.search).get("ref") || new URLSearchParams(window.location.search).get("coupon");
+      const savedCoupon =
+        qsRef ||
+        localStorage.getItem("annr_cart_coupon") ||
+        localStorage.getItem("annr_active_ref_code") ||
+        "";
+      if (savedCoupon && savedCoupon.trim()) {
+        const cleanCode = savedCoupon.trim().toUpperCase();
+        setCouponCode(cleanCode);
+        const initialSubtotal = loadedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        validateReferralCoupon(cleanCode, initialSubtotal).then((res) => {
+          if (res.valid) {
+            setAppliedCoupon({
+              code: cleanCode,
+              discountAmount: res.discount_amount || Math.round(initialSubtotal * 0.1),
+              pointsReward: res.points_reward ?? 100,
+              referrerName: res.referrer_name,
+            });
+          }
+        });
+      }
+    } catch {}
   }, []);
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -88,11 +117,16 @@ function CheckoutPage() {
     try {
       const res = await validateReferralCoupon(couponCode, subtotal, email);
       if (res.valid) {
+        const cleanCode = couponCode.toUpperCase().trim();
         setAppliedCoupon({
-          code: couponCode.toUpperCase().trim(),
+          code: cleanCode,
           discountAmount: res.discount_amount || Math.round(subtotal * 0.1),
-          referrerName: (res as any).referrer_name,
+          pointsReward: res.points_reward ?? 100,
+          referrerName: res.referrer_name,
         });
+        try {
+          localStorage.setItem("annr_cart_coupon", cleanCode);
+        } catch {}
         setCouponError("");
       } else {
         setCouponError(res.error || "Invalid coupon code");
@@ -127,41 +161,52 @@ function CheckoutPage() {
       return;
     }
 
+    // Re-verify anti-self-referral before submitting order
+    if (appliedCoupon?.code) {
+      const checkSelf = await validateReferralCoupon(appliedCoupon.code, subtotal, email);
+      if (!checkSelf.valid) {
+        setFormError(checkSelf.error || "Coupon validation failed");
+        return;
+      }
+    }
+
     setOrderSubmitting(true);
     try {
-      if (isSupabaseConfigured()) {
-        const { data, error } = await supabase.rpc("place_store_order", {
-          p_customer_name: customerName.trim(),
-          p_email: email.trim(),
-          p_phone: phone.trim(),
-          p_division: division,
-          p_district: district,
-          p_full_address: (upazila ? `${upazila}, ` : "") + fullAddress.trim(),
-          p_items: items,
-          p_payment_method: paymentMethod,
-          p_trx_id: trxId.trim() || null,
-          p_coupon_code: appliedCoupon ? appliedCoupon.code : null,
-          p_customer_notes: customerNotes.trim() || null,
-        });
+      let remoteOrderResult: any = null;
 
-        if (!error && data?.ok) {
-          setOrderSuccess(data);
-          try {
-            localStorage.removeItem("annr-cart");
-            localStorage.removeItem("shihiko-cart");
-          } catch {}
-          return;
-        } else if (error) {
-          setFormError(error.message);
-          return;
+      if (isSupabaseConfigured()) {
+        try {
+          const { data, error } = await supabase.rpc("place_store_order", {
+            p_customer_name: customerName.trim(),
+            p_email: email.trim(),
+            p_phone: phone.trim(),
+            p_division: division,
+            p_district: district,
+            p_full_address: (upazila ? `${upazila}, ` : "") + fullAddress.trim(),
+            p_items: items,
+            p_payment_method: paymentMethod,
+            p_trx_id: trxId.trim() || null,
+            p_coupon_code: appliedCoupon ? appliedCoupon.code : null,
+            p_customer_notes: customerNotes.trim() || null,
+          });
+
+          if (!error && data?.ok) {
+            remoteOrderResult = data;
+          } else if (error && error.message && error.message.includes("own referral coupon")) {
+            setFormError(error.message);
+            return;
+          }
+        } catch {
+          // Fall through to local order & referral sync
         }
       }
 
-      // Save order to local orders queue for admin synchronization
-      const mockOrderNum = Math.floor(10000 + Math.random() * 89999);
+      // Always save order to local orders queue & credit referrer so Admin Panel and VIP Dashboard stay 100% synced
+      const orderNum = remoteOrderResult?.order_number || Math.floor(10000 + Math.random() * 89999);
+      const ptsReward = appliedCoupon?.pointsReward ?? 100;
       const orderRecord = {
-        id: `#${mockOrderNum}`,
-        order_number: mockOrderNum,
+        id: `#${orderNum}`,
+        order_number: orderNum,
         customer_name: customerName.trim(),
         email: email.trim(),
         phone: phone.trim(),
@@ -176,7 +221,7 @@ function CheckoutPage() {
         payment_method: paymentMethod,
         trx_id: trxId.trim() || undefined,
         coupon_code: appliedCoupon?.code,
-        referral_points: 100,
+        referral_points: ptsReward,
         status: "Unfulfilled",
         payment: paymentMethod === "cod" ? "Pending (COD)" : "Paid",
         created_at: new Date().toISOString(),
@@ -188,53 +233,34 @@ function CheckoutPage() {
         orders.unshift(orderRecord);
         localStorage.setItem("annr-orders", JSON.stringify(orders.slice(0, 500)));
 
-        // If referral coupon was used, credit pending points to the member
-        if (appliedCoupon?.code) {
-          const rawMembers = localStorage.getItem("annr-vip-members");
-          if (rawMembers) {
-            try {
-              const members = JSON.parse(rawMembers);
-              const owner = members.find((m: any) => m.referral_code?.toUpperCase() === appliedCoupon.code.toUpperCase());
-              if (owner) {
-                owner.pending_points = (owner.pending_points || 0) + 100;
-                owner.total_earned_points = (owner.total_earned_points || 0) + 100;
-                localStorage.setItem("annr-vip-members", JSON.stringify(members));
-              }
-            } catch {}
-          }
-
-          // Also update active VIP member session if matching
-          const rawSess = localStorage.getItem("annr_vip_member_session");
-          if (rawSess) {
-            try {
-              const sess = JSON.parse(rawSess);
-              const matchCode = (sess.coupon?.code || sess.member?.referral_code || "").toUpperCase();
-              if (matchCode === appliedCoupon.code.toUpperCase()) {
-                sess.member = sess.member || {};
-                sess.coupon = sess.coupon || {};
-                sess.member.pending_points = (sess.member.pending_points || 0) + 100;
-                sess.member.total_earned_points = (sess.member.total_earned_points || 0) + 100;
-                sess.coupon.times_used = (sess.coupon.times_used || 0) + 1;
-                sess.coupon.total_points_generated = (sess.coupon.total_points_generated || 0) + 100;
-                localStorage.setItem("annr_vip_member_session", JSON.stringify(sess));
-              }
-            } catch {}
-          }
+        // Credit referral points, coupon usage count, and referral log to the coupon owner
+        if (appliedCoupon?.code && ptsReward > 0) {
+          creditVipReferrerLocally({
+            referralCode: appliedCoupon.code,
+            pointsReward: ptsReward,
+            buyerName: customerName.trim(),
+            buyerEmail: email.trim(),
+            orderNumber: orderNum,
+            orderTotal: total,
+            eventType: "order",
+          });
         }
-      } catch {}
 
-      setOrderSuccess({
-        ok: true,
-        order_number: mockOrderNum,
-        subtotal,
-        shipping: shippingFee,
-        discount: discountAmount,
-        total,
-      });
-
-      try {
         localStorage.removeItem("annr-cart");
+        localStorage.removeItem("shihiko-cart");
+        localStorage.removeItem("annr_cart_coupon");
       } catch {}
+
+      setOrderSuccess(
+        remoteOrderResult || {
+          ok: true,
+          order_number: orderNum,
+          subtotal,
+          shipping: shippingFee,
+          discount: discountAmount,
+          total,
+        }
+      );
     } catch (err: any) {
       setFormError(err?.message || "Order submission failed");
     } finally {

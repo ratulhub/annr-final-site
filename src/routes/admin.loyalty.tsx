@@ -7,6 +7,7 @@ import {
   saveLoyaltySettings,
   getAdminWithdrawalRequests,
   processAdminWithdrawal,
+  getAllLocalVipMembers,
   type LoyaltySettings,
   type WithdrawalRequest,
   type VipMember,
@@ -17,6 +18,49 @@ import { BD_DIVISIONS } from "../lib/bangladesh-geo";
 
 export const Route = createFileRoute("/admin/loyalty")({ component: LoyaltyAdmin });
 
+const DEFAULT_DEMO_MEMBERS: VipMember[] = [
+  {
+    id: "m-1",
+    email: "ratul@example.com",
+    full_name: "Ratul Ahmed",
+    phone: "+8801712345678",
+    is_whatsapp: true,
+    division: "Dhaka",
+    district: "Dhaka",
+    upazila: "Dhanmondi",
+    full_address: "House 12, Road 5, Dhanmondi",
+    tier: "Gold",
+    tier_multiplier: 1.25,
+    available_points: 450,
+    pending_points: 100,
+    withdrawn_points: 200,
+    total_earned_points: 750,
+    referral_code: "VIP-RATUL88",
+    status: "active",
+    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+  },
+  {
+    id: "m-2",
+    email: "tanvir@example.com",
+    full_name: "Tanvir Hossain",
+    phone: "+8801898765432",
+    is_whatsapp: true,
+    division: "Chattogram",
+    district: "Chattogram",
+    upazila: "Agrabad",
+    full_address: "CDA Ave, Agrabad",
+    tier: "Silver",
+    tier_multiplier: 1.0,
+    available_points: 200,
+    pending_points: 50,
+    withdrawn_points: 0,
+    total_earned_points: 250,
+    referral_code: "VIP-TANVIR12",
+    status: "active",
+    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+  },
+];
+
 function LoyaltyAdmin() {
   const [activeTab, setActiveTab] = useState<"settings" | "withdrawals" | "members" | "balldrop">("settings");
   const [settings, setSettings] = useState<LoyaltySettings>(DEFAULT_LOYALTY_SETTINGS);
@@ -25,6 +69,7 @@ function LoyaltyAdmin() {
   const [loading, setLoading] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<WithdrawalRequest | null>(null);
+  const [editingMember, setEditingMember] = useState<VipMember | null>(null);
   const [trxId, setTrxId] = useState("");
   const [adminNote, setAdminNote] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -44,62 +89,94 @@ function LoyaltyAdmin() {
       const w = await getAdminWithdrawalRequests();
       setWithdrawals(w);
 
-      if (isSupabaseConfigured()) {
-        const { data: mData } = await supabase
-          .from("vip_members")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (mData) {
-          setMembers(mData as VipMember[]);
-        }
-      } else {
-        // Local demo VIP members
-        setMembers([
-          {
-            id: "m-1",
-            email: "ratul@example.com",
-            full_name: "Ratul Ahmed",
-            phone: "+8801712345678",
-            is_whatsapp: true,
-            division: "Dhaka",
-            district: "Dhaka",
-            upazila: "Dhanmondi",
-            full_address: "House 12, Road 5, Dhanmondi",
-            tier: "Gold",
-            tier_multiplier: 1.25,
-            available_points: 450,
-            pending_points: 100,
-            withdrawn_points: 200,
-            total_earned_points: 750,
-            referral_code: "VIP-RATUL88",
-            status: "active",
-            created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
-          },
-          {
-            id: "m-2",
-            email: "tanvir@example.com",
-            full_name: "Tanvir Hossain",
-            phone: "+8801898765432",
-            is_whatsapp: true,
-            division: "Chattogram",
-            district: "Chattogram",
-            upazila: "Agrabad",
-            full_address: "CDA Ave, Agrabad",
-            tier: "Silver",
-            tier_multiplier: 1.0,
-            available_points: 200,
-            pending_points: 50,
-            withdrawn_points: 0,
-            total_earned_points: 250,
-            referral_code: "VIP-TANVIR12",
-            status: "active",
-            created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-          },
-        ]);
+      const memberMap = new Map<string, VipMember>();
+      for (const dm of DEFAULT_DEMO_MEMBERS) {
+        memberMap.set(dm.email.toLowerCase(), dm);
       }
+
+      if (isSupabaseConfigured()) {
+        try {
+          const { data: mData } = await supabase
+            .from("vip_members")
+            .select("*")
+            .order("created_at", { ascending: false });
+          if (Array.isArray(mData)) {
+            for (const m of mData) {
+              if (m && m.email) {
+                memberMap.set(m.email.toLowerCase().trim(), m as VipMember);
+              }
+            }
+          }
+        } catch {}
+      }
+
+      // Always merge local VIP members so newly registered members appear immediately
+      const localList = getAllLocalVipMembers();
+      for (const lm of localList) {
+        if (lm && lm.email) {
+          const key = lm.email.toLowerCase().trim();
+          const prev = memberMap.get(key);
+          if (!prev || (lm.available_points ?? 0) >= (prev.available_points ?? 0)) {
+            memberMap.set(key, {
+              ...prev,
+              ...lm,
+              tier: lm.tier || prev?.tier || "Silver",
+              tier_multiplier: lm.tier_multiplier || prev?.tier_multiplier || 1.0,
+              pending_points: lm.pending_points ?? prev?.pending_points ?? 0,
+              withdrawn_points: lm.withdrawn_points ?? prev?.withdrawn_points ?? 0,
+              total_earned_points: lm.total_earned_points ?? prev?.total_earned_points ?? lm.available_points ?? 100,
+              status: lm.status || prev?.status || "active",
+              created_at: lm.created_at || prev?.created_at || new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      setMembers(Array.from(memberMap.values()));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveMemberEdit = async (updatedMember: VipMember) => {
+    const nextList = members.map((m) => (m.email.toLowerCase() === updatedMember.email.toLowerCase() ? updatedMember : m));
+    setMembers(nextList);
+    try {
+      localStorage.setItem("annr-vip-members", JSON.stringify(nextList));
+      const rawAcc = localStorage.getItem("annr_vip_accounts_v1");
+      if (rawAcc) {
+        const accs = JSON.parse(rawAcc);
+        for (const k of Object.keys(accs)) {
+          if (accs[k]?.email?.toLowerCase() === updatedMember.email.toLowerCase()) {
+            accs[k].available_points = updatedMember.available_points;
+            accs[k].member = { ...accs[k].member, ...updatedMember };
+          }
+        }
+        localStorage.setItem("annr_vip_accounts_v1", JSON.stringify(accs));
+      }
+      const rawSess = localStorage.getItem("annr_vip_member_session");
+      if (rawSess) {
+        const sess = JSON.parse(rawSess);
+        if (sess?.member?.email?.toLowerCase() === updatedMember.email.toLowerCase()) {
+          sess.member = { ...sess.member, ...updatedMember };
+          localStorage.setItem("annr_vip_member_session", JSON.stringify(sess));
+          localStorage.setItem("annr_vip_session", JSON.stringify(sess.member));
+          localStorage.setItem("annr-vip-wallet-v1", JSON.stringify(sess.member));
+        }
+      }
+      if (isSupabaseConfigured() && updatedMember.id && !updatedMember.id.startsWith("m-") && !updatedMember.id.startsWith("vip-")) {
+        await supabase
+          .from("vip_members")
+          .update({
+            available_points: updatedMember.available_points,
+            pending_points: updatedMember.pending_points,
+            tier: updatedMember.tier,
+            status: updatedMember.status,
+          })
+          .eq("id", updatedMember.id);
+      }
+    } catch {}
+    setEditingMember(null);
   };
 
   const handleSaveSettings = async () => {
@@ -133,9 +210,7 @@ function LoyaltyAdmin() {
       setSelectedRequest(null);
       setTrxId("");
       setAdminNote("");
-      // Reload withdrawals
-      const updated = await getAdminWithdrawalRequests();
-      setWithdrawals(updated);
+      await loadData();
     } else {
       alert("Error: " + (res.error || "Failed to process withdrawal"));
     }
@@ -605,11 +680,12 @@ function LoyaltyAdmin() {
                   <th style={{ padding: "10px 8px" }}>Pending Points</th>
                   <th style={{ padding: "10px 8px" }}>Cash Value</th>
                   <th style={{ padding: "10px 8px" }}>Status</th>
+                  <th style={{ padding: "10px 8px" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMembers.map((m) => (
-                  <tr key={m.id} style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
+                  <tr key={m.id || m.email} style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
                     <td style={{ padding: "10px 8px" }}>
                       <div><b>{m.full_name}</b></div>
                       <div style={{ fontSize: 11, color: "var(--p-text-subdued)" }}>
@@ -626,7 +702,7 @@ function LoyaltyAdmin() {
                       </span>
                     </td>
                     <td style={{ padding: "10px 8px" }}>
-                      <span className="adm-tag info">{m.tier} ({m.tier_multiplier}×)</span>
+                      <span className="adm-tag info">{m.tier} ({m.tier_multiplier || 1}×)</span>
                     </td>
                     <td style={{ padding: "10px 8px", fontWeight: 700, color: "#008060" }}>
                       {m.available_points} pts
@@ -642,11 +718,130 @@ function LoyaltyAdmin() {
                         {m.status}
                       </span>
                     </td>
+                    <td style={{ padding: "10px 8px" }}>
+                      <button
+                        type="button"
+                        className="adm-btn ghost sm"
+                        onClick={() => setEditingMember({ ...m })}
+                      >
+                        Manage
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {editingMember && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.6)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 100,
+                padding: 16,
+              }}
+            >
+              <div
+                style={{
+                  background: "#fff",
+                  padding: 24,
+                  borderRadius: 8,
+                  maxWidth: 460,
+                  width: "100%",
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+                }}
+              >
+                <h2 style={{ marginTop: 0 }}>Manage VIP Wallet: {editingMember.full_name}</h2>
+                <div style={{ fontSize: 12, color: "var(--p-text-subdued)", marginBottom: 14 }}>
+                  {editingMember.email} · Coupon: <b>{editingMember.referral_code}</b>
+                </div>
+
+                <div className="adm-grid" style={{ marginBottom: 16 }}>
+                  <label className="adm-field">
+                    <span>Available Points (৳{settings.point_value_bdt}/pt)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editingMember.available_points}
+                      onChange={(e) =>
+                        setEditingMember({ ...editingMember, available_points: Math.max(0, Number(e.target.value)) })
+                      }
+                    />
+                  </label>
+                  <label className="adm-field">
+                    <span>Pending Points</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editingMember.pending_points}
+                      onChange={(e) =>
+                        setEditingMember({ ...editingMember, pending_points: Math.max(0, Number(e.target.value)) })
+                      }
+                    />
+                  </label>
+                  <label className="adm-field">
+                    <span>VIP Tier</span>
+                    <select
+                      value={editingMember.tier}
+                      onChange={(e) =>
+                        setEditingMember({
+                          ...editingMember,
+                          tier: e.target.value as VipMember["tier"],
+                          tier_multiplier:
+                            e.target.value === "Black"
+                              ? 2.0
+                              : e.target.value === "Diamond"
+                              ? 1.5
+                              : e.target.value === "Gold"
+                              ? 1.25
+                              : 1.0,
+                        })
+                      }
+                    >
+                      <option value="Silver">Silver (1.0×)</option>
+                      <option value="Gold">Gold (1.25×)</option>
+                      <option value="Diamond">Diamond (1.5×)</option>
+                      <option value="Black">Black (2.0×)</option>
+                    </select>
+                  </label>
+                  <label className="adm-field">
+                    <span>Account Status</span>
+                    <select
+                      value={editingMember.status}
+                      onChange={(e) =>
+                        setEditingMember({
+                          ...editingMember,
+                          status: e.target.value as VipMember["status"],
+                        })
+                      }
+                    >
+                      <option value="active">Active</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="frozen">Frozen</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                  <button type="button" className="adm-btn ghost sm" onClick={() => setEditingMember(null)}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="adm-btn primary sm"
+                    onClick={() => handleSaveMemberEdit(editingMember)}
+                  >
+                    Save Wallet Changes ✓
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </Card>
       )}
 
