@@ -1,8 +1,151 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
 
+export type VipTierName = "Silver" | "Gold" | "Platinum" | "Diamond" | "Black" | string;
+
+export interface VipTierConfig {
+  id: string;
+  name: VipTierName;
+  rank_order: number;
+  badge_color: string;
+  description: string;
+  min_earned_points: number;
+  min_referrals: number;
+  min_lifetime_spend_bdt: number;
+  points_multiplier: number;
+  tier_discount_percent: number;
+  perks: string[];
+  active: boolean;
+}
+
+export type CampaignType =
+  | "registration_bonus"
+  | "referral_bonus"
+  | "multiplier_points"
+  | "seasonal_festival"
+  | "birthday_reward"
+  | "first_purchase"
+  | "min_order_value"
+  | "product_specific"
+  | "category_specific"
+  | "repeat_purchase"
+  | "vip_discount"
+  | "custom_manual";
+
+export interface LoyaltyCampaign {
+  id: string;
+  name: string;
+  description: string;
+  campaign_type: CampaignType;
+  status: "active" | "paused" | "scheduled" | "archived";
+  reward_type: "points" | "multiplier" | "discount_percent" | "discount_fixed";
+  reward_value: number;
+  min_order_bdt: number;
+  eligible_tiers: string[];
+  target_handles: string[];
+  usage_limit?: number | null;
+  per_user_limit: number;
+  times_claimed: number;
+  total_points_issued: number;
+  priority: number;
+  stackable: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  created_at: string;
+}
+
+export type LedgerTransactionType =
+  | "welcome_bonus"
+  | "referral_signup_bonus"
+  | "referral_pending"
+  | "referral_matured"
+  | "order_earn"
+  | "campaign_bonus"
+  | "points_redeemed"
+  | "points_refunded"
+  | "withdrawal_locked"
+  | "withdrawal_paid"
+  | "withdrawal_refunded"
+  | "admin_adjustment"
+  | "points_expired"
+  | "order_cancelled";
+
+export interface PointsLedgerEntry {
+  id: string;
+  vip_member_id: string;
+  member_email: string;
+  member_name: string;
+  amount: number; // positive = credit, negative = debit
+  balance_after: number;
+  transaction_type: LedgerTransactionType;
+  reference_id?: string | null;
+  campaign_id?: string | null;
+  note: string;
+  status: "completed" | "pending" | "reversed";
+  created_by?: string | null;
+  created_at: string;
+}
+
+export interface ReferralRecord {
+  id: string;
+  referral_code: string;
+  referrer_member_id?: string;
+  referrer_name?: string;
+  referrer_email: string;
+  buyer_name: string;
+  buyer_email: string;
+  buyer_phone?: string;
+  order_id?: string | null;
+  order_number?: string | number | null;
+  order_total: number;
+  discount_given_bdt: number;
+  points_earned: number;
+  event_type: "order" | "signup" | "click";
+  attribution_status: "clicked" | "registered" | "converted" | "expired";
+  reward_status: "pending" | "available" | "rejected" | "reversed";
+  fraud_flag?: boolean;
+  fraud_reason?: string | null;
+  created_at: string;
+}
+
+export interface LoyaltyNotification {
+  id: string;
+  member_email: string;
+  event_type:
+    | "vip_activated"
+    | "welcome_bonus"
+    | "referral_success"
+    | "points_earned"
+    | "points_redeemed"
+    | "coupon_applied"
+    | "campaign_launched"
+    | "tier_upgraded"
+    | "points_expiring"
+    | "reward_reversed"
+    | "admin_adjustment";
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface LoyaltyAdminLog {
+  id: string;
+  admin_email: string;
+  action_type: string;
+  target_email?: string;
+  target_name?: string;
+  points_delta?: number;
+  reason: string;
+  created_at: string;
+}
+
 export interface LoyaltySettings {
   id: number;
   program_enabled: boolean;
+  auto_activate_membership: boolean;
+  default_tier: VipTierName;
+  welcome_bonus_points: number;
+  referral_signup_bonus_points: number;
   reward_mode: "fixed_points" | "percent_order";
   points_per_referral: number;
   percent_order_points: number;
@@ -10,11 +153,25 @@ export interface LoyaltySettings {
   friend_discount_type: "percent" | "fixed";
   friend_discount_value: number;
   min_order_for_coupon: number;
+  max_discount_bdt: number;
+  first_order_only_referral: boolean;
+  qualifying_order_status: "placed" | "paid" | "fulfilled";
+  attribution_window_days: number;
+  point_expiration_days: number;
+  order_earn_enabled: boolean;
+  points_per_100_bdt: number;
+  redemption_enabled: boolean;
+  min_redemption_points: number;
+  max_redemption_points_order: number;
+  max_redemption_percent_order: number;
+  min_order_for_redemption: number;
+  allow_points_with_coupon: boolean;
   min_withdrawal_bdt: number;
   max_withdrawal_bdt: number;
   pending_days_return_window: number;
   coupon_prefix: string;
   allowed_payout_methods: string[];
+  notifications_enabled: boolean;
   ball_drop_enabled: boolean;
   ball_drop_config: {
     title: string;
@@ -43,16 +200,27 @@ export interface VipMember {
   full_address: string;
   date_of_birth?: string | null;
   gender?: string | null;
-  tier: "Silver" | "Gold" | "Diamond" | "Black";
+  tier: VipTierName;
   tier_multiplier: number;
   available_points: number;
   pending_points: number;
+  redeemed_points?: number;
   withdrawn_points: number;
+  expired_points?: number;
   total_earned_points: number;
+  referral_points_earned?: number;
+  campaign_points_earned?: number;
+  welcome_points_earned?: number;
+  admin_adjusted_points?: number;
+  friends_referred?: number;
+  lifetime_spend_bdt?: number;
+  lifetime_orders?: number;
   referral_code: string;
   referred_by_code?: string | null;
   default_payout_method?: string | null;
   default_payout_account?: string | null;
+  fraud_flagged?: boolean;
+  fraud_notes?: string | null;
   status: "active" | "suspended" | "frozen";
   created_at: string;
 }
@@ -74,9 +242,138 @@ export interface WithdrawalRequest {
   vip_members?: { full_name: string; email: string; phone: string; tier: string };
 }
 
+export const DEFAULT_VIP_TIERS: VipTierConfig[] = [
+  {
+    id: "tier-silver",
+    name: "Silver",
+    rank_order: 1,
+    badge_color: "#a1a1aa",
+    description: "Entry VIP Membership with personal referral coupon, points redemption & instant MFS cashouts.",
+    min_earned_points: 0,
+    min_referrals: 0,
+    min_lifetime_spend_bdt: 0,
+    points_multiplier: 1.0,
+    tier_discount_percent: 0,
+    perks: ["100 Welcome ANNR Points", "Personal 10% OFF Referral Coupon", "Redeem Points at Checkout or MFS"],
+    active: true,
+  },
+  {
+    id: "tier-gold",
+    name: "Gold",
+    rank_order: 2,
+    badge_color: "#f59e0b",
+    description: "Accelerated 1.25× point earning & priority seasonal drop access.",
+    min_earned_points: 500,
+    min_referrals: 3,
+    min_lifetime_spend_bdt: 10000,
+    points_multiplier: 1.25,
+    tier_discount_percent: 3,
+    perks: ["1.25× Points Multiplier on Orders & Referrals", "3% Extra VIP Tier Discount", "Early Drop Access"],
+    active: true,
+  },
+  {
+    id: "tier-platinum",
+    name: "Platinum",
+    rank_order: 3,
+    badge_color: "#38bdf8",
+    description: "High-velocity referrer tier with 1.5× points & exclusive festival rewards.",
+    min_earned_points: 1500,
+    min_referrals: 8,
+    min_lifetime_spend_bdt: 25000,
+    points_multiplier: 1.5,
+    tier_discount_percent: 5,
+    perks: ["1.5× Points Multiplier", "5% Extra VIP Tier Discount", "Priority MFS Payout Processing"],
+    active: true,
+  },
+  {
+    id: "tier-diamond",
+    name: "Diamond",
+    rank_order: 4,
+    badge_color: "#c084fc",
+    description: "Top-echelon ANNR royalty with 2.0× double points & private vault privileges.",
+    min_earned_points: 3500,
+    min_referrals: 15,
+    min_lifetime_spend_bdt: 50000,
+    points_multiplier: 2.0,
+    tier_discount_percent: 10,
+    perks: ["2.0× Double Points Multiplier", "10% Extra VIP Tier Discount", "Dedicated VIP Concierge & Birthday Gift"],
+    active: true,
+  },
+];
+
+export const DEFAULT_LOYALTY_CAMPAIGNS: LoyaltyCampaign[] = [
+  {
+    id: "camp-welcome-100",
+    name: "VIP Vault Welcome Grant",
+    description: "Every new VIP member automatically receives 100 ANNR Points (৳100 value) upon registration.",
+    campaign_type: "registration_bonus",
+    status: "active",
+    reward_type: "points",
+    reward_value: 100,
+    min_order_bdt: 0,
+    eligible_tiers: ["Silver", "Gold", "Platinum", "Diamond", "Black"],
+    target_handles: [],
+    usage_limit: null,
+    per_user_limit: 1,
+    times_claimed: 14,
+    total_points_issued: 1400,
+    priority: 10,
+    stackable: true,
+    starts_at: "2026-01-01",
+    ends_at: null,
+    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+  },
+  {
+    id: "camp-spend-5000",
+    name: "Heavyweight Spend Bonus (৳5,000+)",
+    description: "Earn +150 Bonus ANNR Points automatically on any order above ৳5,000.",
+    campaign_type: "min_order_value",
+    status: "active",
+    reward_type: "points",
+    reward_value: 150,
+    min_order_bdt: 5000,
+    eligible_tiers: ["Silver", "Gold", "Platinum", "Diamond", "Black"],
+    target_handles: [],
+    usage_limit: null,
+    per_user_limit: 10,
+    times_claimed: 6,
+    total_points_issued: 900,
+    priority: 20,
+    stackable: true,
+    starts_at: "2026-01-01",
+    ends_at: null,
+    created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
+  },
+  {
+    id: "camp-double-points-weekend",
+    name: "2× Double ANNR Points Drop",
+    description: "Double ANNR Points on all qualifying purchases and referrals during special drops.",
+    campaign_type: "multiplier_points",
+    status: "paused",
+    reward_type: "multiplier",
+    reward_value: 2,
+    min_order_bdt: 1500,
+    eligible_tiers: ["Gold", "Platinum", "Diamond", "Black"],
+    target_handles: [],
+    usage_limit: 500,
+    per_user_limit: 5,
+    times_claimed: 0,
+    total_points_issued: 0,
+    priority: 30,
+    stackable: false,
+    starts_at: "2026-11-01",
+    ends_at: "2026-12-31",
+    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+  },
+];
+
 export const DEFAULT_LOYALTY_SETTINGS: LoyaltySettings = {
   id: 1,
   program_enabled: true,
+  auto_activate_membership: true,
+  default_tier: "Silver",
+  welcome_bonus_points: 100,
+  referral_signup_bonus_points: 0,
   reward_mode: "fixed_points",
   points_per_referral: 100,
   percent_order_points: 5.0,
@@ -84,11 +381,25 @@ export const DEFAULT_LOYALTY_SETTINGS: LoyaltySettings = {
   friend_discount_type: "percent",
   friend_discount_value: 10.0,
   min_order_for_coupon: 1000.0,
+  max_discount_bdt: 2000.0,
+  first_order_only_referral: false,
+  qualifying_order_status: "placed",
+  attribution_window_days: 30,
+  point_expiration_days: 365,
+  order_earn_enabled: true,
+  points_per_100_bdt: 2,
+  redemption_enabled: true,
+  min_redemption_points: 50,
+  max_redemption_points_order: 2000,
+  max_redemption_percent_order: 50.0,
+  min_order_for_redemption: 500.0,
+  allow_points_with_coupon: true,
   min_withdrawal_bdt: 100.0,
   max_withdrawal_bdt: 25000.0,
-  pending_days_return_window: 7,
+  pending_days_return_window: 0,
   coupon_prefix: "VIP-",
   allowed_payout_methods: ["bkash", "nagad", "rocket", "bank"],
+  notifications_enabled: true,
   ball_drop_enabled: false,
   ball_drop_config: {
     title: "TAP TO DROP",
@@ -115,6 +426,11 @@ const LOCAL_SETTINGS_KEY = "annr-loyalty-settings-v1";
 const LEGACY_SETTINGS_KEY = "annr-loyalty-settings";
 const LOCAL_WITHDRAWALS_KEY = "annr-withdrawals-v1";
 const LOCAL_MEMBERS_KEY = "annr-vip-members";
+const LOCAL_TIERS_KEY = "annr-vip-tiers-v1";
+const LOCAL_CAMPAIGNS_KEY = "annr-loyalty-campaigns-v1";
+const LOCAL_LEDGER_KEY = "annr-points-ledger-v1";
+const LOCAL_NOTIFICATIONS_KEY = "annr-loyalty-notifications-v1";
+const LOCAL_ADMIN_LOGS_KEY = "annr-loyalty-admin-logs-v1";
 
 /**
  * Fetch current loyalty settings (Supabase with localStorage fallback)
@@ -129,7 +445,7 @@ export async function getLoyaltySettings(): Promise<LoyaltySettings> {
         .maybeSingle();
 
       if (!error && data) {
-        const res = data as LoyaltySettings;
+        const res = { ...DEFAULT_LOYALTY_SETTINGS, ...(data as Partial<LoyaltySettings>) };
         try {
           const str = JSON.stringify(res);
           localStorage.setItem(LOCAL_SETTINGS_KEY, str);
@@ -142,10 +458,9 @@ export async function getLoyaltySettings(): Promise<LoyaltySettings> {
     }
   }
 
-  // Fallback to localStorage if offline/demo
   try {
     const raw = localStorage.getItem(LOCAL_SETTINGS_KEY) || localStorage.getItem(LEGACY_SETTINGS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return { ...DEFAULT_LOYALTY_SETTINGS, ...JSON.parse(raw) };
   } catch {
     // Ignore error
   }
@@ -155,25 +470,20 @@ export async function getLoyaltySettings(): Promise<LoyaltySettings> {
 /**
  * Save loyalty settings (admin only)
  */
-export async function saveLoyaltySettings(settings: Partial<LoyaltySettings>): Promise<{ ok: boolean; error?: string }> {
-  let savedToDb = false;
+export async function saveLoyaltySettings(
+  settings: Partial<LoyaltySettings>,
+  adminEmail = "admin@annr.store"
+): Promise<{ ok: boolean; error?: string }> {
   if (isSupabaseConfigured()) {
     try {
-      const { error } = await supabase
+      await supabase
         .from("loyalty_settings")
         .upsert({ id: 1, ...settings, updated_at: new Date().toISOString() });
-
-      if (error) {
-        console.warn("Supabase loyalty_settings upsert error:", error.message);
-      } else {
-        savedToDb = true;
-      }
     } catch (e: any) {
-      console.warn("Supabase loyalty_settings network error:", e?.message);
+      console.warn("Supabase loyalty_settings network notice:", e?.message);
     }
   }
 
-  // Always update local caches across all keys
   try {
     const current = await getLoyaltySettings();
     const updated = { ...current, ...settings };
@@ -181,17 +491,584 @@ export async function saveLoyaltySettings(settings: Partial<LoyaltySettings>): P
     localStorage.setItem(LOCAL_SETTINGS_KEY, str);
     localStorage.setItem(LEGACY_SETTINGS_KEY, str);
 
-    // Trigger instant custom event for live listeners
+    appendAdminLoyaltyLog({
+      admin_email: adminEmail,
+      action_type: "settings_updated",
+      reason: "Updated global VIP Loyalty & Referral programme settings",
+    });
+
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("annr:loyalty:updated", { detail: updated }));
       if (typeof (window as any).shihikoApply === "function") {
         (window as any).shihikoApply();
       }
     }
-  } catch {
-    // Ignore error
-  }
+  } catch {}
   return { ok: true };
+}
+
+/**
+ * VIP Tiers Management
+ */
+export function getVipTiers(): VipTierConfig[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_TIERS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.sort((a, b) => (a.rank_order || 1) - (b.rank_order || 1));
+      }
+    }
+  } catch {}
+  return DEFAULT_VIP_TIERS;
+}
+
+export function saveVipTiers(tiers: VipTierConfig[], adminEmail = "admin@annr.store"): void {
+  try {
+    const sorted = [...tiers].sort((a, b) => (a.rank_order || 1) - (b.rank_order || 1));
+    localStorage.setItem(LOCAL_TIERS_KEY, JSON.stringify(sorted));
+    appendAdminLoyaltyLog({
+      admin_email: adminEmail,
+      action_type: "tiers_updated",
+      reason: `Updated VIP membership tiers (${sorted.map((t) => t.name).join(", ")})`,
+    });
+  } catch {}
+}
+
+/**
+ * Evaluate a member's qualification criteria against active VIP Tiers and auto-upgrade if eligible
+ */
+export function evaluateMemberTierLocally(member: VipMember): { upgraded: boolean; tier: VipTierConfig } {
+  const tiers = getVipTiers().filter((t) => t.active);
+  let matched = tiers[0] || DEFAULT_VIP_TIERS[0];
+
+  const earned = Number(member.total_earned_points || member.available_points || 0);
+  const refs = Number(member.friends_referred || 0);
+  const spend = Number(member.lifetime_spend_bdt || 0);
+
+  for (const t of tiers) {
+    const meetsPoints = t.min_earned_points > 0 && earned >= t.min_earned_points;
+    const meetsRefs = t.min_referrals > 0 && refs >= t.min_referrals;
+    const meetsSpend = t.min_lifetime_spend_bdt > 0 && spend >= t.min_lifetime_spend_bdt;
+    const isBase = t.min_earned_points === 0 && t.min_referrals === 0 && t.min_lifetime_spend_bdt === 0;
+
+    if (isBase || meetsPoints || meetsRefs || meetsSpend) {
+      if ((t.rank_order || 1) >= (matched.rank_order || 1)) {
+        matched = t;
+      }
+    }
+  }
+
+  const prevTier = member.tier || "Silver";
+  const upgraded = matched.name !== prevTier;
+  member.tier = matched.name;
+  member.tier_multiplier = matched.points_multiplier || 1.0;
+
+  if (upgraded && member.email) {
+    pushLoyaltyNotification({
+      member_email: member.email,
+      event_type: "tier_upgraded",
+      title: `VIP Tier Upgraded to ${matched.name}!`,
+      message: `Congratulations! You unlocked ${matched.name} Tier (${matched.points_multiplier}× Points Multiplier & ${matched.tier_discount_percent}% VIP discount).`,
+    });
+  }
+
+  return { upgraded, tier: matched };
+}
+
+/**
+ * Loyalty Campaigns Management (12 Campaign Types)
+ */
+export function getLoyaltyCampaigns(): LoyaltyCampaign[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_CAMPAIGNS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return DEFAULT_LOYALTY_CAMPAIGNS;
+}
+
+export function saveLoyaltyCampaigns(campaigns: LoyaltyCampaign[], adminEmail = "admin@annr.store"): void {
+  try {
+    localStorage.setItem(LOCAL_CAMPAIGNS_KEY, JSON.stringify(campaigns));
+    appendAdminLoyaltyLog({
+      admin_email: adminEmail,
+      action_type: "campaigns_updated",
+      reason: `Updated promotional loyalty campaigns (${campaigns.filter((c) => c.status === "active").length} active)`,
+    });
+  } catch {}
+}
+
+/**
+ * Calculate active campaign bonus points for an order
+ */
+export function evaluateOrderCampaignBonuses(params: {
+  orderSubtotal: number;
+  memberTier?: string;
+  isFirstOrder?: boolean;
+  itemHandles?: string[];
+  basePointsEarned: number;
+}): { bonusPoints: number; appliedCampaigns: { id: string; name: string; points: number }[] } {
+  const campaigns = getLoyaltyCampaigns()
+    .filter((c) => c.status === "active")
+    .sort((a, b) => (b.priority || 10) - (a.priority || 10));
+
+  const now = Date.now();
+  const tier = params.memberTier || "Silver";
+  let bonusPoints = 0;
+  const appliedCampaigns: { id: string; name: string; points: number }[] = [];
+
+  for (const c of campaigns) {
+    if (c.campaign_type === "registration_bonus" || c.campaign_type === "referral_bonus") continue;
+    if (c.starts_at && new Date(c.starts_at).getTime() > now) continue;
+    if (c.ends_at && new Date(c.ends_at).getTime() < now) continue;
+    if (c.usage_limit && c.times_claimed >= c.usage_limit) continue;
+    if (c.min_order_bdt > 0 && params.orderSubtotal < c.min_order_bdt) continue;
+    if (Array.isArray(c.eligible_tiers) && c.eligible_tiers.length > 0 && !c.eligible_tiers.includes(tier)) continue;
+    if (c.campaign_type === "first_purchase" && !params.isFirstOrder) continue;
+
+    let pts = 0;
+    if (c.reward_type === "points") {
+      pts = Math.round(Number(c.reward_value || 0));
+    } else if (c.reward_type === "multiplier" && c.reward_value > 1) {
+      pts = Math.round(params.basePointsEarned * (Number(c.reward_value) - 1));
+    }
+
+    if (pts > 0) {
+      bonusPoints += pts;
+      appliedCampaigns.push({ id: c.id, name: c.name, points: pts });
+      if (!c.stackable) break;
+    }
+  }
+
+  return { bonusPoints, appliedCampaigns };
+}
+
+/**
+ * Immutable Points Ledger Management
+ */
+export function getPointsLedger(memberEmail?: string): PointsLedgerEntry[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_LEDGER_KEY);
+    const list: PointsLedgerEntry[] = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(list)) return [];
+    if (memberEmail) {
+      const clean = memberEmail.toLowerCase().trim();
+      return list.filter((e) => (e.member_email || "").toLowerCase().trim() === clean);
+    }
+    return list;
+  } catch {
+    return [];
+  }
+}
+
+export function appendPointsLedgerEntry(entry: Omit<PointsLedgerEntry, "id" | "created_at">): PointsLedgerEntry {
+  const fullEntry: PointsLedgerEntry = {
+    ...entry,
+    id: "tx-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+    created_at: new Date().toISOString(),
+  };
+  try {
+    const current = getPointsLedger();
+    current.unshift(fullEntry);
+    localStorage.setItem(LOCAL_LEDGER_KEY, JSON.stringify(current.slice(0, 1000)));
+  } catch {}
+  return fullEntry;
+}
+
+/**
+ * Customer Loyalty Notifications
+ */
+export function getLoyaltyNotifications(memberEmail?: string): LoyaltyNotification[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_NOTIFICATIONS_KEY);
+    const list: LoyaltyNotification[] = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(list)) return [];
+    if (memberEmail) {
+      const clean = memberEmail.toLowerCase().trim();
+      return list.filter((n) => (n.member_email || "").toLowerCase().trim() === clean);
+    }
+    return list;
+  } catch {
+    return [];
+  }
+}
+
+export function pushLoyaltyNotification(
+  n: Omit<LoyaltyNotification, "id" | "is_read" | "created_at">
+): LoyaltyNotification {
+  const item: LoyaltyNotification = {
+    ...n,
+    id: "notif-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+    is_read: false,
+    created_at: new Date().toISOString(),
+  };
+  try {
+    const list = getLoyaltyNotifications();
+    list.unshift(item);
+    localStorage.setItem(LOCAL_NOTIFICATIONS_KEY, JSON.stringify(list.slice(0, 500)));
+  } catch {}
+  return item;
+}
+
+/**
+ * Immutable Admin Loyalty Audit Logs
+ */
+export function getLoyaltyAdminLogs(): LoyaltyAdminLog[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_ADMIN_LOGS_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export function appendAdminLoyaltyLog(log: Omit<LoyaltyAdminLog, "id" | "created_at">): void {
+  try {
+    const list = getLoyaltyAdminLogs();
+    list.unshift({
+      ...log,
+      id: "alog-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+      created_at: new Date().toISOString(),
+    });
+    localStorage.setItem(LOCAL_ADMIN_LOGS_KEY, JSON.stringify(list.slice(0, 500)));
+  } catch {}
+}
+
+/**
+ * Admin Manual Point Adjustment (Requires Reason + Writes Compensating Ledger Transaction + Audit Log)
+ */
+export async function adminAdjustMemberPoints(params: {
+  memberEmail: string;
+  pointsDelta: number;
+  reason: string;
+  adminEmail?: string;
+}): Promise<{ ok: boolean; updatedMember?: VipMember; error?: string }> {
+  const delta = Math.round(Number(params.pointsDelta) || 0);
+  const cleanReason = (params.reason || "").trim();
+  if (delta === 0) {
+    return { ok: false, error: "Points adjustment delta cannot be zero." };
+  }
+  if (cleanReason.length < 3) {
+    return { ok: false, error: "A mandatory audit reason (min 3 characters) is required for manual point adjustments." };
+  }
+
+  const all = getAllLocalVipMembers();
+  const target = all.find((m) => m.email.toLowerCase().trim() === params.memberEmail.toLowerCase().trim());
+  if (!target) {
+    return { ok: false, error: "VIP member not found." };
+  }
+
+  const newAvailable = Math.max(0, Number(target.available_points || 0) + delta);
+  target.available_points = newAvailable;
+  if (delta > 0) {
+    target.total_earned_points = Number(target.total_earned_points || 0) + delta;
+  }
+  target.admin_adjusted_points = Number(target.admin_adjusted_points || 0) + delta;
+
+  evaluateMemberTierLocally(target);
+  syncMemberAcrossLocalStores(target);
+
+  appendPointsLedgerEntry({
+    vip_member_id: target.id,
+    member_email: target.email,
+    member_name: target.full_name,
+    amount: delta,
+    balance_after: newAvailable,
+    transaction_type: "admin_adjustment",
+    note: `Admin adjustment: ${cleanReason}`,
+    status: "completed",
+    created_by: params.adminEmail || "admin@annr.store",
+  });
+
+  appendAdminLoyaltyLog({
+    admin_email: params.adminEmail || "admin@annr.store",
+    action_type: delta > 0 ? "points_added" : "points_deducted",
+    target_email: target.email,
+    target_name: target.full_name,
+    points_delta: delta,
+    reason: cleanReason,
+  });
+
+  pushLoyaltyNotification({
+    member_email: target.email,
+    event_type: "admin_adjustment",
+    title: delta > 0 ? `+${delta} ANNR Points Credited` : `${delta} ANNR Points Adjusted`,
+    message: `${cleanReason} · Updated available balance: ${newAvailable} ANNR Points.`,
+  });
+
+  if (isSupabaseConfigured() && target.id && !target.id.startsWith("m-") && !target.id.startsWith("vip-") && !target.id.startsWith("local-")) {
+    try {
+      await supabase.rpc("admin_adjust_member_points", {
+        p_member_id: target.id,
+        p_points_delta: delta,
+        p_reason: cleanReason,
+      });
+    } catch {}
+  }
+
+  return { ok: true, updatedMember: target };
+}
+
+/**
+ * Sync a modified VipMember across all local storage keys so Storefront, Checkout, and Admin stay identical
+ */
+export function syncMemberAcrossLocalStores(updatedMember: VipMember): void {
+  const emailKey = (updatedMember.email || "").toLowerCase().trim();
+  if (!emailKey) return;
+
+  try {
+    const rawMembers = localStorage.getItem(LOCAL_MEMBERS_KEY);
+    const list: VipMember[] = rawMembers ? JSON.parse(rawMembers) : [];
+    const next = Array.isArray(list) ? list.filter((m) => (m.email || "").toLowerCase().trim() !== emailKey) : [];
+    next.unshift(updatedMember);
+    localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(next));
+  } catch {}
+
+  try {
+    const rawAcc = localStorage.getItem("annr_vip_accounts_v1");
+    if (rawAcc) {
+      const accs = JSON.parse(rawAcc);
+      for (const k of Object.keys(accs)) {
+        if (accs[k]?.email?.toLowerCase().trim() === emailKey || accs[k]?.member?.email?.toLowerCase().trim() === emailKey) {
+          accs[k].available_points = updatedMember.available_points;
+          accs[k].member = { ...accs[k].member, ...updatedMember };
+          if (accs[k].coupon && updatedMember.referral_code) {
+            accs[k].coupon.code = updatedMember.referral_code;
+          }
+        }
+      }
+      localStorage.setItem("annr_vip_accounts_v1", JSON.stringify(accs));
+    }
+  } catch {}
+
+  try {
+    const rawSess = localStorage.getItem("annr_vip_member_session");
+    if (rawSess) {
+      const sess = JSON.parse(rawSess);
+      if (sess?.member?.email?.toLowerCase().trim() === emailKey) {
+        sess.member = { ...sess.member, ...updatedMember };
+        if (sess.coupon && updatedMember.referral_code) {
+          sess.coupon.code = updatedMember.referral_code;
+        }
+        localStorage.setItem("annr_vip_member_session", JSON.stringify(sess));
+        localStorage.setItem("annr_vip_session", JSON.stringify(sess.member));
+        localStorage.setItem(LOCAL_VIP_KEY, JSON.stringify(sess.member));
+      }
+    }
+  } catch {}
+}
+
+/**
+ * Checkout ANNR Points Redemption Calculator & Atomic Redeemer
+ */
+export async function calculateMaxRedeemablePoints(
+  memberAvailablePoints: number,
+  orderSubtotalBdt: number,
+  hasCouponApplied: boolean
+): Promise<{
+  canRedeem: boolean;
+  maxPoints: number;
+  maxDiscountBdt: number;
+  pointValueBdt: number;
+  reason?: string;
+}> {
+  const settings = await getLoyaltySettings();
+  const pv = Number(settings.point_value_bdt || 1.0);
+
+  if (!settings.program_enabled || !settings.redemption_enabled) {
+    return { canRedeem: false, maxPoints: 0, maxDiscountBdt: 0, pointValueBdt: pv, reason: "Points redemption is currently disabled." };
+  }
+  if (hasCouponApplied && !settings.allow_points_with_coupon) {
+    return {
+      canRedeem: false,
+      maxPoints: 0,
+      maxDiscountBdt: 0,
+      pointValueBdt: pv,
+      reason: "Points redemption cannot be combined with coupon codes.",
+    };
+  }
+  if (orderSubtotalBdt < Number(settings.min_order_for_redemption || 0)) {
+    return {
+      canRedeem: false,
+      maxPoints: 0,
+      maxDiscountBdt: 0,
+      pointValueBdt: pv,
+      reason: `Minimum order of ৳${Number(settings.min_order_for_redemption).toLocaleString()} required to redeem points.`,
+    };
+  }
+  const minPts = Number(settings.min_redemption_points || 50);
+  if (memberAvailablePoints < minPts) {
+    return {
+      canRedeem: false,
+      maxPoints: 0,
+      maxDiscountBdt: 0,
+      pointValueBdt: pv,
+      reason: `Minimum ${minPts} ANNR Points required to redeem (you have ${memberAvailablePoints} PTS).`,
+    };
+  }
+
+  const maxByOrderCap = Number(settings.max_redemption_points_order || 2000);
+  const maxByPercentBdt = Math.floor(orderSubtotalBdt * (Number(settings.max_redemption_percent_order || 50) / 100));
+  const maxByPercentPts = Math.floor(maxByPercentBdt / pv);
+
+  const maxPoints = Math.max(0, Math.min(memberAvailablePoints, maxByOrderCap, maxByPercentPts));
+  if (maxPoints < minPts) {
+    return {
+      canRedeem: false,
+      maxPoints: 0,
+      maxDiscountBdt: 0,
+      pointValueBdt: pv,
+      reason: `Order total allows up to ${maxPoints} PTS, below the ${minPts} PTS minimum.`,
+    };
+  }
+
+  return {
+    canRedeem: true,
+    maxPoints,
+    maxDiscountBdt: Math.round(maxPoints * pv),
+    pointValueBdt: pv,
+  };
+}
+
+export async function redeemMemberPointsForOrder(params: {
+  memberEmail: string;
+  pointsToRedeem: number;
+  orderNumber: string | number;
+  orderSubtotal: number;
+}): Promise<{ ok: boolean; discountBdt: number; remainingPoints: number; error?: string }> {
+  const pts = Math.floor(Number(params.pointsToRedeem) || 0);
+  if (pts <= 0) return { ok: true, discountBdt: 0, remainingPoints: 0 };
+
+  const settings = await getLoyaltySettings();
+  const pv = Number(settings.point_value_bdt || 1.0);
+  const all = getAllLocalVipMembers();
+  const member = all.find((m) => m.email.toLowerCase().trim() === params.memberEmail.toLowerCase().trim());
+
+  if (!member) {
+    return { ok: false, discountBdt: 0, remainingPoints: 0, error: "VIP account not found for points redemption." };
+  }
+  if (member.status !== "active") {
+    return { ok: false, discountBdt: 0, remainingPoints: member.available_points, error: `VIP account is ${member.status}.` };
+  }
+  if (pts > member.available_points) {
+    return { ok: false, discountBdt: 0, remainingPoints: member.available_points, error: "Insufficient available ANNR Points." };
+  }
+
+  const discountBdt = Math.round(pts * pv);
+  member.available_points = Math.max(0, member.available_points - pts);
+  member.redeemed_points = Number(member.redeemed_points || 0) + pts;
+
+  syncMemberAcrossLocalStores(member);
+
+  appendPointsLedgerEntry({
+    vip_member_id: member.id,
+    member_email: member.email,
+    member_name: member.full_name,
+    amount: -pts,
+    balance_after: member.available_points,
+    transaction_type: "points_redeemed",
+    reference_id: `#${params.orderNumber}`,
+    note: `Redeemed ${pts} ANNR Points (-৳${discountBdt}) on Order #${params.orderNumber}`,
+    status: "completed",
+  });
+
+  pushLoyaltyNotification({
+    member_email: member.email,
+    event_type: "points_redeemed",
+    title: `Redeemed ${pts} ANNR Points (-৳${discountBdt})`,
+    message: `Your ${pts} ANNR Points were applied to Order #${params.orderNumber}. Remaining balance: ${member.available_points} PTS.`,
+  });
+
+  return { ok: true, discountBdt, remainingPoints: member.available_points };
+}
+
+/**
+ * Award purchase & campaign points to a VIP customer when they place an order
+ */
+export async function awardOrderLoyaltyPoints(params: {
+  buyerEmail: string;
+  buyerName: string;
+  orderNumber: string | number;
+  orderTotalBdt: number;
+  itemHandles?: string[];
+}): Promise<{ pointsEarned: number; campaignBonus: number }> {
+  const settings = await getLoyaltySettings();
+  if (!settings.program_enabled || !settings.order_earn_enabled) {
+    return { pointsEarned: 0, campaignBonus: 0 };
+  }
+
+  const all = getAllLocalVipMembers();
+  const member = all.find((m) => m.email.toLowerCase().trim() === params.buyerEmail.toLowerCase().trim());
+  if (!member || member.status !== "active") {
+    return { pointsEarned: 0, campaignBonus: 0 };
+  }
+
+  const isFirstOrder = Number(member.lifetime_orders || 0) === 0;
+  const multiplier = Number(member.tier_multiplier || 1.0);
+  const basePts = Math.floor((params.orderTotalBdt / 100) * Number(settings.points_per_100_bdt || 2) * multiplier);
+
+  const campEval = evaluateOrderCampaignBonuses({
+    orderSubtotal: params.orderTotalBdt,
+    memberTier: member.tier,
+    isFirstOrder,
+    itemHandles: params.itemHandles,
+    basePointsEarned: basePts,
+  });
+
+  const totalPts = basePts + campEval.bonusPoints;
+  member.lifetime_spend_bdt = Number(member.lifetime_spend_bdt || 0) + params.orderTotalBdt;
+  member.lifetime_orders = Number(member.lifetime_orders || 0) + 1;
+
+  if (totalPts > 0) {
+    member.available_points = Number(member.available_points || 0) + totalPts;
+    member.total_earned_points = Number(member.total_earned_points || 0) + totalPts;
+    member.campaign_points_earned = Number(member.campaign_points_earned || 0) + campEval.bonusPoints;
+
+    if (basePts > 0) {
+      appendPointsLedgerEntry({
+        vip_member_id: member.id,
+        member_email: member.email,
+        member_name: member.full_name,
+        amount: basePts,
+        balance_after: member.available_points - campEval.bonusPoints,
+        transaction_type: "order_earn",
+        reference_id: `#${params.orderNumber}`,
+        note: `Earned +${basePts} ANNR Points from Order #${params.orderNumber} (${member.tier} ${multiplier}×)`,
+        status: "completed",
+      });
+    }
+
+    for (const ac of campEval.appliedCampaigns) {
+      appendPointsLedgerEntry({
+        vip_member_id: member.id,
+        member_email: member.email,
+        member_name: member.full_name,
+        amount: ac.points,
+        balance_after: member.available_points,
+        transaction_type: "campaign_bonus",
+        reference_id: `#${params.orderNumber}`,
+        campaign_id: ac.id,
+        note: `Campaign Bonus (${ac.name}): +${ac.points} ANNR Points on Order #${params.orderNumber}`,
+        status: "completed",
+      });
+    }
+
+    pushLoyaltyNotification({
+      member_email: member.email,
+      event_type: "points_earned",
+      title: `+${totalPts} ANNR Points Earned on Order #${params.orderNumber}`,
+      message: `Thank you for shopping at AnnR! You earned +${totalPts} ANNR Points.`,
+    });
+  }
+
+  evaluateMemberTierLocally(member);
+  syncMemberAcrossLocalStores(member);
+
+  return { pointsEarned: basePts, campaignBonus: campEval.bonusPoints };
 }
 
 /**
@@ -210,6 +1087,10 @@ export async function registerVipMember(payload: {
   gender?: string;
   referredBy?: string;
 }): Promise<{ ok: boolean; member?: VipMember; coupon?: any; error?: string }> {
+  const settings = await getLoyaltySettings();
+  const welcomePts = Number(settings.welcome_bonus_points ?? 100);
+  const prefix = (settings.coupon_prefix || "VIP-").toUpperCase();
+
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.rpc("register_vip_member", {
@@ -226,28 +1107,26 @@ export async function registerVipMember(payload: {
         p_referred_by: payload.referredBy || null,
       });
 
-      if (!error && data?.ok) {
+      if (!error && data?.ok && data.member) {
         const member = data.member as VipMember;
-        try {
-          localStorage.setItem(LOCAL_VIP_KEY, JSON.stringify(member));
-          const members = JSON.parse(localStorage.getItem(LOCAL_MEMBERS_KEY) || "[]");
-          const next = Array.isArray(members) ? members.filter((item: VipMember) => item.email !== member.email) : [];
-          next.push(member);
-          localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(next));
-        } catch {}
+        syncMemberAcrossLocalStores(member);
         return { ok: true, member, coupon: data.coupon };
-      } else {
-        return { ok: false, error: error?.message || data?.error || "Failed to register VIP member" };
       }
-    } catch (e: any) {
-      return { ok: false, error: e?.message || "Failed to register" };
+    } catch {
+      // Fallback to local
     }
   }
 
-  // Local fallback simulation
-  const refCode = "VIP-" + payload.fullName.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() + Math.floor(100 + Math.random() * 899);
+  const refCode =
+    prefix +
+    payload.fullName
+      .replace(/[^A-Za-z0-9]/g, "")
+      .slice(0, 5)
+      .toUpperCase() +
+    Math.floor(10 + Math.random() * 89);
+
   const fallbackMember: VipMember = {
-    id: "local-" + Date.now(),
+    id: "vip-" + Date.now().toString(36),
     email: payload.email.toLowerCase().trim(),
     full_name: payload.fullName.trim(),
     phone: payload.phone.trim(),
@@ -256,24 +1135,48 @@ export async function registerVipMember(payload: {
     district: payload.district,
     upazila: payload.upazila || "",
     full_address: payload.fullAddress || "",
-    tier: "Silver",
+    tier: settings.default_tier || "Silver",
     tier_multiplier: 1.0,
-    available_points: 150,
-    pending_points: 100,
+    available_points: welcomePts,
+    pending_points: 0,
+    redeemed_points: 0,
     withdrawn_points: 0,
-    total_earned_points: 250,
+    expired_points: 0,
+    total_earned_points: welcomePts,
+    welcome_points_earned: welcomePts,
+    referral_points_earned: 0,
+    campaign_points_earned: 0,
+    friends_referred: 0,
     referral_code: refCode,
-    status: "active",
+    referred_by_code: payload.referredBy || null,
+    status: settings.auto_activate_membership !== false ? "active" : "suspended",
     created_at: new Date().toISOString(),
   };
-  try {
-    localStorage.setItem(LOCAL_VIP_KEY, JSON.stringify(fallbackMember));
-    const members = JSON.parse(localStorage.getItem(LOCAL_MEMBERS_KEY) || "[]");
-    const next = Array.isArray(members) ? members.filter((item: VipMember) => item.email !== fallbackMember.email) : [];
-    next.push(fallbackMember);
-    localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(next));
-  } catch {}
-  return { ok: true, member: fallbackMember, coupon: { code: refCode, discount_value: 10, discount_type: "percent" } };
+
+  syncMemberAcrossLocalStores(fallbackMember);
+
+  if (welcomePts > 0) {
+    appendPointsLedgerEntry({
+      vip_member_id: fallbackMember.id,
+      member_email: fallbackMember.email,
+      member_name: fallbackMember.full_name,
+      amount: welcomePts,
+      balance_after: welcomePts,
+      transaction_type: "welcome_bonus",
+      note: `VIP Welcome Grant (+${welcomePts} ANNR Points)`,
+      status: "completed",
+    });
+  }
+
+  return {
+    ok: true,
+    member: fallbackMember,
+    coupon: {
+      code: refCode,
+      discount_value: settings.friend_discount_value,
+      discount_type: settings.friend_discount_type,
+    },
+  };
 }
 
 /**
@@ -329,40 +1232,233 @@ export function getAllLocalVipMembers(): VipMember[] {
 }
 
 /**
+ * Retrieve all Referral Attribution & Conversion Records
+ */
+export function getReferralRecords(): ReferralRecord[] {
+  try {
+    const raw = localStorage.getItem("annr-vip-referrals-log");
+    const list = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(list)) return [];
+    return list.map((item: any) => ({
+      id: item.id || "ref-" + Date.now(),
+      referral_code: (item.referral_code || "").toUpperCase(),
+      referrer_member_id: item.referrer_member_id,
+      referrer_name: item.referrer_name || "",
+      referrer_email: item.referrer_email || "",
+      buyer_name: item.buyer_name || "Customer",
+      buyer_email: item.buyer_email || "",
+      buyer_phone: item.buyer_phone || "",
+      order_id: item.order_id || (item.order_number ? `#${item.order_number}` : null),
+      order_number: item.order_number || null,
+      order_total: Number(item.order_total || 0),
+      discount_given_bdt: Number(item.discount_given_bdt || 0),
+      points_earned: Number(item.points_earned || 0),
+      event_type: item.event_type || (item.order_number ? "order" : "signup"),
+      attribution_status: item.attribution_status || (item.order_number ? "converted" : "registered"),
+      reward_status: item.reward_status || "available",
+      fraud_flag: Boolean(item.fraud_flag),
+      fraud_reason: item.fraud_reason || null,
+      created_at: item.created_at || new Date().toISOString(),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Admin Review / Approve / Reverse Referral Reward
+ */
+export function adminReviewReferralRecord(params: {
+  recordId: string;
+  action: "approve" | "reverse" | "clear_fraud" | "flag_fraud";
+  reason?: string;
+  adminEmail?: string;
+}): { ok: boolean; error?: string } {
+  try {
+    const raw = localStorage.getItem("annr-vip-referrals-log");
+    const list: any[] = raw ? JSON.parse(raw) : [];
+    const target = list.find((r) => String(r.id) === String(params.recordId));
+    if (!target) return { ok: false, error: "Referral record not found." };
+
+    const allMembers = getAllLocalVipMembers();
+    const referrer = allMembers.find(
+      (m) =>
+        (m.referral_code || "").toUpperCase() === (target.referral_code || "").toUpperCase() ||
+        (target.referrer_email && m.email.toLowerCase() === target.referrer_email.toLowerCase())
+    );
+
+    if (params.action === "approve") {
+      if (target.reward_status === "pending" && referrer) {
+        const pts = Number(target.points_earned || 0);
+        referrer.pending_points = Math.max(0, Number(referrer.pending_points || 0) - pts);
+        referrer.available_points = Number(referrer.available_points || 0) + pts;
+        referrer.referral_points_earned = Number(referrer.referral_points_earned || 0) + pts;
+        evaluateMemberTierLocally(referrer);
+        syncMemberAcrossLocalStores(referrer);
+
+        appendPointsLedgerEntry({
+          vip_member_id: referrer.id,
+          member_email: referrer.email,
+          member_name: referrer.full_name,
+          amount: pts,
+          balance_after: referrer.available_points,
+          transaction_type: "referral_matured",
+          reference_id: target.order_number ? `#${target.order_number}` : target.id,
+          note: `Approved referral reward (+${pts} PTS) from ${target.buyer_name}`,
+          status: "completed",
+        });
+      }
+      target.reward_status = "available";
+      target.fraud_flag = false;
+    } else if (params.action === "reverse") {
+      if (target.reward_status !== "reversed" && referrer) {
+        const pts = Number(target.points_earned || 0);
+        if (target.reward_status === "pending") {
+          referrer.pending_points = Math.max(0, Number(referrer.pending_points || 0) - pts);
+        } else {
+          referrer.available_points = Math.max(0, Number(referrer.available_points || 0) - pts);
+        }
+        referrer.total_earned_points = Math.max(0, Number(referrer.total_earned_points || 0) - pts);
+        referrer.friends_referred = Math.max(0, Number(referrer.friends_referred || 1) - 1);
+        syncMemberAcrossLocalStores(referrer);
+
+        appendPointsLedgerEntry({
+          vip_member_id: referrer.id,
+          member_email: referrer.email,
+          member_name: referrer.full_name,
+          amount: -pts,
+          balance_after: referrer.available_points,
+          transaction_type: "order_cancelled",
+          reference_id: target.order_number ? `#${target.order_number}` : target.id,
+          note: `Reversed referral reward (-${pts} PTS): ${params.reason || "Reversed by admin"}`,
+          status: "reversed",
+        });
+
+        pushLoyaltyNotification({
+          member_email: referrer.email,
+          event_type: "reward_reversed",
+          title: `Referral Reward Reversed (-${pts} PTS)`,
+          message: params.reason || `Referral reward for Order #${target.order_number || ""} was reversed.`,
+        });
+      }
+      target.reward_status = "reversed";
+    } else if (params.action === "clear_fraud") {
+      target.fraud_flag = false;
+      target.fraud_reason = null;
+    } else if (params.action === "flag_fraud") {
+      target.fraud_flag = true;
+      target.fraud_reason = params.reason || "Flagged for manual fraud review";
+    }
+
+    localStorage.setItem("annr-vip-referrals-log", JSON.stringify(list));
+    appendAdminLoyaltyLog({
+      admin_email: params.adminEmail || "admin@annr.store",
+      action_type: `referral_${params.action}`,
+      target_email: target.referrer_email || target.referral_code,
+      reason: params.reason || `Referral ${params.action} on code ${target.referral_code}`,
+    });
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || "Failed to update referral record" };
+  }
+}
+
+/**
  * Credit a VIP referrer locally across all storage keys when their referral code is used
- * at signup or checkout.
+ * at checkout (with idempotency, fraud detection, and tier multiplier).
  */
 export function creditVipReferrerLocally(params: {
   referralCode: string;
   pointsReward: number;
   buyerName?: string;
   buyerEmail?: string;
+  buyerPhone?: string;
   orderNumber?: string | number;
   orderTotal?: number;
+  discountGiven?: number;
   eventType: "order" | "signup";
-}): void {
+}): { credited: boolean; reason?: string } {
   const normCode = (params.referralCode || "").trim().toUpperCase();
-  if (!normCode) return;
-  const pts = Math.max(0, Math.round(Number(params.pointsReward) || 100));
+  if (!normCode) return { credited: false, reason: "Empty referral code" };
 
   try {
-    // 1. Update annr-vip-members
-    const rawMembers = localStorage.getItem(LOCAL_MEMBERS_KEY);
-    const members: any[] = rawMembers ? JSON.parse(rawMembers) : [];
-    let matchedEmail = "";
-    for (const m of members) {
-      if ((m.referral_code || "").toUpperCase() === normCode) {
-        m.available_points = Number(m.available_points || 0) + pts;
-        m.total_earned_points = Number(m.total_earned_points || 0) + pts;
-        m.friends_referred = Number(m.friends_referred || 0) + 1;
-        matchedEmail = (m.email || "").toLowerCase();
+    const rawLog = localStorage.getItem("annr-vip-referrals-log");
+    const logList: any[] = rawLog ? JSON.parse(rawLog) : [];
+
+    // 1. Idempotency check: prevent duplicate referral rewards for the same order_number
+    if (params.eventType === "order" && params.orderNumber) {
+      const alreadyProcessed = logList.some(
+        (r) => r && r.event_type === "order" && String(r.order_number) === String(params.orderNumber)
+      );
+      if (alreadyProcessed) {
+        return { credited: false, reason: "Order referral reward already processed (idempotent)" };
       }
     }
-    if (members.length > 0) {
-      localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(members));
+
+    const allMembers = getAllLocalVipMembers();
+    const owner = allMembers.find((m) => (m.referral_code || "").toUpperCase() === normCode);
+
+    // 2. Anti-self-referral check
+    if (owner && params.buyerEmail && owner.email.toLowerCase().trim() === params.buyerEmail.toLowerCase().trim()) {
+      return { credited: false, reason: "Self-referral blocked" };
+    }
+    if (owner && params.buyerPhone && owner.phone && owner.phone.replace(/\D/g, "") === params.buyerPhone.replace(/\D/g, "")) {
+      return { credited: false, reason: "Self-referral by matching phone number blocked" };
     }
 
-    // 2. Update annr_vip_accounts_v1
+    // 3. Detect suspicious velocity / repeated buyer email for fraud flag
+    const priorUsesByBuyer = params.buyerEmail
+      ? logList.filter(
+          (r) =>
+            r &&
+            r.event_type === "order" &&
+            (r.referral_code || "").toUpperCase() === normCode &&
+            (r.buyer_email || "").toLowerCase().trim() === params.buyerEmail!.toLowerCase().trim()
+        ).length
+      : 0;
+    const isFraudFlagged = priorUsesByBuyer >= 2;
+    const fraudReason = isFraudFlagged ? `Repeated referral usage (${priorUsesByBuyer + 1}×) by same customer email` : null;
+
+    const multiplier = Number(owner?.tier_multiplier || 1.0);
+    const basePts = Math.max(0, Math.round(Number(params.pointsReward) || 100));
+    const pts = Math.round(basePts * multiplier);
+
+    let matchedEmail = owner?.email || "";
+
+    if (owner) {
+      owner.available_points = Number(owner.available_points || 0) + pts;
+      owner.total_earned_points = Number(owner.total_earned_points || 0) + pts;
+      owner.referral_points_earned = Number(owner.referral_points_earned || 0) + pts;
+      owner.friends_referred = Number(owner.friends_referred || 0) + 1;
+      evaluateMemberTierLocally(owner);
+      syncMemberAcrossLocalStores(owner);
+
+      appendPointsLedgerEntry({
+        vip_member_id: owner.id,
+        member_email: owner.email,
+        member_name: owner.full_name,
+        amount: pts,
+        balance_after: owner.available_points,
+        transaction_type: "referral_matured",
+        reference_id: params.orderNumber ? `#${params.orderNumber}` : undefined,
+        note:
+          params.eventType === "order"
+            ? `Referral reward (+${pts} PTS) from ${params.buyerName || "Friend"} on Order #${params.orderNumber}`
+            : `Referral signup bonus (+${pts} PTS) from ${params.buyerName || "Friend"}`,
+        status: "completed",
+      });
+
+      pushLoyaltyNotification({
+        member_email: owner.email,
+        event_type: "referral_success",
+        title: `+${pts} ANNR Points Earned from Referral!`,
+        message: `${params.buyerName || "A friend"} completed ${
+          params.orderNumber ? `Order #${params.orderNumber}` : "registration"
+        } using your code ${normCode}.`,
+      });
+    }
+
+    // Update coupon stats inside annr_vip_accounts_v1 and annr_vip_member_session
     const rawAccounts = localStorage.getItem("annr_vip_accounts_v1");
     if (rawAccounts) {
       const accounts = JSON.parse(rawAccounts);
@@ -370,18 +1466,9 @@ export function creditVipReferrerLocally(params: {
       for (const k of Object.keys(accounts)) {
         const acc = accounts[k];
         const code = (acc?.coupon?.code || acc?.member?.referral_code || "").toUpperCase();
-        if (code === normCode) {
-          acc.available_points = Number(acc.available_points || acc?.member?.available_points || 0) + pts;
-          if (acc.member) {
-            acc.member.available_points = Number(acc.member.available_points || 0) + pts;
-            acc.member.total_earned_points = Number(acc.member.total_earned_points || 0) + pts;
-            acc.member.friends_referred = Number(acc.member.friends_referred || 0) + 1;
-            if (!matchedEmail && acc.member.email) matchedEmail = acc.member.email.toLowerCase();
-          }
-          if (acc.coupon) {
-            acc.coupon.times_used = Number(acc.coupon.times_used || 0) + 1;
-            acc.coupon.total_points_generated = Number(acc.coupon.total_points_generated || 0) + pts;
-          }
+        if (code === normCode && acc.coupon) {
+          acc.coupon.times_used = Number(acc.coupon.times_used || 0) + 1;
+          acc.coupon.total_points_generated = Number(acc.coupon.total_points_generated || 0) + pts;
           updatedAcc = true;
         }
       }
@@ -390,43 +1477,42 @@ export function creditVipReferrerLocally(params: {
       }
     }
 
-    // 3. Update active session if logged in as the referrer
     const rawSess = localStorage.getItem("annr_vip_member_session");
     if (rawSess) {
       const sess = JSON.parse(rawSess);
       const sessCode = (sess?.coupon?.code || sess?.member?.referral_code || "").toUpperCase();
-      if (sessCode === normCode) {
-        sess.member = sess.member || {};
-        sess.coupon = sess.coupon || { code: normCode };
-        sess.member.available_points = Number(sess.member.available_points || 0) + pts;
-        sess.member.total_earned_points = Number(sess.member.total_earned_points || 0) + pts;
-        sess.member.friends_referred = Number(sess.member.friends_referred || 0) + 1;
+      if (sessCode === normCode && sess.coupon) {
         sess.coupon.times_used = Number(sess.coupon.times_used || 0) + 1;
         sess.coupon.total_points_generated = Number(sess.coupon.total_points_generated || 0) + pts;
         localStorage.setItem("annr_vip_member_session", JSON.stringify(sess));
-        localStorage.setItem("annr_vip_session", JSON.stringify(sess.member));
-        localStorage.setItem(LOCAL_VIP_KEY, JSON.stringify(sess.member));
       }
     }
 
-    // 4. Append to referral activity log for the VIP dashboard & Admin view
-    const rawLog = localStorage.getItem("annr-vip-referrals-log");
-    const logList: any[] = rawLog ? JSON.parse(rawLog) : [];
     logList.unshift({
       id: "ref-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
       referral_code: normCode,
+      referrer_member_id: owner?.id,
+      referrer_name: owner?.full_name || "VIP Member",
       referrer_email: matchedEmail,
       buyer_name: params.buyerName || "Friend",
       buyer_email: params.buyerEmail || "",
+      buyer_phone: params.buyerPhone || "",
       order_number: params.orderNumber || null,
       order_total: params.orderTotal || 0,
+      discount_given_bdt: params.discountGiven || 0,
       points_earned: pts,
       event_type: params.eventType,
+      attribution_status: params.eventType === "order" ? "converted" : "registered",
+      reward_status: "available",
+      fraud_flag: isFraudFlagged,
+      fraud_reason: fraudReason,
       created_at: new Date().toISOString(),
     });
     localStorage.setItem("annr-vip-referrals-log", JSON.stringify(logList.slice(0, 500)));
+    return { credited: true };
   } catch (e) {
     console.warn("Local referral credit sync error:", e);
+    return { credited: false, reason: "Sync error" };
   }
 }
 
@@ -452,6 +1538,9 @@ export async function validateReferralCoupon(
   }
 
   const settings = await getLoyaltySettings();
+  if (!settings.program_enabled && (normCode.startsWith("VIP-") || normCode.startsWith("ANNR-"))) {
+    return { valid: false, error: "The VIP referral programme is currently paused by the administrator." };
+  }
 
   if (isSupabaseConfigured()) {
     try {
@@ -462,14 +1551,12 @@ export async function validateReferralCoupon(
       });
       if (!error && data) {
         if (data.valid) return data;
-        // If Supabase returned an explicit security rejection (like self-referral), return it
-        if (data.error && data.error.includes("own referral coupon")) {
+        if (data.error && (data.error.includes("own referral") || data.error.includes("Self-referral"))) {
           return data;
         }
       }
-      // If error or inactive coupon in empty DB, fall through to local validation
     } catch {
-      // Fall through to local fallback
+      // Fall through to local validation
     }
   }
 
@@ -499,12 +1586,15 @@ export async function validateReferralCoupon(
     };
   }
 
-  // Check local VIP member referral codes + prefix rules
   const localMembers = getAllLocalVipMembers();
   const owner = localMembers.find((m) => (m.referral_code || "").toUpperCase() === normCode);
   const prefix = (settings.coupon_prefix || "VIP-").toUpperCase();
 
   if (owner || normCode.startsWith(prefix) || normCode.startsWith("VIP-") || normCode.startsWith("ANNR-")) {
+    if (owner && owner.status !== "active") {
+      return { valid: false, error: "This referral code is currently suspended or inactive." };
+    }
+
     const minOrder = Number(settings.min_order_for_coupon ?? 1000);
     if (orderTotal < minOrder) {
       return {
@@ -522,19 +1612,36 @@ export async function validateReferralCoupon(
       if (normCode === "VIP-RATUL88" && cleanBuyer.includes("ratul")) {
         return { valid: false, error: "You cannot use your own referral coupon" };
       }
+
+      // Check first-order-only restriction if enabled
+      if (settings.first_order_only_referral) {
+        const records = getReferralRecords();
+        const usedBefore = records.some(
+          (r) => r.event_type === "order" && (r.buyer_email || "").toLowerCase().trim() === cleanBuyer && r.reward_status !== "reversed"
+        );
+        if (usedBefore) {
+          return { valid: false, error: "Referral coupons are valid for first-time referred orders only." };
+        }
+      }
     }
 
     const discType = settings.friend_discount_type || "percent";
     const discVal = Number(settings.friend_discount_value || 10);
-    const discount =
+    const maxCap = Number(settings.max_discount_bdt || 0);
+    let discount =
       discType === "fixed"
         ? Math.min(orderTotal, Math.round(discVal))
         : Math.round(orderTotal * (discVal / 100));
+    if (maxCap > 0) {
+      discount = Math.min(discount, maxCap);
+    }
 
-    const pointsReward =
+    const baseReward =
       settings.reward_mode === "percent_order"
         ? Math.max(10, Math.round(orderTotal * ((Number(settings.percent_order_points) || 5) / 100)))
         : Number(settings.points_per_referral || 100);
+
+    const pointsReward = Math.round(baseReward * Number(owner?.tier_multiplier || 1.0));
 
     return {
       valid: true,
@@ -579,7 +1686,6 @@ export async function requestVipWithdrawal(payload: {
     }
   }
 
-  // Local fallback
   return { ok: true, moneyAmountBdt: payload.pointsAmount * 1.0 };
 }
 
@@ -604,12 +1710,9 @@ export async function getAdminWithdrawalRequests(): Promise<WithdrawalRequest[]>
           merged.set(String(row.id || row.request_number), row as WithdrawalRequest);
         }
       }
-    } catch {
-      // Fallback
-    }
+    } catch {}
   }
 
-  // Always merge local storage keys ("annr-withdrawals" from site-config.js and "annr-withdrawals-v1")
   const keys = ["annr-withdrawals", LOCAL_WITHDRAWALS_KEY];
   for (const key of keys) {
     try {
@@ -670,12 +1773,9 @@ export async function processAdminWithdrawal(
         p_transaction_ref: transactionRef || null,
         p_admin_notes: adminNotes || null,
       });
-    } catch {
-      // Fall through and also update local storage
-    }
+    } catch {}
   }
 
-  // Always update local storage queues ("annr-withdrawals" and "annr-withdrawals-v1")
   try {
     let targetRecord: any = null;
     for (const key of ["annr-withdrawals", LOCAL_WITHDRAWALS_KEY]) {
@@ -699,58 +1799,40 @@ export async function processAdminWithdrawal(
       }
     }
 
-    // If rejected, refund points back to member's available_points
-    if (action === "rejected" && targetRecord) {
+    if (targetRecord) {
       const pts = Number(targetRecord.points_amount || 0);
       const email = (targetRecord.member_email || targetRecord.vip_members?.email || "").toLowerCase();
-      const memberId = targetRecord.vip_member_id;
+      const all = getAllLocalVipMembers();
+      const member = all.find((m) => m.email.toLowerCase() === email || m.id === targetRecord.vip_member_id);
 
-      if (pts > 0) {
-        // 1. annr-vip-members
-        const rawMembers = localStorage.getItem(LOCAL_MEMBERS_KEY);
-        if (rawMembers) {
-          const members = JSON.parse(rawMembers);
-          for (const m of members) {
-            if ((email && m.email?.toLowerCase() === email) || (memberId && m.id === memberId)) {
-              m.available_points = Number(m.available_points || 0) + pts;
-              m.withdrawn_points = Math.max(0, Number(m.withdrawn_points || 0) - pts);
-            }
-          }
-          localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(members));
-        }
+      if (action === "rejected" && pts > 0 && member) {
+        member.available_points = Number(member.available_points || 0) + pts;
+        member.withdrawn_points = Math.max(0, Number(member.withdrawn_points || 0) - pts);
+        syncMemberAcrossLocalStores(member);
 
-        // 2. annr_vip_accounts_v1
-        const rawAcc = localStorage.getItem("annr_vip_accounts_v1");
-        if (rawAcc) {
-          const accs = JSON.parse(rawAcc);
-          for (const k of Object.keys(accs)) {
-            const a = accs[k];
-            if ((email && a?.email?.toLowerCase() === email) || (memberId && a?.member?.id === memberId)) {
-              a.available_points = Number(a.available_points || 0) + pts;
-              if (a.member) {
-                a.member.available_points = Number(a.member.available_points || 0) + pts;
-                a.member.withdrawn_points = Math.max(0, Number(a.member.withdrawn_points || 0) - pts);
-              }
-            }
-          }
-          localStorage.setItem("annr_vip_accounts_v1", JSON.stringify(accs));
-        }
-
-        // 3. annr_vip_member_session
-        const rawSess = localStorage.getItem("annr_vip_member_session");
-        if (rawSess) {
-          const sess = JSON.parse(rawSess);
-          if (
-            sess?.member &&
-            ((email && sess.member.email?.toLowerCase() === email) || (memberId && sess.member.id === memberId))
-          ) {
-            sess.member.available_points = Number(sess.member.available_points || 0) + pts;
-            sess.member.withdrawn_points = Math.max(0, Number(sess.member.withdrawn_points || 0) - pts);
-            localStorage.setItem("annr_vip_member_session", JSON.stringify(sess));
-            localStorage.setItem("annr_vip_session", JSON.stringify(sess.member));
-            localStorage.setItem(LOCAL_VIP_KEY, JSON.stringify(sess.member));
-          }
-        }
+        appendPointsLedgerEntry({
+          vip_member_id: member.id,
+          member_email: member.email,
+          member_name: member.full_name,
+          amount: pts,
+          balance_after: member.available_points,
+          transaction_type: "withdrawal_refunded",
+          reference_id: `#${targetRecord.request_number || requestId}`,
+          note: `Withdrawal #${targetRecord.request_number || requestId} rejected & refunded: ${adminNotes || "Refunded to wallet"}`,
+          status: "completed",
+        });
+      } else if (action === "paid" && member) {
+        appendPointsLedgerEntry({
+          vip_member_id: member.id,
+          member_email: member.email,
+          member_name: member.full_name,
+          amount: 0,
+          balance_after: member.available_points,
+          transaction_type: "withdrawal_paid",
+          reference_id: `#${targetRecord.request_number || requestId}`,
+          note: `Paid ৳${targetRecord.money_amount_bdt} via ${targetRecord.payout_method.toUpperCase()} (TrxID: ${transactionRef || "N/A"})`,
+          status: "completed",
+        });
       }
     }
   } catch (e) {
@@ -761,7 +1843,7 @@ export async function processAdminWithdrawal(
 }
 
 /**
- * Update order status (Fulfilled, Cancelled, Shipped, etc.) and mature / reverse VIP referral points
+ * Update order status (Fulfilled, Cancelled, Refunded, Shipped, etc.) and mature / reverse VIP referral & redeemed points
  */
 export async function updateStoreOrderStatus(
   orderId: string,
@@ -772,57 +1854,71 @@ export async function updateStoreOrderStatus(
 
   if (isSupabaseConfigured()) {
     try {
-      const { data, error } = await supabase.rpc("update_store_order_status", {
+      await supabase.rpc("update_store_order_status", {
         p_order_id: orderId,
         p_new_status: normStatus,
         p_payment_status: paymentStatus || null,
       });
-      if (!error && data?.ok) {
-        return { ok: true };
-      }
-    } catch (e: any) {
-      console.warn("Notice: Supabase order status sync fallback to local store:", e);
-    }
+    } catch {}
   }
 
-  // Local storage simulation
   try {
     const rawOrders = localStorage.getItem("annr-orders");
     if (rawOrders) {
       const orders = JSON.parse(rawOrders);
-      const target = orders.find((o: any) => o.id === orderId || o.order_number === orderId);
+      const target = orders.find((o: any) => String(o.id) === String(orderId) || String(o.order_number) === String(orderId));
       if (target) {
+        const prevStatus = (target.status || "").toLowerCase();
         target.status = newStatus;
         if (paymentStatus) target.payment = paymentStatus;
         localStorage.setItem("annr-orders", JSON.stringify(orders));
 
-        // Mature or reverse referral points
-        if (target.coupon_code) {
-          const rawMembers = localStorage.getItem(LOCAL_MEMBERS_KEY);
-          if (rawMembers) {
-            const members = JSON.parse(rawMembers);
-            const owner = members.find((m: any) => m.referral_code?.toUpperCase() === target.coupon_code.toUpperCase());
-            if (owner) {
-              const pts = Number(target.referral_points || 100);
-              if (normStatus === "fulfilled" || normStatus === "delivered") {
-                if (owner.pending_points >= pts) {
-                  owner.pending_points -= pts;
-                  owner.available_points = (owner.available_points || 0) + pts;
-                }
-              } else if (normStatus === "cancelled" || normStatus === "refunded") {
-                if (owner.pending_points >= pts) {
-                  owner.pending_points -= pts;
-                }
-              }
-              localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(members));
+        // If cancelled or refunded, reverse referral reward AND refund any redeemed checkout points!
+        if ((normStatus === "cancelled" || normStatus === "refunded") && prevStatus !== "cancelled" && prevStatus !== "refunded") {
+          // 1. Refund redeemed points back to buyer if buyer redeemed points on this order
+          if (target.points_redeemed && Number(target.points_redeemed) > 0 && target.email) {
+            const all = getAllLocalVipMembers();
+            const buyer = all.find((m) => m.email.toLowerCase().trim() === target.email.toLowerCase().trim());
+            if (buyer) {
+              const rPts = Number(target.points_redeemed);
+              buyer.available_points = Number(buyer.available_points || 0) + rPts;
+              buyer.redeemed_points = Math.max(0, Number(buyer.redeemed_points || 0) - rPts);
+              syncMemberAcrossLocalStores(buyer);
+
+              appendPointsLedgerEntry({
+                vip_member_id: buyer.id,
+                member_email: buyer.email,
+                member_name: buyer.full_name,
+                amount: rPts,
+                balance_after: buyer.available_points,
+                transaction_type: "points_refunded",
+                reference_id: `#${target.order_number || orderId}`,
+                note: `Refunded ${rPts} redeemed ANNR Points due to order ${normStatus}`,
+                status: "completed",
+              });
+            }
+          }
+
+          // 2. Reverse referral reward from referrer
+          if (target.coupon_code) {
+            const logs = getReferralRecords();
+            const refRec = logs.find(
+              (r) =>
+                String(r.order_number) === String(target.order_number) ||
+                ((r.referral_code || "").toUpperCase() === target.coupon_code.toUpperCase() && r.reward_status !== "reversed")
+            );
+            if (refRec) {
+              adminReviewReferralRecord({
+                recordId: refRec.id,
+                action: "reverse",
+                reason: `Order #${target.order_number || orderId} was ${normStatus}`,
+              });
             }
           }
         }
       }
     }
-  } catch (err) {
-    console.error(err);
-  }
+  } catch {}
 
   return { ok: true };
 }

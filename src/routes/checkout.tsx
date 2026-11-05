@@ -1,7 +1,19 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { BD_DIVISIONS, BD_DISTRICTS_BY_DIVISION, calculateShippingFee, isValidBdPhone } from "../lib/bangladesh-geo";
-import { validateReferralCoupon, creditVipReferrerLocally } from "../lib/loyalty";
+import {
+  validateReferralCoupon,
+  creditVipReferrerLocally,
+  getAllLocalVipMembers,
+  getLoyaltySettings,
+  calculateMaxRedeemablePoints,
+  redeemMemberPointsForOrder,
+  awardOrderLoyaltyPoints,
+  evaluateOrderCampaignBonuses,
+  DEFAULT_LOYALTY_SETTINGS,
+  type LoyaltySettings,
+  type VipMember,
+} from "../lib/loyalty";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/checkout")({ component: CheckoutPage });
@@ -36,13 +48,25 @@ function CheckoutPage() {
     referrerName?: string;
   } | null>(null);
   const [couponError, setCouponError] = useState("");
+
+  // ANNR VIP Points Wallet & Redemption State
+  const [loyaltySettings, setLoyaltySettings] = useState<LoyaltySettings>(DEFAULT_LOYALTY_SETTINGS);
+  const [vipMember, setVipMember] = useState<VipMember | null>(null);
+  const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
+  const [redemptionCap, setRedemptionCap] = useState<{
+    canRedeem: boolean;
+    maxPoints: number;
+    maxDiscountBdt: number;
+    pointValueBdt: number;
+    reason?: string;
+  }>({ canRedeem: false, maxPoints: 0, maxDiscountBdt: 0, pointValueBdt: 1 });
+
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<any | null>(null);
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
     let loadedItems: CartItem[] = [];
-    // Read cart items from localStorage or fallback
     try {
       const raw = localStorage.getItem("annr-cart") || localStorage.getItem("shihiko-cart");
       if (raw) {
@@ -54,7 +78,6 @@ function CheckoutPage() {
     } catch {}
 
     if (loadedItems.length === 0) {
-      // Default sample item if empty so the checkout page is interactive
       loadedItems = [
         {
           id: "prod-1",
@@ -68,9 +91,32 @@ function CheckoutPage() {
     }
     setItems(loadedItems);
 
+    getLoyaltySettings().then((s) => setLoyaltySettings(s));
+
+    // Pre-fill signed-in VIP member details if available
+    try {
+      const rawSess = localStorage.getItem("annr_vip_member_session");
+      if (rawSess) {
+        const sess = JSON.parse(rawSess);
+        const m = sess?.member as VipMember | undefined;
+        if (m && m.email) {
+          setVipMember(m);
+          setCustomerName((prev) => prev || m.full_name || "");
+          setEmail((prev) => prev || m.email || "");
+          setPhone((prev) => prev || m.phone || "");
+          if (m.division) setDivision(m.division);
+          if (m.district) setDistrict(m.district);
+          if (m.upazila) setUpazila(m.upazila);
+          if (m.full_address) setFullAddress(m.full_address);
+        }
+      }
+    } catch {}
+
     // Pre-fill or auto-apply coupon from URL ?ref= or cart/saved referral code
     try {
-      const qsRef = new URLSearchParams(window.location.search).get("ref") || new URLSearchParams(window.location.search).get("coupon");
+      const qsRef =
+        new URLSearchParams(window.location.search).get("ref") ||
+        new URLSearchParams(window.location.search).get("coupon");
       const savedCoupon =
         qsRef ||
         localStorage.getItem("annr_cart_coupon") ||
@@ -94,10 +140,69 @@ function CheckoutPage() {
     } catch {}
   }, []);
 
+  // Dynamically match VIP member when customer types email or phone
+  useEffect(() => {
+    try {
+      const all = getAllLocalVipMembers();
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPhone = phone.replace(/\D/g, "").replace(/^880/, "0");
+      const matched = all.find(
+        (m) =>
+          (cleanEmail && m.email.toLowerCase().trim() === cleanEmail) ||
+          (cleanPhone.length === 11 && m.phone.replace(/\D/g, "").replace(/^880/, "0") === cleanPhone)
+      );
+      if (matched) {
+        setVipMember(matched);
+      }
+    } catch {}
+  }, [email, phone]);
+
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  // Recalculate max redeemable points whenever subtotal, VIP member, or appliedCoupon changes
+  useEffect(() => {
+    const avail = Number(vipMember?.available_points || 0);
+    calculateMaxRedeemablePoints(avail, subtotal, Boolean(appliedCoupon)).then((cap) => {
+      setRedemptionCap(cap);
+      if (!cap.canRedeem) {
+        setPointsToRedeem(0);
+      } else {
+        // Check if member pre-queued points redemption from VIP Dashboard
+        try {
+          const queuedPts = Number(localStorage.getItem("annr_checkout_redeem_points") || 0);
+          if (queuedPts > 0) {
+            setPointsToRedeem(Math.min(queuedPts, cap.maxPoints));
+            localStorage.removeItem("annr_checkout_redeem_points");
+          } else if (pointsToRedeem > cap.maxPoints) {
+            setPointsToRedeem(cap.maxPoints);
+          }
+        } catch {}
+      }
+    });
+  }, [vipMember, subtotal, appliedCoupon]);
+
   const shippingFee = calculateShippingFee(division, district);
-  const discountAmount = appliedCoupon ? appliedCoupon.discountAmount : 0;
-  const total = Math.max(0, subtotal - discountAmount + shippingFee);
+  const couponDiscountBdt = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const pointsDiscountBdt =
+    redemptionCap.canRedeem && pointsToRedeem >= Number(loyaltySettings.min_redemption_points || 50)
+      ? Math.round(Math.min(pointsToRedeem, redemptionCap.maxPoints) * redemptionCap.pointValueBdt)
+      : 0;
+  const totalDiscountBdt = Math.min(subtotal, couponDiscountBdt + pointsDiscountBdt);
+  const total = Math.max(0, subtotal - totalDiscountBdt + shippingFee);
+
+  // Calculate projected ANNR Points earned on this order
+  const memberMultiplier = Number(vipMember?.tier_multiplier || 1.0);
+  const projectedBasePoints =
+    loyaltySettings.program_enabled && loyaltySettings.order_earn_enabled
+      ? Math.floor((total / 100) * Number(loyaltySettings.points_per_100_bdt || 2) * memberMultiplier)
+      : 0;
+  const projectedCampaignEval = evaluateOrderCampaignBonuses({
+    orderSubtotal: subtotal,
+    memberTier: vipMember?.tier || "Silver",
+    isFirstOrder: Number(vipMember?.lifetime_orders || 0) === 0,
+    basePointsEarned: projectedBasePoints,
+  });
+  const projectedTotalEarnedPoints = projectedBasePoints + projectedCampaignEval.bonusPoints;
 
   const availableDistricts = BD_DISTRICTS_BY_DIVISION[division as keyof typeof BD_DISTRICTS_BY_DIVISION] || [];
 
@@ -201,9 +306,34 @@ function CheckoutPage() {
         }
       }
 
-      // Always save order to local orders queue & credit referrer so Admin Panel and VIP Dashboard stay 100% synced
       const orderNum = remoteOrderResult?.order_number || Math.floor(10000 + Math.random() * 89999);
-      const ptsReward = appliedCoupon?.pointsReward ?? 100;
+      const ptsReward = appliedCoupon?.pointsReward ?? Number(loyaltySettings.points_per_referral || 100);
+      const effectiveRedeemedPts =
+        pointsDiscountBdt > 0 ? Math.min(pointsToRedeem, redemptionCap.maxPoints) : 0;
+
+      // 1. Atomically redeem customer's ANNR Points if selected
+      if (effectiveRedeemedPts > 0 && vipMember?.email) {
+        const redeemRes = await redeemMemberPointsForOrder({
+          memberEmail: vipMember.email,
+          pointsToRedeem: effectiveRedeemedPts,
+          orderNumber: orderNum,
+          orderSubtotal: subtotal,
+        });
+        if (!redeemRes.ok) {
+          setFormError(redeemRes.error || "Could not redeem ANNR Points.");
+          setOrderSubmitting(false);
+          return;
+        }
+      }
+
+      // 2. Award purchase & campaign bonus points to buyer if VIP member
+      const earnedRes = await awardOrderLoyaltyPoints({
+        buyerEmail: email.trim(),
+        buyerName: customerName.trim(),
+        orderNumber: orderNum,
+        orderTotalBdt: total,
+      });
+
       const orderRecord = {
         id: `#${orderNum}`,
         order_number: orderNum,
@@ -217,11 +347,15 @@ function CheckoutPage() {
         total: total.toFixed(2),
         subtotal,
         shipping: shippingFee,
-        discount: discountAmount,
+        discount: totalDiscountBdt,
+        coupon_discount_bdt: couponDiscountBdt,
+        points_redeemed: effectiveRedeemedPts,
+        points_discount_bdt: pointsDiscountBdt,
+        points_earned: earnedRes.pointsEarned + earnedRes.campaignBonus,
         payment_method: paymentMethod,
         trx_id: trxId.trim() || undefined,
         coupon_code: appliedCoupon?.code,
-        referral_points: ptsReward,
+        referral_points: appliedCoupon ? ptsReward : 0,
         status: "Unfulfilled",
         payment: paymentMethod === "cod" ? "Pending (COD)" : "Paid",
         created_at: new Date().toISOString(),
@@ -233,15 +367,17 @@ function CheckoutPage() {
         orders.unshift(orderRecord);
         localStorage.setItem("annr-orders", JSON.stringify(orders.slice(0, 500)));
 
-        // Credit referral points, coupon usage count, and referral log to the coupon owner
+        // 3. Credit referral points, coupon usage count, and referral log to the coupon owner
         if (appliedCoupon?.code && ptsReward > 0) {
           creditVipReferrerLocally({
             referralCode: appliedCoupon.code,
             pointsReward: ptsReward,
             buyerName: customerName.trim(),
             buyerEmail: email.trim(),
+            buyerPhone: phone.trim(),
             orderNumber: orderNum,
             orderTotal: total,
+            discountGiven: couponDiscountBdt,
             eventType: "order",
           });
         }
@@ -251,16 +387,18 @@ function CheckoutPage() {
         localStorage.removeItem("annr_cart_coupon");
       } catch {}
 
-      setOrderSuccess(
-        remoteOrderResult || {
-          ok: true,
-          order_number: orderNum,
-          subtotal,
-          shipping: shippingFee,
-          discount: discountAmount,
-          total,
-        }
-      );
+      setOrderSuccess({
+        ok: true,
+        order_number: orderNum,
+        subtotal,
+        shipping: shippingFee,
+        discount: totalDiscountBdt,
+        coupon_discount: couponDiscountBdt,
+        points_redeemed: effectiveRedeemedPts,
+        points_discount: pointsDiscountBdt,
+        points_earned: earnedRes.pointsEarned + earnedRes.campaignBonus,
+        total,
+      });
     } catch (err: any) {
       setFormError(err?.message || "Order submission failed");
     } finally {
@@ -326,31 +464,75 @@ function CheckoutPage() {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ opacity: 0.7 }}>Payment:</span>
-              <b style={{ textTransform: "uppercase" }}>{paymentMethod} {trxId ? `(Trx: ${trxId})` : ""}</b>
+              <b style={{ textTransform: "uppercase" }}>
+                {paymentMethod} {trxId ? `(Trx: ${trxId})` : ""}
+              </b>
             </div>
-            <div style={{ borderTop: "1px solid #282828", paddingTop: 8, display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+            {orderSuccess.points_redeemed > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#fa9442" }}>
+                <span>ANNR Points Redeemed ({orderSuccess.points_redeemed} PTS):</span>
+                <b>-৳{orderSuccess.points_discount}</b>
+              </div>
+            )}
+            {orderSuccess.points_earned > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#22c55e" }}>
+                <span>ANNR VIP Points Earned:</span>
+                <b>+{orderSuccess.points_earned} PTS</b>
+              </div>
+            )}
+            <div
+              style={{
+                borderTop: "1px solid #282828",
+                paddingTop: 8,
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 14,
+              }}
+            >
               <span>Total Payable:</span>
               <b style={{ color: "#ffffff" }}>৳{orderSuccess.total?.toLocaleString() || total.toLocaleString()}</b>
             </div>
           </div>
 
-          <a
-            href="/home.html"
-            style={{
-              display: "block",
-              background: "#ffffff",
-              color: "#000000",
-              textDecoration: "none",
-              padding: "12px 20px",
-              fontWeight: 700,
-              fontSize: 12,
-              letterSpacing: 1,
-              textTransform: "uppercase",
-              borderRadius: 3,
-            }}
-          >
-            Return to Storefront →
-          </a>
+          <div style={{ display: "flex", gap: 10 }}>
+            <a
+              href="/account/login/index.html"
+              style={{
+                flex: 1,
+                display: "block",
+                background: "#1c1c22",
+                color: "#f3e7d6",
+                border: "1px solid #fa9442",
+                textDecoration: "none",
+                padding: "12px 16px",
+                fontWeight: 700,
+                fontSize: 11,
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                borderRadius: 3,
+              }}
+            >
+              Open VIP Wallet →
+            </a>
+            <a
+              href="/home.html"
+              style={{
+                flex: 1,
+                display: "block",
+                background: "#ffffff",
+                color: "#000000",
+                textDecoration: "none",
+                padding: "12px 16px",
+                fontWeight: 700,
+                fontSize: 11,
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                borderRadius: 3,
+              }}
+            >
+              Return to Shop →
+            </a>
+          </div>
         </div>
       </div>
     );
@@ -415,7 +597,15 @@ function CheckoutPage() {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div>
-                    <label style={{ display: "block", fontSize: 10, textTransform: "uppercase", opacity: 0.7, marginBottom: 4 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 10,
+                        textTransform: "uppercase",
+                        opacity: 0.7,
+                        marginBottom: 4,
+                      }}
+                    >
                       Full Name *
                     </label>
                     <input
@@ -439,7 +629,15 @@ function CheckoutPage() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div>
-                      <label style={{ display: "block", fontSize: 10, textTransform: "uppercase", opacity: 0.7, marginBottom: 4 }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 10,
+                          textTransform: "uppercase",
+                          opacity: 0.7,
+                          marginBottom: 4,
+                        }}
+                      >
                         Email *
                       </label>
                       <input
@@ -461,7 +659,15 @@ function CheckoutPage() {
                       />
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: 10, textTransform: "uppercase", opacity: 0.7, marginBottom: 4 }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 10,
+                          textTransform: "uppercase",
+                          opacity: 0.7,
+                          marginBottom: 4,
+                        }}
+                      >
                         Phone Number *
                       </label>
                       <input
@@ -487,7 +693,15 @@ function CheckoutPage() {
                   {/* Division & District Dropdowns */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div>
-                      <label style={{ display: "block", fontSize: 10, textTransform: "uppercase", opacity: 0.7, marginBottom: 4 }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 10,
+                          textTransform: "uppercase",
+                          opacity: 0.7,
+                          marginBottom: 4,
+                        }}
+                      >
                         Division *
                       </label>
                       <select
@@ -512,7 +726,15 @@ function CheckoutPage() {
                       </select>
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: 10, textTransform: "uppercase", opacity: 0.7, marginBottom: 4 }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 10,
+                          textTransform: "uppercase",
+                          opacity: 0.7,
+                          marginBottom: 4,
+                        }}
+                      >
                         District (Zilla) *
                       </label>
                       <select
@@ -539,7 +761,15 @@ function CheckoutPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: 10, textTransform: "uppercase", opacity: 0.7, marginBottom: 4 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 10,
+                        textTransform: "uppercase",
+                        opacity: 0.7,
+                        marginBottom: 4,
+                      }}
+                    >
                       Thana / Upazila
                     </label>
                     <input
@@ -561,7 +791,15 @@ function CheckoutPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: 10, textTransform: "uppercase", opacity: 0.7, marginBottom: 4 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 10,
+                        textTransform: "uppercase",
+                        opacity: 0.7,
+                        marginBottom: 4,
+                      }}
+                    >
                       Full Street Address *
                     </label>
                     <textarea
@@ -665,12 +903,28 @@ function CheckoutPage() {
                   </label>
 
                   {paymentMethod !== "cod" && (
-                    <div style={{ marginTop: 8, padding: 14, background: "#161616", borderRadius: 4, border: "1px dashed #333" }}>
+                    <div
+                      style={{
+                        marginTop: 8,
+                        padding: 14,
+                        background: "#161616",
+                        borderRadius: 4,
+                        border: "1px dashed #333",
+                      }}
+                    >
                       <div style={{ fontSize: 11, marginBottom: 8, opacity: 0.85 }}>
                         Send <b>৳{total.toLocaleString()}</b> to AnnR {paymentMethod.toUpperCase()} Wallet:{" "}
                         <b style={{ fontFamily: "monospace", color: "#fff" }}>01700000000</b>
                       </div>
-                      <label style={{ display: "block", fontSize: 10, textTransform: "uppercase", opacity: 0.7, marginBottom: 4 }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 10,
+                          textTransform: "uppercase",
+                          opacity: 0.7,
+                          marginBottom: 4,
+                        }}
+                      >
                         Transaction ID (TrxID) *
                       </label>
                       <input
@@ -716,8 +970,8 @@ function CheckoutPage() {
             </form>
           </div>
 
-          {/* Right Column: Order Items, Coupon & Summary */}
-          <div>
+          {/* Right Column: Order Items, Referral Coupon, ANNR Points Redemption & Summary */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ background: "#111111", border: "1px solid #222222", borderRadius: 6, padding: 20 }}>
               <h2 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1.5, margin: "0 0 16px" }}>
                 Order Summary ({items.reduce((n, i) => n + i.quantity, 0)})
@@ -749,10 +1003,10 @@ function CheckoutPage() {
               </div>
 
               {/* Coupon Form */}
-              <form onSubmit={handleApplyCoupon} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <form onSubmit={handleApplyCoupon} style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <input
                   type="text"
-                  placeholder="VIP or Promo Coupon"
+                  placeholder="VIP or Promo Coupon (e.g. VIP-RATUL88)"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   style={{
@@ -795,7 +1049,7 @@ function CheckoutPage() {
                     padding: "8px 12px",
                     borderRadius: 4,
                     fontSize: 11,
-                    marginBottom: 16,
+                    marginBottom: 14,
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
@@ -824,6 +1078,107 @@ function CheckoutPage() {
                 <div style={{ color: "#ff8b88", fontSize: 11, marginBottom: 12 }}>{couponError}</div>
               )}
 
+              {/* ANNR Points Wallet Redemption Section */}
+              {loyaltySettings.program_enabled && loyaltySettings.redemption_enabled && (
+                <div
+                  style={{
+                    background: "#15161e",
+                    border: "1px solid rgba(250, 148, 66, 0.35)",
+                    borderRadius: 5,
+                    padding: "12px 14px",
+                    marginBottom: 16,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#fa9442", letterSpacing: 1, textTransform: "uppercase" }}>
+                      ⚡ ANNR VIP Points Wallet
+                    </span>
+                    {vipMember ? (
+                      <span style={{ fontSize: 11, fontFamily: "monospace", color: "#22c55e", fontWeight: 700 }}>
+                        {vipMember.available_points} PTS (৳{Math.round(vipMember.available_points * redemptionCap.pointValueBdt)})
+                      </span>
+                    ) : (
+                      <a href="/account/login/index.html" style={{ fontSize: 10, color: "#f3e7d6", textDecoration: "underline" }}>
+                        Join / Sign In (+100 PTS)
+                      </a>
+                    )}
+                  </div>
+
+                  {!vipMember ? (
+                    <div style={{ fontSize: 11, color: "#9ea1b8", lineHeight: 1.4 }}>
+                      Enter your registered VIP email/phone on the left or{" "}
+                      <a href="/account/login/index.html" style={{ color: "#fa9442" }}>
+                        sign in to your VIP Vault
+                      </a>{" "}
+                      to redeem ANNR Points for an instant discount.
+                    </div>
+                  ) : !redemptionCap.canRedeem ? (
+                    <div style={{ fontSize: 11, color: "#9ea1b8" }}>{redemptionCap.reason}</div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 11, color: "#c4c7d4", marginBottom: 8 }}>
+                        Redeem up to <b>{redemptionCap.maxPoints} PTS</b> (<b>-৳{redemptionCap.maxDiscountBdt}</b>) on this order:
+                      </div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input
+                          type="range"
+                          min={0}
+                          max={redemptionCap.maxPoints}
+                          step={10}
+                          value={pointsToRedeem}
+                          onChange={(e) => setPointsToRedeem(Number(e.target.value))}
+                          style={{ flex: 1, accentColor: "#fa9442" }}
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          max={redemptionCap.maxPoints}
+                          value={pointsToRedeem}
+                          onChange={(e) =>
+                            setPointsToRedeem(Math.max(0, Math.min(redemptionCap.maxPoints, Number(e.target.value) || 0)))
+                          }
+                          style={{
+                            width: 68,
+                            background: "#0d0e14",
+                            border: "1px solid #333",
+                            color: "#fff",
+                            padding: "5px 6px",
+                            borderRadius: 4,
+                            fontSize: 12,
+                            fontFamily: "monospace",
+                            textAlign: "center",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPointsToRedeem(pointsToRedeem === redemptionCap.maxPoints ? 0 : redemptionCap.maxPoints)
+                          }
+                          style={{
+                            background: pointsToRedeem > 0 ? "#fa9442" : "#27272a",
+                            color: pointsToRedeem > 0 ? "#000" : "#fff",
+                            border: "none",
+                            borderRadius: 4,
+                            padding: "6px 10px",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {pointsToRedeem === redemptionCap.maxPoints ? "Clear" : "Max"}
+                        </button>
+                      </div>
+                      {pointsDiscountBdt > 0 && (
+                        <div style={{ fontSize: 11, color: "#22c55e", marginTop: 6, fontWeight: 600 }}>
+                          ✓ Redeeming {pointsToRedeem} ANNR Points for -৳{pointsDiscountBdt.toLocaleString()} instant discount
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Cost Breakdown */}
               <div
                 style={{
@@ -841,8 +1196,14 @@ function CheckoutPage() {
                 </div>
                 {appliedCoupon && (
                   <div style={{ display: "flex", justifyContent: "space-between", color: "#4ade80" }}>
-                    <span>Coupon Discount:</span>
-                    <span>-৳{appliedCoupon.discountAmount.toLocaleString()}</span>
+                    <span>Referral / Promo Coupon ({appliedCoupon.code}):</span>
+                    <span>-৳{couponDiscountBdt.toLocaleString()}</span>
+                  </div>
+                )}
+                {pointsDiscountBdt > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "#fa9442" }}>
+                    <span>ANNR Points Redeemed ({pointsToRedeem} PTS):</span>
+                    <span>-৳{pointsDiscountBdt.toLocaleString()}</span>
                   </div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -859,9 +1220,32 @@ function CheckoutPage() {
                     fontWeight: 700,
                   }}
                 >
-                  <span>Total:</span>
+                  <span>Total Payable:</span>
                   <span>৳{total.toLocaleString()}</span>
                 </div>
+
+                {projectedTotalEarnedPoints > 0 && (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      padding: "8px 10px",
+                      background: "rgba(34, 197, 94, 0.08)",
+                      border: "1px solid rgba(34, 197, 94, 0.25)",
+                      borderRadius: 4,
+                      fontSize: 11,
+                      color: "#4ade80",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span>
+                      Reward on Order Completion
+                      {projectedCampaignEval.bonusPoints > 0 ? ` (incl. +${projectedCampaignEval.bonusPoints} Campaign Bonus)` : ""}:
+                    </span>
+                    <b>+{projectedTotalEarnedPoints} ANNR PTS</b>
+                  </div>
+                )}
               </div>
             </div>
           </div>
