@@ -1870,16 +1870,14 @@
           ".vip-page .vip-form__wrapper { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }\n" +
           "#vip-inpage-hub { width: 100%; margin: 0 auto; color: #111; font-family: 'NB Architekt Std', sans-serif; box-sizing: border-box; background: #f7f4ef; min-height: 100vh; }\n" +
 
-          "/* Top Navbar matching screenshot */\n" +
-          ".vip-store-header { background: #f7f4ef; border-bottom: 1px solid rgba(0,0,0,0.06); padding: 0 40px; height: 66px; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; width: 100%; }\n" +
-          ".vip-header-inner { width: 100%; max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }\n" +
-          ".vip-header-left { display: flex; align-items: center; gap: 24px; }\n" +
-          ".vip-header-left a { font-family: 'NB Architekt Std', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #111; text-decoration: none; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; }\n" +
-          ".vip-header-logo img { height: 38px; width: auto; display: block; }\n" +
-          ".vip-header-right { display: flex; align-items: center; gap: 22px; }\n" +
-          ".vip-header-right a, .vip-header-right span { font-family: 'NB Architekt Std', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #111; text-decoration: none; text-transform: uppercase; }\n" +
-          ".vip-header-right .active-vip { border-bottom: 2px solid #e05a2b; padding-bottom: 2px; }\n" +
-          ".vip-header-search { display: inline-flex; align-items: center; gap: 6px; }\n" +
+          "/* Exact Store Navbar on VIP page */\n" +
+          ".vip-page .header.header-new { background: #f7f4ef !important; border-bottom: 1px solid rgba(0,0,0,0.08) !important; position: relative !important; }\n" +
+          ".vip-page .header-new__desktop-bar, .vip-page .header-new__mobile-bar { background: #f7f4ef !important; }\n" +
+          ".vip-page .header-new__nav-link, .vip-page .header-new__action, .vip-page .header-menu-item-label, .vip-page .header-new__nav-link span, .vip-page .header-menu-item-label span { color: #111111 !important; }\n" +
+          ".vip-page .header-logo .icon-logo { background-color: #111111 !important; }\n" +
+          ".vip-page .icon-search, .vip-page .icon-cart, .vip-page .header-cart-button, .vip-page .header-search-button { color: #111111 !important; }\n" +
+          ".vip-page .header-new__account-button svg { fill: #111111 !important; }\n" +
+          ".vip-page .header-new__nav-block--right .js-vip-page-link { border-bottom: 2px solid #e05a2b !important; padding-bottom: 2px !important; }\n" +
 
           "/* 2-Column Split Page Container */\n" +
           ".vip-vault-page-container { max-width: 1140px; margin: 38px auto 60px; padding: 0 28px; display: grid; grid-template-columns: 350px 1fr; gap: 48px; align-items: start; box-sizing: border-box; }\n" +
@@ -2135,34 +2133,6 @@
 
         c.innerHTML =
           "<div id='vip-inpage-hub'>" +
-            // Top Navigation Bar matching design mockup
-            "<header class='vip-store-header'>" +
-              "<div class='vip-header-inner'>" +
-                "<div class='vip-header-left'>" +
-                  "<a href='/collections/all'>NEW IN</a>" +
-                  "<a href='/collections/all'>SHOP <span style='font-size:8px'>∨</span></a>" +
-                  "<a href='/collections/all'>COLLECTIONS <span style='font-size:8px'>∨</span></a>" +
-                "</div>" +
-                "<div class='vip-header-logo'>" +
-                  "<a href='/home.html'>" +
-                    "<img src='/cdn/shop/t/75/assets/image_logo.svg' alt='AnnR'>" +
-                  "</a>" +
-                "</div>" +
-                "<div class='vip-header-right'>" +
-                  "<a href='/search' class='vip-header-search'>" +
-                    "<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>" +
-                    "SEARCH" +
-                  "</a>" +
-                  "<a href='/account/login/index.html'>VAULT</a>" +
-                  "<a href='/account/login/index.html' class='active-vip'>VIP</a>" +
-                  "<span style='display:inline-flex;align-items:center;gap:4px;cursor:pointer'>BDT <span style='font-size:8px'>∨</span></span>" +
-                  "<a href='/cart' aria-label='Cart' style='display:inline-flex;align-items:center'>" +
-                    "<svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/><line x1='3' y1='6' x2='21' y2='6'/><path d='M16 10a4 4 0 0 1-8 0'/></svg>" +
-                  "</a>" +
-                "</div>" +
-              "</div>" +
-            "</header>" +
-
             noticeHtml() +
 
             // 2-Column Split Page Container
