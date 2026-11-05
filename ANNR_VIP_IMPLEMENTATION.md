@@ -65,3 +65,4 @@ All loyalty parameters—including welcome registration bonuses, referral reward
   ```
 - **Apply Database Migration (Supabase)**:
   Execute `database/sql/10_vip_loyalty_referral_system.sql`, `database/sql/11_vip_address_and_orders.sql`, and `database/sql/12_complete_vip_loyalty_ecosystem.sql` in the Supabase SQL Editor.
+

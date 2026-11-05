@@ -1859,42 +1859,115 @@
         });
       }
 
-      // Inject Full-Page Cover Architectural Styles using native Shihiko/AnnR design tokens
+      // Inject Luxury Light-Themed VIP Auth & Dashboard Styles matching exact design mockup
       if (!document.getElementById("vip-inpage-styles")) {
         var st = document.createElement("style");
         st.id = "vip-inpage-styles";
         st.textContent = "" +
-          ".vip-signing .vip-form__wrapper, .vip-login .vip-form__wrapper { max-width: 1160px !important; width: 100% !important; padding: 0 28px !important; margin: 0 auto !important; }\n" +
-          ".vip-signing .vip-form__inner, .vip-login .vip-form__inner { overflow-y: auto !important; max-height: calc(100dvh - 150px) !important; padding: 10px 0 24px !important; scrollbar-width: thin; }\n" +
-          "#vip-inpage-hub { width: 100%; max-width: 1100px; margin: 0 auto; color: #fff; font-family: 'NB Architekt Std', sans-serif; box-sizing: border-box; }\n" +
-          ".vip-arch-shell { display: grid; grid-template-columns: 350px 1fr; gap: 44px; align-items: start; background: rgba(7, 8, 12, 0.72); border: 1px solid rgba(255, 255, 255, 0.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 32px 36px; position: relative; }\n" +
-          ".vip-arch-shell:before { content: ''; position: absolute; top: -1px; left: -1px; width: 10px; height: 10px; border-top: 2px solid #fa9442; border-left: 2px solid #fa9442; pointer-events: none; }\n" +
-          ".vip-arch-shell:after { content: ''; position: absolute; bottom: -1px; right: -1px; width: 10px; height: 10px; border-bottom: 2px solid #fa9442; border-right: 2px solid #fa9442; pointer-events: none; }\n" +
-          ".vip-arch-sidebar { border-right: 1px solid rgba(255, 255, 255, 0.12); padding-right: 34px; display: flex; flex-direction: column; justify-content: space-between; }\n" +
-          ".vip-arch-title { font: 28px/1.05 'NB Architekt Std', sans-serif; color: #f3e7d6; text-shadow: 0px 0px 12px rgba(243, 121, 91, 0.75); letter-spacing: 2px; text-transform: uppercase; margin: 6px 0 12px; }\n" +
-          ".vip-arch-spec { position: relative; padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.12); display: flex; justify-content: space-between; align-items: center; gap: 10px; }\n" +
-          ".vip-arch-spec:first-child { border-top: 1px solid rgba(255, 255, 255, 0.12); }\n" +
-          ".vip-arch-form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 32px; }\n" +
-          "#vip-inpage-hub .input-group.white-input-group, #vip-inpage-hub .select-group { margin: 0 !important; width: 100%; }\n" +
-          "#vip-inpage-hub .input-group.white-input-group input, #vip-inpage-hub .select-group select { width: 100%; background: transparent !important; border: none !important; border-bottom: 1px solid #555773 !important; color: #fff !important; font: 12px/1.3 'NB Architekt Std', sans-serif !important; letter-spacing: 0.08em !important; text-transform: uppercase; padding: 10px 6px 11px !important; border-radius: 0 !important; outline: none !important; box-shadow: none !important; transition: border-color .25s ease; }\n" +
-          "#vip-inpage-hub .input-group.white-input-group input[type='email'], #vip-inpage-hub .input-group.white-input-group input[type='password'] { text-transform: none !important; }\n" +
-          "#vip-inpage-hub .input-group.white-input-group input:focus, #vip-inpage-hub .select-group select:focus { border-bottom-color: #fa9442 !important; }\n" +
-          "#vip-inpage-hub .input-group.white-input-group input::placeholder { color: rgba(255, 255, 255, 0.38) !important; text-transform: uppercase; }\n" +
-          "#vip-inpage-hub .select-group select option { background: #0c0d12; color: #fff; }\n" +
-          "#vip-inpage-hub .vip-field-tag { display: flex; justify-content: space-between; font: 9.5px/1 'FK Grotesk SemiMono', monospace; color: #9ea1b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 2px; }\n" +
-          ".vip-alt-btn:hover span.content { border-color: #ffffff !important; background: rgba(255, 255, 255, 0.14) !important; color: #ffffff !important; }\n" +
+          "body.vip-page, .vip-page .wrapper, .vip-page .wrapper-vip, .vip-page .vip, .vip-page .vip-wrapper, .vip-page .main { background: #f7f4ef !important; color: #111111 !important; min-height: 100vh !important; margin: 0 !important; padding: 0 !important; }\n" +
+          ".vip-page .vip-bg, .vip-page .vip-dec, .vip-page .vip-top, .vip-page .vip-tab, .vip-page .vip-admin-link, .vip-page .vip-reset-password, .vip-page .vip-preloader { display: none !important; }\n" +
+          ".vip-page .vip-form { padding: 0 !important; margin: 0 !important; background: transparent !important; width: 100% !important; max-width: 100% !important; }\n" +
+          ".vip-page .vip-form__wrapper { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }\n" +
+          "#vip-inpage-hub { width: 100%; margin: 0 auto; color: #111; font-family: 'NB Architekt Std', sans-serif; box-sizing: border-box; background: #f7f4ef; min-height: 100vh; }\n" +
+
+          "/* Top Navbar matching screenshot */\n" +
+          ".vip-store-header { background: #f7f4ef; border-bottom: 1px solid rgba(0,0,0,0.06); padding: 0 40px; height: 66px; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; width: 100%; }\n" +
+          ".vip-header-inner { width: 100%; max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }\n" +
+          ".vip-header-left { display: flex; align-items: center; gap: 24px; }\n" +
+          ".vip-header-left a { font-family: 'NB Architekt Std', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #111; text-decoration: none; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; }\n" +
+          ".vip-header-logo img { height: 38px; width: auto; display: block; }\n" +
+          ".vip-header-right { display: flex; align-items: center; gap: 22px; }\n" +
+          ".vip-header-right a, .vip-header-right span { font-family: 'NB Architekt Std', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #111; text-decoration: none; text-transform: uppercase; }\n" +
+          ".vip-header-right .active-vip { border-bottom: 2px solid #e05a2b; padding-bottom: 2px; }\n" +
+          ".vip-header-search { display: inline-flex; align-items: center; gap: 6px; }\n" +
+
+          "/* 2-Column Split Page Container */\n" +
+          ".vip-vault-page-container { max-width: 1140px; margin: 38px auto 60px; padding: 0 28px; display: grid; grid-template-columns: 350px 1fr; gap: 48px; align-items: start; box-sizing: border-box; }\n" +
+
+          "/* Left Column: The AnnR Vault Card */\n" +
+          ".vip-vault-card { background: #161616; color: #ffffff; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,0.12); }\n" +
+          ".vip-vault-card-body { padding: 32px 28px 24px; }\n" +
+          ".vip-vault-card-topline { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }\n" +
+          ".vip-vault-card-topline span { font-family: 'FK Grotesk SemiMono', monospace; font-size: 9.5px; font-weight: 700; letter-spacing: 2px; color: #e05a2b; text-transform: uppercase; }\n" +
+          ".vip-vault-card-topline .line { width: 24px; height: 1px; background: #e05a2b; }\n" +
+          ".vip-vault-card-heading { font-family: 'NB Architekt Std', sans-serif; font-size: 38px; line-height: 1.02; font-weight: 900; color: #ffffff; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }\n" +
+          ".vip-vault-card-tagline { font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; line-height: 1.5; color: #a3a3a3; letter-spacing: 1.5px; text-transform: uppercase; margin: 0 0 24px; }\n" +
+          ".vip-vault-perks { display: flex; flex-direction: column; }\n" +
+          ".vip-vault-perk-item { display: flex; align-items: center; gap: 16px; padding: 13px 0; }\n" +
+          ".vip-vault-perk-icon { width: 26px; height: 26px; flex-shrink: 0; color: #ffffff; }\n" +
+          ".vip-vault-perk-icon svg { width: 100%; height: 100%; }\n" +
+          ".vip-vault-perk-text .perk-label { font-family: 'FK Grotesk SemiMono', monospace; font-size: 9px; letter-spacing: 1.5px; color: #8c8c8c; text-transform: uppercase; margin-bottom: 3px; }\n" +
+          ".vip-vault-perk-text .perk-val { font-family: 'NB Architekt Std', sans-serif; font-size: 13.5px; font-weight: 700; letter-spacing: 0.5px; color: #e05a2b; text-transform: uppercase; }\n" +
+          ".vip-vault-divider { height: 1px; background: rgba(255, 255, 255, 0.12); }\n" +
+          ".vip-vault-footnote { font-family: Georgia, serif; font-size: 11px; line-height: 1.45; color: #737373; font-style: italic; margin-top: 18px; margin-bottom: 8px; }\n" +
+          ".vip-vault-fabric-wrap { width: 100%; height: 180px; overflow: hidden; border-top: 1px solid rgba(255,255,255,0.08); background: #000; }\n" +
+          ".vip-vault-fabric-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }\n" +
+
+          "/* Right Column: Form Area */\n" +
+          ".vip-vault-form-pane { padding-top: 4px; }\n" +
+          ".vip-vault-form-topline { font-family: 'FK Grotesk SemiMono', monospace; font-size: 10.5px; letter-spacing: 2px; color: #1a1a1a; text-transform: uppercase; margin-bottom: 6px; }\n" +
+          ".vip-vault-form-topline span { color: #e05a2b; font-weight: 700; }\n" +
+          ".vip-vault-form-title { font-family: 'NB Architekt Std', sans-serif; font-size: 34px; line-height: 1.1; font-weight: 900; letter-spacing: 0.5px; color: #111111; text-transform: uppercase; margin: 0 0 6px; }\n" +
+          ".vip-vault-form-subtitle { font-family: Georgia, serif; font-size: 13.5px; font-style: italic; color: #4a4a4a; margin: 0 0 22px; }\n" +
+
+          "/* Segmented Switcher */\n" +
+          ".vip-vault-auth-switcher { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #d8d3ca; border-radius: 2px; overflow: hidden; margin-bottom: 26px; background: #f7f4ef; }\n" +
+          ".vip-vault-auth-switcher button { padding: 13px 18px; font-family: 'NB Architekt Std', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; cursor: pointer; border: none; background: transparent; color: #222222; transition: all .2s ease; }\n" +
+          ".vip-vault-auth-switcher button.active { background: #111111; color: #ffffff; }\n" +
+
+          "/* Clean Underline Form Inputs */\n" +
+          ".vip-vault-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; margin-bottom: 18px; }\n" +
+          ".vip-vault-login-fields { display: flex; flex-direction: column; gap: 18px; margin-bottom: 18px; }\n" +
+          ".vip-field { display: flex; flex-direction: column; position: relative; }\n" +
+          ".vip-field-label { font-family: 'FK Grotesk SemiMono', monospace; font-size: 9.5px; font-weight: 700; letter-spacing: 1.5px; color: #1a1a1a; text-transform: uppercase; margin-bottom: 4px; }\n" +
+          ".vip-field-label .req { color: #e05a2b; }\n" +
+          ".vip-field input, .vip-field select { width: 100%; background: transparent !important; border: none !important; border-bottom: 1.5px solid #1a1a1a !important; color: #111111 !important; font-family: 'NB Architekt Std', sans-serif !important; font-size: 13px !important; padding: 8px 0 9px !important; border-radius: 0 !important; outline: none !important; box-shadow: none !important; box-sizing: border-box; transition: border-color .2s ease; }\n" +
+          ".vip-field input::placeholder { color: #8c887e !important; font-family: 'NB Architekt Std', sans-serif !important; font-size: 12.5px !important; text-transform: none; }\n" +
+          ".vip-field input:focus, .vip-field select:focus { border-bottom-color: #e05a2b !important; }\n" +
+
+          "/* Phone Group */\n" +
+          ".vip-phone-group { display: flex; align-items: center; border-bottom: 1.5px solid #1a1a1a; transition: border-color .2s ease; }\n" +
+          ".vip-phone-group:focus-within { border-bottom-color: #e05a2b; }\n" +
+          ".vip-phone-group .vip-cc { font-family: 'NB Architekt Std', sans-serif; font-size: 13px; font-weight: 700; color: #111111; padding-right: 8px; letter-spacing: 0.5px; }\n" +
+          ".vip-phone-group input { border-bottom: none !important; }\n" +
+
+          "/* Password Group */\n" +
+          ".vip-pass-group { display: flex; align-items: center; border-bottom: 1.5px solid #1a1a1a; transition: border-color .2s ease; position: relative; }\n" +
+          ".vip-pass-group:focus-within { border-bottom-color: #e05a2b; }\n" +
+          ".vip-pass-group input { border-bottom: none !important; padding-right: 28px !important; }\n" +
+          ".vip-eye-toggle { position: absolute; right: 0; background: none; border: none; color: #555555; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }\n" +
+          ".vip-eye-toggle:hover { color: #111111; }\n" +
+
+          "/* Select Group */\n" +
+          ".vip-select-group { position: relative; }\n" +
+          ".vip-select-group select { -webkit-appearance: none; appearance: none; cursor: pointer; padding-right: 20px !important; }\n" +
+          ".vip-select-arrow { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); pointer-events: none; font-size: 10px; color: #111111; }\n" +
+
+          "/* Checkboxes */\n" +
+          ".vip-vault-checks { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 20px; }\n" +
+          ".vip-checkbox-label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-family: 'NB Architekt Std', sans-serif; font-size: 12.5px; color: #1a1a1a; }\n" +
+          ".vip-checkbox-label input[type='checkbox'] { width: 16px; height: 16px; accent-color: #111111; cursor: pointer; margin: 0; }\n" +
+          ".vip-checkbox-label a { color: #111111; text-decoration: underline; }\n" +
+
+          "/* Submit Button */\n" +
+          ".vip-vault-submit-btn { width: 100%; background: #111111; color: #ffffff; border: none; padding: 16px 24px; font-family: 'NB Architekt Std', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; transition: background .2s ease; }\n" +
+          ".vip-vault-submit-btn:hover { background: #242424; }\n" +
+          ".vip-vault-microcopy { font-family: Georgia, serif; font-size: 12px; font-style: italic; color: #666666; text-align: center; margin-top: 12px; }\n" +
+          ".vip-vault-switch-text { font-family: 'NB Architekt Std', sans-serif; font-size: 12px; color: #111111; text-align: center; margin-top: 14px; }\n" +
+          ".vip-vault-switch-text button { background: none; border: none; font-family: inherit; font-size: inherit; font-weight: 700; text-decoration: underline; color: #111111; cursor: pointer; padding: 0; }\n" +
+
+          "/* Dashboard styles inside light container */\n" +
           ".vip-dash-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 22px; }\n" +
           ".vip-dash-split { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 22px; align-items: start; }\n" +
-          "@media (max-width: 960px) {\n" +
-          "  .vip-arch-shell { grid-template-columns: 1fr; gap: 24px; padding: 22px 20px; }\n" +
-          "  .vip-arch-sidebar { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.12); padding-right: 0; padding-bottom: 20px; }\n" +
+
+          "/* Responsive */\n" +
+          "@media (max-width: 880px) {\n" +
+          "  .vip-store-header { padding: 0 16px; }\n" +
+          "  .vip-header-left { display: none; }\n" +
+          "  .vip-vault-page-container { grid-template-columns: 1fr; gap: 32px; margin: 20px auto 40px; padding: 0 16px; }\n" +
+          "  .vip-vault-form-grid { grid-template-columns: 1fr; gap: 14px; }\n" +
           "  .vip-dash-grid { grid-template-columns: repeat(2, 1fr); }\n" +
           "  .vip-dash-split { grid-template-columns: 1fr; }\n" +
-          "}\n" +
-          "@media (max-width: 640px) {\n" +
-          "  .vip-signing .vip-form__wrapper, .vip-login .vip-form__wrapper { padding: 0 14px !important; }\n" +
-          "  .vip-arch-form-grid { grid-template-columns: 1fr; gap: 14px; }\n" +
-          "  .vip-dash-grid { grid-template-columns: 1fr 1fr; }\n" +
           "}";
         document.head.appendChild(st);
       }
@@ -1957,9 +2030,15 @@
         var dv = root.querySelector("#vip-reg-division"), ds = root.querySelector("#vip-reg-district");
         if (!dv || !ds) return;
         var upd = function () {
-          ds.innerHTML = (BD_GEO[dv.value] || []).map(function (d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("");
+          var val = dv.value;
+          var list = BD_GEO[val] || [];
+          if (!val || !list.length) {
+            ds.innerHTML = "<option value='' disabled selected>Select district</option>";
+          } else {
+            ds.innerHTML = "<option value='' disabled selected>Select district</option>" + list.map(function (d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("");
+          }
         };
-        upd(); dv.onchange = upd;
+        dv.onchange = upd;
         var ref = root.querySelector("#vip-reg-refcode");
         var urlRef = new URLSearchParams(location.search).get("ref") || "";
         if (!urlRef) {
@@ -2048,152 +2127,246 @@
         var st = getVipSettings();
         var discLabel = st.friend_discount_type === "fixed" ? ("৳" + Number(st.friend_discount_value || 100) + " OFF") : (Number(st.friend_discount_value || 10) + "% OFF");
         var refPts = Number(st.points_per_referral || 100);
-        var openLoginInitially = /\/account\/login/.test(location.pathname) && location.hash === "#login";
+        var welcomePts = Number(st.welcome_bonus_points != null ? st.welcome_bonus_points : 100);
+        var openLoginInitially = (/\/account\/login/.test(location.pathname) && location.hash === "#login") || location.search.indexOf("mode=login") !== -1;
+
+        var eyeOpenSvg = "<svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg>";
+        var eyeClosedSvg = "<svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24'/><line x1='1' y1='1' x2='23' y2='23'/></svg>";
 
         c.innerHTML =
           "<div id='vip-inpage-hub'>" +
-            noticeHtml() +
-            "<div class='vip-arch-shell'>" +
-              // Left Architectural Telemetry Column
-              "<div class='vip-arch-sidebar'>" +
-                "<div>" +
-                  "<div style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2.5px;color:#fa9442;text-transform:uppercase'>SYS.VIP // 01 — LOYALTY PROTOCOL</div>" +
-                  "<h1 class='vip-arch-title' id='vip-arch-heading'>VIP MEMBER VAULT</h1>" +
-                  "<p id='vip-arch-sub' style='font:11px/1.6 \"NB Architekt Std\",sans-serif;color:#a0a3b8;letter-spacing:0.8px;text-transform:uppercase;margin:0 0 20px'>" +
-                    "Register your official AnnR VIP membership to unlock your personal referral code, instant ৳100 welcome grant, and direct MFS cash payouts." +
-                  "</p>" +
-                  "<div style='margin-bottom:22px'>" +
-                    "<div class='vip-arch-spec'>" +
-                      "<span style='font:10px/1 \"FK Grotesk SemiMono\",monospace;color:#8e92a8;letter-spacing:1.2px'>[01] WELCOME GRANT</span>" +
-                      "<strong style='font:12px/1 \"NB Architekt Std\",sans-serif;color:#22c55e;letter-spacing:1px'>+৳100 CASH PTS</strong>" +
-                    "</div>" +
-                    "<div class='vip-arch-spec'>" +
-                      "<span style='font:10px/1 \"FK Grotesk SemiMono\",monospace;color:#8e92a8;letter-spacing:1.2px'>[02] FRIEND COUPON</span>" +
-                      "<strong style='font:12px/1 \"NB Architekt Std\",sans-serif;color:#ffffff;letter-spacing:1px'>" + esc(discLabel) + " CODE</strong>" +
-                    "</div>" +
-                    "<div class='vip-arch-spec'>" +
-                      "<span style='font:10px/1 \"FK Grotesk SemiMono\",monospace;color:#8e92a8;letter-spacing:1.2px'>[03] REFERRAL ROYALTY</span>" +
-                      "<strong style='font:12px/1 \"NB Architekt Std\",sans-serif;color:#fa9442;letter-spacing:1px'>+৳" + refPts + " / REFERRAL</strong>" +
-                    "</div>" +
-                    "<div class='vip-arch-spec'>" +
-                      "<span style='font:10px/1 \"FK Grotesk SemiMono\",monospace;color:#8e92a8;letter-spacing:1.2px'>[04] CASH DISBURSEMENT</span>" +
-                      "<strong style='font:11px/1 \"NB Architekt Std\",sans-serif;color:#d4d4d8;letter-spacing:1px'>BKASH · NAGAD · BANK</strong>" +
-                    "</div>" +
-                  "</div>" +
+            // Top Navigation Bar matching design mockup
+            "<header class='vip-store-header'>" +
+              "<div class='vip-header-inner'>" +
+                "<div class='vip-header-left'>" +
+                  "<a href='/collections/all'>NEW IN</a>" +
+                  "<a href='/collections/all'>SHOP <span style='font-size:8px'>∨</span></a>" +
+                  "<a href='/collections/all'>COLLECTIONS <span style='font-size:8px'>∨</span></a>" +
                 "</div>" +
+                "<div class='vip-header-logo'>" +
+                  "<a href='/home.html'>" +
+                    "<img src='/cdn/shop/t/75/assets/image_logo.svg' alt='AnnR'>" +
+                  "</a>" +
+                "</div>" +
+                "<div class='vip-header-right'>" +
+                  "<a href='/search' class='vip-header-search'>" +
+                    "<svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>" +
+                    "SEARCH" +
+                  "</a>" +
+                  "<a href='/account/login/index.html'>VAULT</a>" +
+                  "<a href='/account/login/index.html' class='active-vip'>VIP</a>" +
+                  "<span style='display:inline-flex;align-items:center;gap:4px;cursor:pointer'>BDT <span style='font-size:8px'>∨</span></span>" +
+                  "<a href='/cart' aria-label='Cart' style='display:inline-flex;align-items:center'>" +
+                    "<svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/><line x1='3' y1='6' x2='21' y2='6'/><path d='M16 10a4 4 0 0 1-8 0'/></svg>" +
+                  "</a>" +
+                "</div>" +
+              "</div>" +
+            "</header>" +
 
-                // Mode Switcher Box inside Left Column
-                "<div id='vip-sidebar-switch-signin' style='padding-top:14px'>" +
-                  "<div style='font:9.5px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:1.5px;color:#8e92a8;text-transform:uppercase;margin-bottom:10px'>ALREADY REGISTERED IN THE VAULT?</div>" +
-                  "<button type='button' id='vip-go-signin' class='btn vip-alt-btn' style='width:100%;min-height:46px;cursor:pointer'>" +
-                    "<span class='content' style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.28);color:#ffffff;min-height:46px;padding:14px 18px;display:flex;align-items:center;justify-content:center;transition:all .2s ease'>" +
-                      "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:11.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase'>SIGN IN TO VIP ACCOUNT →</span></span>" +
-                    "</span>" +
-                    "<span class='corners'></span>" +
-                  "</button>" +
+            noticeHtml() +
+
+            // 2-Column Split Page Container
+            "<div class='vip-vault-page-container'>" +
+              // Left Column: The AnnR Vault Card
+              "<div class='vip-vault-card'>" +
+                "<div class='vip-vault-card-body'>" +
+                  "<div class='vip-vault-card-topline'>" +
+                    "<span>ANNR VIP MEMBERSHIP</span>" +
+                    "<div class='line'></div>" +
+                  "</div>" +
+                  "<h1 class='vip-vault-card-heading'>THE ANNR<br>VAULT</h1>" +
+                  "<p class='vip-vault-card-tagline'>A PRIVATE SPACE FOR THOSE WHO DEFINE THEIR STYLE.</p>" +
+
+                  "<div class='vip-vault-perks'>" +
+                    "<div class='vip-vault-perk-item'>" +
+                      "<div class='vip-vault-perk-icon'>" +
+                        "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M20 12v10H4V12'/><path d='M2 7h20v5H2z'/><path d='M12 22V7'/><path d='M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z'/><path d='M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z'/></svg>" +
+                      "</div>" +
+                      "<div class='vip-vault-perk-text'>" +
+                        "<div class='perk-label'>WELCOME REWARD</div>" +
+                        "<div class='perk-val'>+৳" + welcomePts + " CASH POINTS</div>" +
+                      "</div>" +
+                    "</div>" +
+                    "<div class='vip-vault-divider'></div>" +
+
+                    "<div class='vip-vault-perk-item'>" +
+                      "<div class='vip-vault-perk-icon'>" +
+                        "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M2 9a3 3 0 0 1 0 6v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3a3 3 0 0 1 0-6V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z'/><line x1='9' y1='9' x2='15' y2='15'/><circle cx='9.5' cy='9.5' r='.75' fill='currentColor'/><circle cx='14.5' cy='14.5' r='.75' fill='currentColor'/></svg>" +
+                      "</div>" +
+                      "<div class='vip-vault-perk-text'>" +
+                        "<div class='perk-label'>FRIEND COUPON</div>" +
+                        "<div class='perk-val'>" + esc(discLabel) + "</div>" +
+                      "</div>" +
+                    "</div>" +
+                    "<div class='vip-vault-divider'></div>" +
+
+                    "<div class='vip-vault-perk-item'>" +
+                      "<div class='vip-vault-perk-icon'>" +
+                        "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M23 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/></svg>" +
+                      "</div>" +
+                      "<div class='vip-vault-perk-text'>" +
+                        "<div class='perk-label'>REFERRAL REWARD</div>" +
+                        "<div class='perk-val'>+৳" + refPts + " / SUCCESSFUL REFERRAL</div>" +
+                      "</div>" +
+                    "</div>" +
+                    "<div class='vip-vault-divider'></div>" +
+                  "</div>" +
+
+                  "<p class='vip-vault-footnote'>ANNR Points are redeemable on eligible orders, according to the VIP programme rules.</p>" +
                 "</div>" +
-                "<div id='vip-sidebar-switch-signup' style='display:none;padding-top:14px'>" +
-                  "<div style='font:9.5px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:1.5px;color:#8e92a8;text-transform:uppercase;margin-bottom:10px'>NEW TO ANNR VIP REWARDS?</div>" +
-                  "<button type='button' id='vip-go-signup' class='btn vip-alt-btn' style='width:100%;min-height:46px;cursor:pointer'>" +
-                    "<span class='content' style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.28);color:#ffffff;min-height:46px;padding:14px 18px;display:flex;align-items:center;justify-content:center;transition:all .2s ease'>" +
-                      "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:11.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase'>← CREATE VIP ACCOUNT (+৳100)</span></span>" +
-                    "</span>" +
-                    "<span class='corners'></span>" +
-                  "</button>" +
+                "<div class='vip-vault-fabric-wrap'>" +
+                  "<img src='/_ext/annr-vault-fabric.jpg' alt='AnnR Craftsmanship'>" +
                 "</div>" +
               "</div>" +
 
-              // Right Architectural Form Column
-              "<div>" +
-                // SIGNUP FORM (2-column architectural grid — fits cleanly in 100dvh)
-                "<form id='vip-signup-form' novalidate style='display:flex;flex-direction:column;gap:18px'>" +
-                  "<div style='display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.12);padding-bottom:10px'>" +
-                    "<span style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#f3e7d6;text-transform:uppercase'>REGISTRATION DOSSIER // BANGLADESH</span>" +
-                    "<span style='font:9.5px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:1.5px;color:#22c55e'>● INSTANT ACTIVATION</span>" +
-                  "</div>" +
-                  "<div class='vip-arch-form-grid'>" +
-                    archInput("01", "Full Name *", "<input type='text' id='vip-reg-name' required maxlength='120' autocomplete='name' placeholder='E.G. MD. ABDUR RAHIM RATUL'>") +
-                    archInput("02", "Email Address *", "<input type='email' id='vip-reg-email' required autocomplete='email' autocapitalize='off' inputmode='email' placeholder='YOU@EXAMPLE.COM'>") +
-                    archInput("03", "Mobile Number (BD 11 Digits) *", "<input type='tel' id='vip-reg-phone' required inputmode='numeric' autocomplete='tel' placeholder='017XXXXXXXX' pattern='^01[3-9][0-9]{8}$'>") +
-                    archInput("04", "Password (Min 6 Chars) *", "<input type='password' id='vip-reg-pass' required minlength='6' autocomplete='new-password' placeholder='••••••••'>") +
-                    archSelect("05", "Division *", "<select id='vip-reg-division'>" + Object.keys(BD_GEO).map(function (d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("") + "</select>") +
-                    archSelect("06", "District *", "<select id='vip-reg-district'></select>") +
-                    archInput("07", "Delivery Address (Thana, Road, House) *", "<input type='text' id='vip-reg-addr' required maxlength='300' autocomplete='street-address' placeholder='DHANMONDI, ROAD 5, HOUSE 12'>") +
-                    archInput("08", "Friend's Referral Code (Optional)", "<input type='text' id='vip-reg-refcode' maxlength='24' autocapitalize='characters' placeholder='E.G. VIP-RATUL88'>") +
+              // Right Column: Form Area
+              "<div class='vip-vault-form-pane'>" +
+                "<div class='vip-vault-form-topline'>ANNR VIP MEMBERSHIP / <span>01</span></div>" +
+                "<h2 class='vip-vault-form-title' id='vip-form-title'>CREATE YOUR ACCOUNT</h2>" +
+                "<div class='vip-vault-form-subtitle' id='vip-form-sub'>Join the Vault. Earn rewards. Share the experience.</div>" +
+
+                // Segmented Switcher
+                "<div class='vip-vault-auth-switcher'>" +
+                  "<button type='button' id='vip-tab-signup-btn' class='active'>CREATE ACCOUNT</button>" +
+                  "<button type='button' id='vip-tab-signin-btn'>SIGN IN</button>" +
+                "</div>" +
+
+                // SIGNUP FORM
+                "<form id='vip-signup-form' novalidate>" +
+                  "<div class='vip-vault-form-grid'>" +
+                    "<div class='vip-field'>" +
+                      "<label class='vip-field-label'>FULL NAME <span class='req'>*</span></label>" +
+                      "<input type='text' id='vip-reg-name' required maxlength='120' autocomplete='name' placeholder='Enter your full name'>" +
+                    "</div>" +
+                    "<div class='vip-field'>" +
+                      "<label class='vip-field-label'>EMAIL ADDRESS <span class='req'>*</span></label>" +
+                      "<input type='email' id='vip-reg-email' required autocomplete='email' autocapitalize='off' inputmode='email' placeholder='Enter your email address'>" +
+                    "</div>" +
+
+                    "<div class='vip-field'>" +
+                      "<label class='vip-field-label'>MOBILE NUMBER <span class='req'>*</span></label>" +
+                      "<div class='vip-phone-group'>" +
+                        "<span class='vip-cc'>+880</span>" +
+                        "<input type='tel' id='vip-reg-phone' required inputmode='numeric' autocomplete='tel' placeholder='Enter 11-digit mobile number' pattern='^01[3-9][0-9]{8}$'>" +
+                      "</div>" +
+                    "</div>" +
+                    "<div class='vip-field'>" +
+                      "<label class='vip-field-label'>PASSWORD <span class='req'>*</span></label>" +
+                      "<div class='vip-pass-group'>" +
+                        "<input type='password' id='vip-reg-pass' required minlength='6' autocomplete='new-password' placeholder='Create a password (min 6 characters)'>" +
+                        "<button type='button' class='vip-eye-toggle' id='vip-reg-eye' aria-label='Toggle password visibility'>" + eyeOpenSvg + "</button>" +
+                      "</div>" +
+                    "</div>" +
+
+                    "<div class='vip-field'>" +
+                      "<label class='vip-field-label'>DIVISION <span class='req'>*</span></label>" +
+                      "<div class='vip-select-group'>" +
+                        "<select id='vip-reg-division'>" +
+                          "<option value='' disabled selected>Select division</option>" +
+                          Object.keys(BD_GEO).map(function (d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("") +
+                        "</select>" +
+                        "<span class='vip-select-arrow'>∨</span>" +
+                      "</div>" +
+                    "</div>" +
+                    "<div class='vip-field'>" +
+                      "<label class='vip-field-label'>DISTRICT <span class='req'>*</span></label>" +
+                      "<div class='vip-select-group'>" +
+                        "<select id='vip-reg-district'>" +
+                          "<option value='' disabled selected>Select district</option>" +
+                        "</select>" +
+                        "<span class='vip-select-arrow'>∨</span>" +
+                      "</div>" +
+                    "</div>" +
+
+                    "<div class='vip-field'>" +
+                      "<label class='vip-field-label'>DELIVERY ADDRESS (THANA, ROAD, HOUSE) <span class='req'>*</span></label>" +
+                      "<input type='text' id='vip-reg-addr' required maxlength='300' autocomplete='street-address' placeholder='Enter your complete delivery address'>" +
+                    "</div>" +
+                    "<div class='vip-field'>" +
+                      "<label class='vip-field-label'>FRIEND'S REFERRAL CODE (OPTIONAL)</label>" +
+                      "<input type='text' id='vip-reg-refcode' maxlength='24' autocapitalize='characters' placeholder='Enter referral code (e.g. VIP-RATUL88)'>" +
+                    "</div>" +
                   "</div>" +
                   "<input type='hidden' id='vip-reg-thana' value=''>" +
 
-                  "<div style='display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:6px'>" +
-                    "<div class='input-checkbox' style='margin:0'>" +
-                      "<label style='display:flex;align-items:center;gap:10px;cursor:pointer;font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:1.2px;color:#c4c7d4;text-transform:uppercase'>" +
-                        "<input type='checkbox' id='vip-reg-wa' checked>" +
-                        "<span class='checkbox-icon'></span>" +
-                        "<span>ACTIVE ON WHATSAPP</span>" +
-                      "</label>" +
-                    "</div>" +
-                    "<button class='btn btn-vip-orange' type='submit' style='min-width:290px;min-height:50px;cursor:pointer;flex:1;max-width:380px'>" +
-                      "<span class='content' style='min-height:50px;padding:15px 24px;display:flex;align-items:center;justify-content:center'>" +
-                        "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase'>CREATE VIP ACCOUNT (+৳100)</span></span>" +
-                      "</span>" +
-                      "<span class='corners'></span>" +
-                    "</button>" +
+                  "<div class='vip-vault-checks'>" +
+                    "<label class='vip-checkbox-label'>" +
+                      "<input type='checkbox' id='vip-reg-wa' checked>" +
+                      "<span>Get updates and exclusive offers on WhatsApp.</span>" +
+                    "</label>" +
+                    "<label class='vip-checkbox-label'>" +
+                      "<input type='checkbox' id='vip-reg-terms' checked required>" +
+                      "<span>I agree to the <a href='/pages/terms' target='_blank'>Terms of Service</a> and <a href='/pages/privacy' target='_blank'>Privacy Policy</a>. <span class='req'>*</span></span>" +
+                    "</label>" +
                   "</div>" +
+
+                  "<button type='submit' class='vip-vault-submit-btn'>" +
+                    "<span class='text'>CREATE VIP ACCOUNT</span> <span style='font-size:14px'>→</span>" +
+                  "</button>" +
+                  "<div class='vip-vault-microcopy'>Your welcome reward is credited after successful activation.</div>" +
+                  "<div class='vip-vault-switch-text'>Already a member? <button type='button' id='vip-switch-to-login'>Sign in</button></div>" +
                 "</form>" +
 
-                // LOGIN FORM (Clean architectural lines)
-                "<form id='vip-login-form' novalidate style='display:none;flex-direction:column;gap:22px;padding:8px 0'>" +
-                  "<div style='display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.12);padding-bottom:10px'>" +
-                    "<span style='font:10px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:2px;color:#f3e7d6;text-transform:uppercase'>MEMBER AUTHENTICATION // VAULT ACCESS</span>" +
-                    "<span style='font:9.5px/1 \"FK Grotesk SemiMono\",monospace;letter-spacing:1.5px;color:#fa9442'>● ENCRYPTED SESSION</span>" +
+                // SIGN IN FORM
+                "<form id='vip-login-form' novalidate style='display:none'>" +
+                  "<div class='vip-vault-login-fields'>" +
+                    "<div class='vip-field'>" +
+                      "<label class='vip-field-label'>EMAIL OR MOBILE NUMBER <span class='req'>*</span></label>" +
+                      "<input type='text' id='vip-login-id' required autocomplete='username' autocapitalize='off' placeholder='Enter your registered email or phone'>" +
+                    "</div>" +
+                    "<div class='vip-field'>" +
+                      "<label class='vip-field-label'>PASSWORD <span class='req'>*</span></label>" +
+                      "<div class='vip-pass-group'>" +
+                        "<input type='password' id='vip-login-pass' required autocomplete='current-password' placeholder='Enter your password'>" +
+                        "<button type='button' class='vip-eye-toggle' id='vip-login-eye' aria-label='Toggle password visibility'>" + eyeOpenSvg + "</button>" +
+                      "</div>" +
+                    "</div>" +
                   "</div>" +
-                  "<p style='font:11px/1.6 \"FK Grotesk SemiMono\",monospace;color:#a0a3b8;margin:0;letter-spacing:0.5px'>" +
-                    "ENTER YOUR REGISTERED EMAIL OR BANGLADESH MOBILE NUMBER TO ACCESS YOUR VIP REFERRAL COUPON, LIVE ORDER COMMISSIONS, AND INSTANT MFS PAYOUTS." +
-                  "</p>" +
-                  archInput("01", "Registered Email or BD Mobile Number *", "<input type='text' id='vip-login-id' required autocomplete='username' autocapitalize='off' placeholder='YOU@GMAIL.COM OR 017XXXXXXXX'>") +
-                  archInput("02", "Vault Password *", "<input type='password' id='vip-login-pass' required autocomplete='current-password' placeholder='••••••••'>") +
-                  "<div style='display:flex;justify-content:flex-end;padding-top:6px'>" +
-                    "<button class='btn btn-vip-orange' type='submit' style='width:100%;min-height:52px;cursor:pointer'>" +
-                      "<span class='content' style='min-height:52px;padding:16px 24px;display:flex;align-items:center;justify-content:center'>" +
-                        "<span><span class='text' style='font-family:\"NB Architekt Std\",sans-serif;font-size:12.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase'>ENTER VIP MEMBER VAULT →</span></span>" +
-                      "</span>" +
-                      "<span class='corners'></span>" +
-                    "</button>" +
-                  "</div>" +
+
+                  "<button type='submit' class='vip-vault-submit-btn'>" +
+                    "<span class='text'>SIGN IN TO VIP ACCOUNT</span> <span style='font-size:14px'>→</span>" +
+                  "</button>" +
+                  "<div class='vip-vault-microcopy'>Secure encrypted access to your ANNR VIP vault.</div>" +
+                  "<div class='vip-vault-switch-text'>New to AnnR? <button type='button' id='vip-switch-to-signup'>Create an account</button></div>" +
                 "</form>" +
               "</div>" +
             "</div>" +
           "</div>";
 
         var fl = c.querySelector("#vip-login-form"), fs = c.querySelector("#vip-signup-form");
-        var swIn = c.querySelector("#vip-sidebar-switch-signin"), swUp = c.querySelector("#vip-sidebar-switch-signup");
-        var hd = c.querySelector("#vip-arch-heading");
+        var tabSignup = c.querySelector("#vip-tab-signup-btn"), tabSignin = c.querySelector("#vip-tab-signin-btn");
+        var formTitle = c.querySelector("#vip-form-title"), formSub = c.querySelector("#vip-form-sub");
+        var switchToLogin = c.querySelector("#vip-switch-to-login"), switchToSignup = c.querySelector("#vip-switch-to-signup");
 
         function showSignin(openSignin) {
-          fl.style.display = openSignin ? "flex" : "none";
-          fs.style.display = openSignin ? "none" : "flex";
-          if (swIn) swIn.style.display = openSignin ? "none" : "block";
-          if (swUp) swUp.style.display = openSignin ? "block" : "none";
-          if (hd) hd.textContent = openSignin ? "VIP VAULT LOGIN" : "VIP MEMBER VAULT";
-          try {
-            var loginTabs = document.querySelectorAll(".vip-tab-item[href*='login']");
-            var regTabs = document.querySelectorAll(".vip-tab-item[href*='register']");
-            loginTabs.forEach(function (el) { el.classList.toggle("active", !!openSignin); });
-            regTabs.forEach(function (el) { el.classList.toggle("active", !openSignin); });
-          } catch(e) {}
+          fl.style.display = openSignin ? "block" : "none";
+          fs.style.display = openSignin ? "none" : "block";
+          if (tabSignup) tabSignup.classList.toggle("active", !openSignin);
+          if (tabSignin) tabSignin.classList.toggle("active", !!openSignin);
+          if (formTitle) formTitle.textContent = openSignin ? "SIGN IN TO YOUR ACCOUNT" : "CREATE YOUR ACCOUNT";
+          if (formSub) formSub.textContent = openSignin ? "Welcome back to the Vault. Track your rewards and referrals." : "Join the Vault. Earn rewards. Share the experience.";
+          showErr(fl, "");
+          showErr(fs, "");
         }
 
-        // Also bind the native top .vip-tab links ("LOGIN // SIGNUP") so clicking them switches modes smoothly
-        try {
-          document.querySelectorAll(".vip-tab-item[href*='login']").forEach(function (el) {
-            el.onclick = function (ev) { ev.preventDefault(); showSignin(true); };
-          });
-          document.querySelectorAll(".vip-tab-item[href*='register']").forEach(function (el) {
-            el.onclick = function (ev) { ev.preventDefault(); showSignin(false); };
-          });
-        } catch (e) {}
+        if (tabSignup) tabSignup.onclick = function(e) { e.preventDefault(); showSignin(false); };
+        if (tabSignin) tabSignin.onclick = function(e) { e.preventDefault(); showSignin(true); };
+        if (switchToLogin) switchToLogin.onclick = function(e) { e.preventDefault(); showSignin(true); };
+        if (switchToSignup) switchToSignup.onclick = function(e) { e.preventDefault(); showSignin(false); };
 
-        c.querySelector("#vip-go-signup").onclick = function (e) { e.preventDefault(); showSignin(false); };
-        c.querySelector("#vip-go-signin").onclick = function (e) { e.preventDefault(); showSignin(true); };
+        function wireEye(btn, inp) {
+          if (!btn || !inp) return;
+          btn.onclick = function(e) {
+            e.preventDefault();
+            var isPass = inp.type === "password";
+            inp.type = isPass ? "text" : "password";
+            btn.innerHTML = isPass ? eyeClosedSvg : eyeOpenSvg;
+          };
+        }
+
+        wireEye(c.querySelector("#vip-reg-eye"), c.querySelector("#vip-reg-pass"));
+        wireEye(c.querySelector("#vip-login-eye"), c.querySelector("#vip-login-pass"));
+
         showSignin(openLoginInitially);
         wireGeo(fs);
 
@@ -2302,8 +2475,12 @@
           var em = String(c.querySelector("#vip-reg-email").value || "").trim().toLowerCase();
           var pw = String(c.querySelector("#vip-reg-pass").value || "").trim();
           var nm = String(c.querySelector("#vip-reg-name").value || "").trim();
-          var ph = String(c.querySelector("#vip-reg-phone").value || "").replace(/[^0-9]/g, "").replace(/^880/, "0").replace(/^00?/, "0");
+          var phRaw = String(c.querySelector("#vip-reg-phone").value || "").replace(/[^0-9]/g, "");
+          if (phRaw.startsWith("880")) phRaw = phRaw.slice(3);
+          if (phRaw.length === 10 && /^1[3-9]/.test(phRaw)) phRaw = "0" + phRaw;
+          var ph = phRaw;
           var isWa = !!(c.querySelector("#vip-reg-wa") || {}).checked;
+          var termsAgreed = !!(c.querySelector("#vip-reg-terms") || {}).checked;
           var div = String(c.querySelector("#vip-reg-division").value || "").trim();
           var dist = String(c.querySelector("#vip-reg-district").value || "").trim();
           var thana = String((c.querySelector("#vip-reg-thana") || {}).value || "").trim();
@@ -2317,16 +2494,22 @@
             showErr(fs, "Enter a valid email address."); return;
           }
           if (!/^01[3-9][0-9]{8}$/.test(ph)) {
-            showErr(fs, "Enter a valid 11-digit Bangladesh mobile number (e.g. 017XXXXXXXX)."); return;
+            showErr(fs, "Enter a valid 11-digit mobile number (e.g. 017XXXXXXXX)."); return;
           }
           if (pw.length < 6) {
             showErr(fs, "Password must be at least 6 characters."); return;
+          }
+          if (!div) {
+            showErr(fs, "Please select your division."); return;
           }
           if (!dist) {
             showErr(fs, "Please select your district."); return;
           }
           if (addr.length < 3) {
             showErr(fs, "Please enter your delivery address."); return;
+          }
+          if (!termsAgreed) {
+            showErr(fs, "Please agree to the Terms of Service and Privacy Policy."); return;
           }
 
           showErr(fs, "");

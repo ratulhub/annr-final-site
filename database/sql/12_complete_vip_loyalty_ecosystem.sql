@@ -408,3 +408,4 @@ $$;
 
 grant execute on function public.evaluate_member_tier(uuid) to authenticated;
 grant execute on function public.admin_adjust_member_points(uuid, int, text) to authenticated;
+
