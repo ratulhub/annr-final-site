@@ -1859,13 +1859,33 @@
         });
       }
 
+      function callLoginRpc(identifier, passwordHash) {
+        return fetch(SB_URL + "/rest/v1/rpc/login_vip_member", {
+          method: "POST",
+          headers: {
+            "apikey": SB_KEY,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            p_identifier: identifier,
+            p_password_hash: passwordHash
+          })
+        }).then(function(r) {
+          return r.json().then(function(data) {
+            return { ok: r.ok, status: r.status, data: data };
+          });
+        }).catch(function() {
+          return { ok: false, status: 0, data: { error: "Network error. Please check your connection." } };
+        });
+      }
+
       // Inject Luxury Light-Themed VIP Auth & Dashboard Styles matching exact design mockup
       if (!document.getElementById("vip-inpage-styles")) {
         var st = document.createElement("style");
         st.id = "vip-inpage-styles";
         st.textContent = "" +
-          ".header-search-new { position: fixed !important; top: 12px !important; right: 12px !important; bottom: 12px !important; left: 12px !important; z-index: 1300 !important; display: block !important; height: auto !important; max-height: none !important; padding: 0 !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; overflow: hidden !important; }\n" +
-          ".header-search-new.open { opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; }\n" +
+          "header-search-new, .header-search-new { display: none !important; }\n" +
+          "header-search-new.open, .header-search-new.open { display: block !important; position: fixed !important; top: 12px !important; right: 12px !important; bottom: 12px !important; left: 12px !important; z-index: 1300 !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; }\n" +
           ".header-search-overflow { display: none !important; }\n" +
           ".header-search-overflow.open { display: block !important; position: fixed !important; inset: 0 !important; background: rgba(0,0,0,0.6) !important; z-index: 1290 !important; }\n" +
           "body.vip-page, .vip-page .wrapper, .vip-page .wrapper-vip, .vip-page .vip, .vip-page .vip-wrapper, .vip-page .main { background: #f7f4ef !important; color: #111111 !important; min-height: 100vh !important; margin: 0 !important; padding: 0 !important; }\n" +
@@ -2140,9 +2160,11 @@
         var eyeOpenSvg = "<svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg>";
         var eyeClosedSvg = "<svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24'/><line x1='1' y1='1' x2='23' y2='23'/></svg>";
 
-        c.innerHTML =
-          "<div id='vip-inpage-hub'>" +
-            noticeHtml() +
+        var hasPreRenderedHub = !!(c.querySelector("#vip-signup-form") && c.querySelector("#vip-login-form"));
+        if (!hasPreRenderedHub) {
+          c.innerHTML =
+            "<div id='vip-inpage-hub'>" +
+              noticeHtml() +
 
             // 2-Column Split Page Container
             "<div class='vip-vault-page-container'>" +
@@ -2311,6 +2333,18 @@
               "</div>" +
             "</div>" +
           "</div>";
+        } else {
+          var nHtml = noticeHtml();
+          if (nHtml) {
+            var existingNotice = c.querySelector(".vip-notice-banner");
+            if (!existingNotice) {
+              var hubEl = c.querySelector("#vip-inpage-hub") || c;
+              var dNotice = document.createElement("div");
+              dNotice.innerHTML = nHtml;
+              if (dNotice.firstChild) hubEl.insertBefore(dNotice.firstChild, hubEl.firstChild);
+            }
+          }
+        }
 
         var fl = c.querySelector("#vip-login-form"), fs = c.querySelector("#vip-signup-form");
         var tabSignup = c.querySelector("#vip-tab-signup-btn"), tabSignin = c.querySelector("#vip-tab-signin-btn");
@@ -2417,16 +2451,8 @@
           }
 
           hashPassword(pw).then(function(inputHash) {
-            if (acc) {
-              if (acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw) {
-                setBusy(fl, false);
-                showErr(fl, "Incorrect password. Please verify your password and try again.");
-                return;
-              }
-
-              // Password verified or newly set
+            function useLocalAccount() {
               if (!acc.passHash) acc.passHash = inputHash;
-
               var member = acc.member || {
                 full_name: acc.name || "VIP Member",
                 email: acc.email || email,
@@ -2454,44 +2480,67 @@
               saveVipAccount(acc);
               setBusy(fl, false);
               renderInPageVipHub();
-              return;
             }
 
-            // Fallback: Check if Supabase has this user without registering them
-            if (email) {
-              callRegisterRpc({
-                p_full_name: "VIP Member",
-                p_email: email,
-                p_phone: phone || "01700000000",
-                p_division: "Dhaka",
-                p_district: "Dhaka"
-              }).then(function(res) {
+            // Attempt login via Supabase RPC
+            callLoginRpc(idInput, inputHash).then(function(res) {
+              if (res.ok && res.data && res.data.ok) {
+                var m = res.data.member;
+                var cpn = res.data.coupon || { code: m.referral_code };
+                var sets = res.data.settings || getVipSettings();
+                saveSessionMember({ member: m, coupon: cpn, settings: sets });
+                saveVipAccount({
+                  email: (m.email || email).toLowerCase().trim(),
+                  phone: m.phone || phone,
+                  name: m.full_name,
+                  passHash: inputHash,
+                  available_points: m.available_points,
+                  member: m,
+                  coupon: cpn
+                });
                 setBusy(fl, false);
-                if (res.ok && res.data && res.data.member && res.data.existing) {
-                  var m = res.data.member;
-                  var cpn = res.data.coupon || { code: m.referral_code };
-                  saveSessionMember({ member: m, coupon: cpn, settings: res.data.settings || getVipSettings() });
-                  saveVipAccount({
-                    email: email,
-                    phone: m.phone || phone,
-                    name: m.full_name,
-                    passHash: inputHash,
-                    available_points: m.available_points,
-                    member: m,
-                    coupon: cpn
-                  });
-                  renderInPageVipHub();
-                } else {
-                  showErr(fl, "No VIP account found with this email. Please check your credentials or click 'Create Account' to join.");
+                renderInPageVipHub();
+                return;
+              }
+
+              // Explicit credentials error returned by Supabase (e.g. wrong password)
+              if (res.ok && res.data && res.data.ok === false && res.data.error) {
+                // If local account has matching password, let local work
+                if (acc && (acc.passHash === inputHash || acc.passHash === "plain:" + pw)) {
+                  useLocalAccount();
+                  return;
                 }
-              }).catch(function() {
                 setBusy(fl, false);
-                showErr(fl, "No VIP account found with this email. Please check your credentials or click 'Create Account' to join.");
-              });
-            } else {
+                showErr(fl, res.data.error);
+                return;
+              }
+
+              // Supabase permission denied (401) or network error: fallback to local account
+              if (acc) {
+                if (acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw) {
+                  setBusy(fl, false);
+                  showErr(fl, "Incorrect password. Please verify your password and try again.");
+                  return;
+                }
+                useLocalAccount();
+                return;
+              }
+
               setBusy(fl, false);
-              showErr(fl, "No VIP account found for mobile number " + idInput + ". Please sign in with your registered email or create an account.");
-            }
+              showErr(fl, "No VIP account found with this email or mobile number. Please check your credentials or click 'Create Account' to join.");
+            }).catch(function() {
+              if (acc) {
+                if (acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw) {
+                  setBusy(fl, false);
+                  showErr(fl, "Incorrect password. Please verify your password and try again.");
+                  return;
+                }
+                useLocalAccount();
+                return;
+              }
+              setBusy(fl, false);
+              showErr(fl, "No VIP account found with this email or mobile number. Please check your credentials or click 'Create Account' to join.");
+            });
           });
         };
 
@@ -2539,101 +2588,102 @@
           }
 
           showErr(fs, "");
-          setBusy(fs, true, "CREATING VIP VAULT…");
+          setBusy(fs, true, "CREATING VIP ACCOUNT…");
 
-          callRegisterRpc({
-            p_full_name: nm,
-            p_email: em,
-            p_phone: ph,
-            p_division: div,
-            p_district: dist,
-            p_upazila: thana || null,
-            p_full_address: addr,
-            p_is_whatsapp: isWa,
-            p_referred_by: ref || null
-          }).then(function(res) {
-            setBusy(fs, false);
-            var member = (res.ok && res.data && res.data.member) ? res.data.member : null;
-            var coupon = (res.ok && res.data && res.data.coupon) ? res.data.coupon : null;
-            var settings = (res.ok && res.data && res.data.settings) ? res.data.settings : getVipSettings();
+          hashPassword(pw).then(function(hash) {
+            callRegisterRpc({
+              p_full_name: nm,
+              p_email: em,
+              p_phone: ph,
+              p_division: div,
+              p_district: dist,
+              p_upazila: thana || null,
+              p_full_address: addr,
+              p_is_whatsapp: isWa,
+              p_referred_by: ref || null,
+              p_password_hash: hash
+            }).then(function(res) {
+              setBusy(fs, false);
+              var member = (res.ok && res.data && res.data.member) ? res.data.member : null;
+              var coupon = (res.ok && res.data && res.data.coupon) ? res.data.coupon : null;
+              var settings = (res.ok && res.data && res.data.settings) ? res.data.settings : getVipSettings();
 
-            var welcomePts = Number(settings.welcome_bonus_points != null ? settings.welcome_bonus_points : 100);
-            if (!member) {
-              var prefix = String(settings.referral_code_prefix || "ANNR").toUpperCase();
-              var fallbackCode = prefix + "-" + nm.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() + Math.floor(100 + Math.random() * 899);
-              member = {
-                id: "vip-" + Date.now().toString(36),
-                full_name: nm,
-                email: em,
-                phone: ph,
-                division: div,
-                district: dist,
-                upazila: thana,
-                full_address: addr,
-                is_whatsapp: isWa,
-                tier: settings.default_tier || "Silver",
-                available_points: welcomePts,
-                pending_points: 0,
-                withdrawn_points: 0,
-                redeemed_points: 0,
-                expired_points: 0,
-                total_earned_points: welcomePts,
-                lifetime_spend_bdt: 0,
-                orders_count: 0,
-                friends_referred: 0,
-                referral_code: fallbackCode,
-                referred_by_code: ref || null,
-                status: "active",
-                created_at: new Date().toISOString()
-              };
-              coupon = {
-                code: fallbackCode,
-                discount_value: Number(settings.friend_discount_value || 10),
-                discount_type: settings.friend_discount_type || "percent",
-                min_order_bdt: Number(settings.min_order_for_coupon || 1000),
-                times_used: 0,
-                total_points_generated: 0
-              };
-            }
+              var welcomePts = Number(settings.welcome_bonus_points != null ? settings.welcome_bonus_points : 100);
+              if (!member) {
+                var prefix = String(settings.referral_code_prefix || "ANNR").toUpperCase();
+                var fallbackCode = prefix + "-" + nm.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() + Math.floor(100 + Math.random() * 899);
+                member = {
+                  id: "vip-" + Date.now().toString(36),
+                  full_name: nm,
+                  email: em,
+                  phone: ph,
+                  division: div,
+                  district: dist,
+                  upazila: thana,
+                  full_address: addr,
+                  is_whatsapp: isWa,
+                  tier: settings.default_tier || "Silver",
+                  available_points: welcomePts,
+                  pending_points: 0,
+                  withdrawn_points: 0,
+                  redeemed_points: 0,
+                  expired_points: 0,
+                  total_earned_points: welcomePts,
+                  lifetime_spend_bdt: 0,
+                  orders_count: 0,
+                  friends_referred: 0,
+                  referral_code: fallbackCode,
+                  referred_by_code: ref || null,
+                  status: "active",
+                  created_at: new Date().toISOString()
+                };
+                coupon = {
+                  code: fallbackCode,
+                  discount_value: Number(settings.friend_discount_value || 10),
+                  discount_type: settings.friend_discount_type || "percent",
+                  min_order_bdt: Number(settings.min_order_for_coupon || 1000),
+                  times_used: 0,
+                  total_points_generated: 0
+                };
+              }
 
-            if (member.available_points == null || member.available_points < welcomePts) {
-              member.available_points = welcomePts;
-              member.total_earned_points = Math.max(welcomePts, Number(member.total_earned_points || welcomePts));
-            }
+              if (member.available_points == null || member.available_points < welcomePts) {
+                member.available_points = welcomePts;
+                member.total_earned_points = Math.max(welcomePts, Number(member.total_earned_points || welcomePts));
+              }
 
-            // Record initial Welcome Bonus in points ledger & member notifications
-            if (welcomePts > 0) {
-              appendVipLedgerEntry({
-                member_id: member.id,
-                member_email: em,
-                member_name: nm,
-                transaction_type: "welcome_bonus",
-                points_delta: welcomePts,
-                balance_after: member.available_points,
-                description: "VIP Programme Welcome Registration Bonus (+" + welcomePts + " ANNR Points)",
-                actor: "system"
-              });
-              appendVipNotification({
-                member_id: member.id,
-                member_email: em,
-                title: "Welcome to ANNR VIP Loyalty!",
-                message: "Your VIP vault is active with +" + welcomePts + " ANNR Points. Share your personal referral coupon " + (coupon ? coupon.code : member.referral_code) + " to earn more rewards.",
-                category: "points_earned"
-              });
-            }
+              // Record initial Welcome Bonus in points ledger & member notifications
+              if (welcomePts > 0) {
+                appendVipLedgerEntry({
+                  member_id: member.id,
+                  member_email: em,
+                  member_name: nm,
+                  transaction_type: "welcome_bonus",
+                  points_delta: welcomePts,
+                  balance_after: member.available_points,
+                  description: "VIP Programme Welcome Registration Bonus (+" + welcomePts + " ANNR Points)",
+                  actor: "system"
+                });
+                appendVipNotification({
+                  member_id: member.id,
+                  member_email: em,
+                  title: "Welcome to ANNR VIP Loyalty!",
+                  message: "Your VIP vault is active with +" + welcomePts + " ANNR Points. Share your personal referral coupon " + (coupon ? coupon.code : member.referral_code) + " to earn more rewards.",
+                  category: "points_earned"
+                });
+              }
 
-            // If user registered with a Friend's Referral Code, credit the referrer immediately
-            var refBonusNote = "";
-            if (ref && ref !== member.referral_code) {
-              creditReferrerOnSignup(ref, nm, em);
-              try {
-                localStorage.setItem("annr_cart_coupon", ref);
-                localStorage.setItem("annr_active_ref_code", ref);
-              } catch (err) {}
-              refBonusNote = " Friend referral code " + ref + " linked (" + (settings.friend_discount_type === "fixed" ? "৳" + settings.friend_discount_value : (settings.friend_discount_value || 10) + "%") + " OFF queued for your next order).";
-            }
+              // If user registered with a Friend's Referral Code, credit the referrer immediately
+              var refBonusNote = "";
+              if (ref && ref !== member.referral_code) {
+                creditReferrerOnSignup(ref, nm, em);
+                try {
+                  localStorage.setItem("annr_cart_coupon", ref);
+                  localStorage.setItem("annr_active_ref_code", ref);
+                } catch (err) {}
+                refBonusNote = " Friend referral code " + ref + " linked (" + (settings.friend_discount_type === "fixed" ? "৳" + settings.friend_discount_value : (settings.friend_discount_value || 10) + "%") + " OFF queued for your next order).";
+              }
 
-            hashPassword(pw).then(function(hash) {
               saveVipAccount({
                 email: em,
                 phone: ph,
@@ -2655,6 +2705,59 @@
                 text: "Welcome to AnnR VIP! +" + welcomePts + " Welcome Points credited to your vault. Your personal referral coupon is " + (coupon ? coupon.code : member.referral_code) + "." + refBonusNote
               };
 
+              renderInPageVipHub();
+            }).catch(function() {
+              setBusy(fs, false);
+              var prefix = String(getVipSettings().referral_code_prefix || "ANNR").toUpperCase();
+              var fallbackCode = prefix + "-" + nm.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() + Math.floor(100 + Math.random() * 899);
+              var welcomePts = Number(getVipSettings().welcome_bonus_points != null ? getVipSettings().welcome_bonus_points : 100);
+              var fallbackMember = {
+                id: "vip-" + Date.now().toString(36),
+                full_name: nm,
+                email: em,
+                phone: ph,
+                division: div,
+                district: dist,
+                upazila: thana,
+                full_address: addr,
+                is_whatsapp: isWa,
+                tier: getVipSettings().default_tier || "Silver",
+                available_points: welcomePts,
+                pending_points: 0,
+                withdrawn_points: 0,
+                redeemed_points: 0,
+                expired_points: 0,
+                total_earned_points: welcomePts,
+                lifetime_spend_bdt: 0,
+                orders_count: 0,
+                friends_referred: 0,
+                referral_code: fallbackCode,
+                referred_by_code: ref || null,
+                status: "active",
+                created_at: new Date().toISOString()
+              };
+              var fallbackCoupon = {
+                code: fallbackCode,
+                discount_value: Number(getVipSettings().friend_discount_value || 10),
+                discount_type: getVipSettings().friend_discount_type || "percent",
+                min_order_bdt: Number(getVipSettings().min_order_for_coupon || 1000),
+                times_used: 0,
+                total_points_generated: 0
+              };
+              saveVipAccount({
+                email: em,
+                phone: ph,
+                name: nm,
+                passHash: hash,
+                available_points: welcomePts,
+                member: fallbackMember,
+                coupon: fallbackCoupon
+              });
+              saveSessionMember({
+                member: fallbackMember,
+                coupon: fallbackCoupon,
+                settings: getVipSettings()
+              });
               renderInPageVipHub();
             });
           });
