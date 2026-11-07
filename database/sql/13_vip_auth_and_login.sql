@@ -12,6 +12,10 @@ alter table public.vip_members
 alter table public.loyalty_settings
   add column if not exists welcome_bonus_points int not null default 100 check (welcome_bonus_points between 0 and 10000);
 
+update public.loyalty_settings
+set welcome_bonus_points = 100
+where id = 1 and (welcome_bonus_points is null or welcome_bonus_points = 0);
+
 -- 3. Register VIP Member RPC (handles both anon storefront & authenticated users)
 create or replace function public.register_vip_member(
   p_full_name       text,
@@ -42,8 +46,10 @@ declare
   v_norm_phone      text;
 begin
   select * into v_settings from public.loyalty_settings where id = 1;
-  if found and v_settings.welcome_bonus_points is not null then
+  if found and v_settings.welcome_bonus_points is not null and v_settings.welcome_bonus_points > 0 then
     v_bonus := v_settings.welcome_bonus_points;
+  else
+    v_bonus := 100;
   end if;
 
   v_uid := auth.uid();
@@ -65,10 +71,23 @@ begin
   limit 1;
 
   if found then
-    -- If existing member has no password hash and one was provided, update it
-    if v_member.password_hash is null and p_password_hash is not null and p_password_hash <> '' then
-      update public.vip_members set password_hash = p_password_hash where id = v_member.id;
-      v_member.password_hash := p_password_hash;
+    -- If existing member has a password, verify it if a password was submitted
+    if v_member.password_hash is not null and v_member.password_hash <> '' then
+      if p_password_hash is not null and p_password_hash <> '' then
+        if v_member.password_hash <> p_password_hash and v_member.password_hash <> ('plain:' || p_password_hash) then
+          return jsonb_build_object(
+            'ok', false,
+            'existing', true,
+            'error', 'An account with this email or mobile number already exists. Please sign in with your password, or use a different email/phone.'
+          );
+        end if;
+      end if;
+    else
+      -- If existing member had no password set yet and one was provided, save it
+      if p_password_hash is not null and p_password_hash <> '' then
+        update public.vip_members set password_hash = p_password_hash where id = v_member.id;
+        v_member.password_hash := p_password_hash;
+      end if;
     end if;
 
     select * into v_coupon from public.referral_coupons where vip_member_id = v_member.id order by created_at limit 1;
@@ -271,3 +290,4 @@ $$;
 -- 5. Grant execute on functions to anon and authenticated
 grant execute on function public.register_vip_member(text,text,text,text,text,text,text,boolean,date,text,text,text) to anon, authenticated;
 grant execute on function public.login_vip_member(text,text) to anon, authenticated;
+

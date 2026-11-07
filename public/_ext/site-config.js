@@ -1847,6 +1847,7 @@
           method: "POST",
           headers: {
             "apikey": SB_KEY,
+            "Authorization": "Bearer " + SB_KEY,
             "Content-Type": "application/json"
           },
           body: JSON.stringify(profile)
@@ -1864,6 +1865,7 @@
           method: "POST",
           headers: {
             "apikey": SB_KEY,
+            "Authorization": "Bearer " + SB_KEY,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
@@ -2018,7 +2020,7 @@
       function setBusy(form, busy, label) {
         var b = form && form.querySelector("button[type=submit]");
         if (!b) return;
-        var textSpan = b.querySelector(".text") || b;
+        var textSpan = b.querySelector("span:first-child") || b.querySelector(".text") || b;
         if (busy) {
           b.__label = textSpan.textContent;
           textSpan.textContent = label || "PLEASE WAIT…";
@@ -2032,13 +2034,35 @@
       }
 
       function showErr(form, text) {
+        if (!form) return;
         var box = form.querySelector(".vip-err");
         if (!box) {
           box = document.createElement("div"); box.className = "vip-err"; box.setAttribute("role", "alert");
           box.style.cssText = "color:#b91c1c;background:#fef2f2;border:1px solid #f87171;border-left:3px solid #dc2626;padding:12px 14px;font-family:'FK Grotesk SemiMono',monospace;font-size:11.5px;line-height:1.5;margin-bottom:16px;border-radius:2px";
           form.insertBefore(box, form.firstChild);
         }
-        box.textContent = text; box.style.display = text ? "" : "none";
+        var bottomBox = form.querySelector(".vip-err-bottom");
+        if (!bottomBox) {
+          var submitBtn = form.querySelector("button[type=submit]");
+          if (submitBtn) {
+            bottomBox = document.createElement("div");
+            bottomBox.className = "vip-err-bottom";
+            bottomBox.setAttribute("role", "alert");
+            bottomBox.style.cssText = "color:#b91c1c;background:#fef2f2;border:1px solid #f87171;border-left:3px solid #dc2626;padding:12px 14px;font-family:'FK Grotesk SemiMono',monospace;font-size:11.5px;line-height:1.5;margin-bottom:14px;margin-top:6px;border-radius:2px";
+            submitBtn.parentNode.insertBefore(bottomBox, submitBtn);
+          }
+        }
+        box.textContent = text;
+        box.style.display = text ? "block" : "none";
+        if (bottomBox) {
+          bottomBox.textContent = text;
+          bottomBox.style.display = text ? "block" : "none";
+        }
+        if (text) {
+          try {
+            (bottomBox || box).scrollIntoView({ behavior: "smooth", block: "center" });
+          } catch(e) {}
+        }
       }
 
       function vipContainer() {
@@ -2057,7 +2081,9 @@
           if (!val || !list.length) {
             ds.innerHTML = "<option value='' disabled selected>Select district</option>";
           } else {
-            ds.innerHTML = "<option value='' disabled selected>Select district</option>" + list.map(function (d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("");
+            ds.innerHTML = "<option value='' disabled>Select district</option>" + list.map(function (d, i) {
+              return "<option value='" + esc(d) + "'" + (i === 0 ? " selected" : "") + ">" + esc(d) + "</option>";
+            }).join("");
           }
         };
         dv.onchange = upd;
@@ -2480,6 +2506,7 @@
               saveVipAccount(acc);
               setBusy(fl, false);
               renderInPageVipHub();
+              try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
             }
 
             // Attempt login via Supabase RPC
@@ -2500,6 +2527,7 @@
                 });
                 setBusy(fl, false);
                 renderInPageVipHub();
+                try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
                 return;
               }
 
@@ -2578,7 +2606,7 @@
             showErr(fs, "Please select your division."); return;
           }
           if (!dist) {
-            showErr(fs, "Please select your district."); return;
+            dist = (BD_GEO[div] && BD_GEO[div][0]) || "Dhaka";
           }
           if (addr.length < 3) {
             showErr(fs, "Please enter your delivery address."); return;
@@ -2604,11 +2632,18 @@
               p_password_hash: hash
             }).then(function(res) {
               setBusy(fs, false);
-              var member = (res.ok && res.data && res.data.member) ? res.data.member : null;
-              var coupon = (res.ok && res.data && res.data.coupon) ? res.data.coupon : null;
+
+              // Explicit failure from backend (e.g. existing email with wrong password)
+              if (res.ok && res.data && res.data.ok === false) {
+                showErr(fs, res.data.error || "Could not complete registration. Please check your credentials.");
+                return;
+              }
+
+              var member = (res.ok && res.data && res.data.ok && res.data.member) ? res.data.member : null;
+              var coupon = (res.ok && res.data && res.data.ok && res.data.coupon) ? res.data.coupon : null;
               var settings = (res.ok && res.data && res.data.settings) ? res.data.settings : getVipSettings();
 
-              var welcomePts = Number(settings.welcome_bonus_points != null ? settings.welcome_bonus_points : 100);
+              var welcomePts = Number(settings.welcome_bonus_points != null && Number(settings.welcome_bonus_points) > 0 ? settings.welcome_bonus_points : 100);
               if (!member) {
                 var prefix = String(settings.referral_code_prefix || "ANNR").toUpperCase();
                 var fallbackCode = prefix + "-" + nm.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() + Math.floor(100 + Math.random() * 899);
@@ -2653,7 +2688,7 @@
               }
 
               // Record initial Welcome Bonus in points ledger & member notifications
-              if (welcomePts > 0) {
+              if (welcomePts > 0 && (!res.data || !res.data.existing)) {
                 appendVipLedgerEntry({
                   member_id: member.id,
                   member_email: em,
@@ -2675,7 +2710,7 @@
 
               // If user registered with a Friend's Referral Code, credit the referrer immediately
               var refBonusNote = "";
-              if (ref && ref !== member.referral_code) {
+              if (ref && ref !== member.referral_code && (!res.data || !res.data.existing)) {
                 creditReferrerOnSignup(ref, nm, em);
                 try {
                   localStorage.setItem("annr_cart_coupon", ref);
@@ -2700,12 +2735,20 @@
                 settings: settings
               });
 
-              window.__annrVipNotice = {
-                type: "ok",
-                text: "Welcome to AnnR VIP! +" + welcomePts + " Welcome Points credited to your vault. Your personal referral coupon is " + (coupon ? coupon.code : member.referral_code) + "." + refBonusNote
-              };
+              if (res.data && res.data.existing) {
+                window.__annrVipNotice = {
+                  type: "ok",
+                  text: "Welcome back, " + (member.full_name || "VIP Member") + "! You are signed into your VIP account (" + member.available_points + " points available)."
+                };
+              } else {
+                window.__annrVipNotice = {
+                  type: "ok",
+                  text: "Welcome to AnnR VIP! +" + welcomePts + " Welcome Points credited to your vault. Your personal referral coupon is " + (coupon ? coupon.code : member.referral_code) + "." + refBonusNote
+                };
+              }
 
               renderInPageVipHub();
+              try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
             }).catch(function() {
               setBusy(fs, false);
               var prefix = String(getVipSettings().referral_code_prefix || "ANNR").toUpperCase();
@@ -2749,7 +2792,7 @@
                 phone: ph,
                 name: nm,
                 passHash: hash,
-                available_points: welcomePts,
+                available_points: fallbackMember.available_points,
                 member: fallbackMember,
                 coupon: fallbackCoupon
               });
@@ -2758,7 +2801,12 @@
                 coupon: fallbackCoupon,
                 settings: getVipSettings()
               });
+              window.__annrVipNotice = {
+                type: "ok",
+                text: "Welcome to AnnR VIP! +" + fallbackMember.available_points + " Welcome Points credited to your vault. Your personal referral coupon is " + fallbackCoupon.code + "."
+              };
               renderInPageVipHub();
+              try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
             });
           });
         };

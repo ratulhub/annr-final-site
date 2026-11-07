@@ -70,8 +70,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta name="twitter:title" content="Create Account">
 <meta name="twitter:description" content="Shop AnnR streetwear online for hoodies, tees, jackets, bottoms, and accessories with bold styles made for modern urban fashion and everyday wear.">
 
+    <style id="annr-critical-hide-search">
+      header-search-new, .header-search-new, .header-search-overflow { display: none !important; }
+      header-search-new.open, .header-search-new.open { display: block !important; position: fixed !important; top: 12px !important; right: 12px !important; bottom: 12px !important; left: 12px !important; z-index: 1300 !important; }
+      .header-search-overflow.open { display: block !important; position: fixed !important; inset: 0 !important; background: rgba(0,0,0,0.6) !important; z-index: 1290 !important; }
+    </style>
     <link rel="preload" href="/_ext/githubfix.myshopify.com/cdn/shop/t/1/assets/component-1.0.47.js" as="script">
-<script src="/_ext/githubfix.myshopify.com/cdn/shop/t/1/assets/component-1.0.47.js">
+<script src="/_ext/githubfix.myshopify.com/cdn/shop/t/1/assets/component-1.0.47.js"></script>
 
     <!-- Preload critical CSS files only -->
     <link rel="preload" href="/cdn/shop/t/75/assets/theme.css?v=170184888075214981191789705535" as="style">
@@ -1917,7 +1922,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 
 
-<header-search-new class="header-search-new" id="header-search" aria-hidden="true">
+<header-search-new class="header-search-new" id="header-search" aria-hidden="true" style="display:none !important;">
   <div class="header-search-new__panel" role="dialog" aria-modal="true" aria-label="Search">
     <div class="header-search-new__top">
       <div class="header-search-new__title">
@@ -1963,6 +1968,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   class="header-search-overflow header-search-new__overflow js-header-search-trigger"
   data-type="close"
   aria-label="Close"
+  style="display:none !important;"
 ></div>
 
 
@@ -2110,7 +2116,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <label class="vip-field-label">MOBILE NUMBER <span class="req">*</span></label>
             <div class="vip-phone-group">
               <span class="vip-cc">+880</span>
-              <input type="tel" id="vip-reg-phone" required inputmode="numeric" autocomplete="tel" placeholder="Enter 11-digit mobile number" pattern="^01[3-9][0-9]{8}$">
+              <input type="tel" id="vip-reg-phone" required inputmode="tel" autocomplete="tel" placeholder="Enter 11-digit mobile number">
             </div>
           </div>
           <div class="vip-field">
@@ -2167,7 +2173,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <span>Get updates and exclusive offers on WhatsApp.</span>
           </label>
           <label class="vip-checkbox-label">
-            <input type="checkbox" id="vip-reg-terms" checked required>
+            <input type="checkbox" id="vip-reg-terms" checked>
             <span>I agree to the <a href="/pages/terms" target="_blank">Terms of Service</a> and <a href="/pages/privacy" target="_blank">Privacy Policy</a>. <span class="req">*</span></span>
           </label>
         </div>
