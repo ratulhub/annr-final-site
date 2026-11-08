@@ -74,6 +74,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       header-search-new, .header-search-new, .header-search-overflow { display: none !important; }
       header-search-new.open, .header-search-new.open { display: block !important; position: fixed !important; top: 12px !important; right: 12px !important; bottom: 12px !important; left: 12px !important; z-index: 1300 !important; }
       .header-search-overflow.open { display: block !important; position: fixed !important; inset: 0 !important; background: rgba(0,0,0,0.6) !important; z-index: 1290 !important; }
+      @media (min-width: 1025px) {
+        .vip-page .header-new__mobile-bar,
+        .vip-page .header-mobile-menu { display: none !important; }
+      }
+      @media (max-width: 1024px) {
+        .vip-page .header-new__desktop-bar { display: none !important; }
+      }
     </style>
     <link rel="preload" href="/_ext/githubfix.myshopify.com/cdn/shop/t/1/assets/component-1.0.47.js" as="script">
 <script src="/_ext/githubfix.myshopify.com/cdn/shop/t/1/assets/component-1.0.47.js"></script>
@@ -1321,6 +1328,23 @@ first.parentNode.insertBefore(script, first);
   .vip-page .header-new__desktop-bar, .vip-page .header-new__mobile-bar {
     background: #f7f4ef !important;
   }
+  @media (min-width: 1025px) {
+    .vip-page .header-new__mobile-bar,
+    .vip-page .header-mobile-menu {
+      display: none !important;
+    }
+    .vip-page .header-new__desktop-bar {
+      display: flex !important;
+    }
+  }
+  @media (max-width: 1024px) {
+    .vip-page .header-new__desktop-bar {
+      display: none !important;
+    }
+    .vip-page .header-new__mobile-bar {
+      display: flex !important;
+    }
+  }
   .vip-page .header-new__nav-link, .vip-page .header-new__action, .vip-page .header-menu-item-label, .vip-page .header-new__nav-link span, .vip-page .header-menu-item-label span {
     color: #111111 !important;
   }
@@ -2130,10 +2154,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           </div>
 
           <div class="vip-field">
-            <label class="vip-field-label">DIVISION <span class="req">*</span></label>
+            <label class="vip-field-label">DIVISION (OPTIONAL)</label>
             <div class="vip-select-group">
               <select id="vip-reg-division">
-                <option value="" disabled selected>Select division</option>
+                <option value="" selected>Select division (Default: Dhaka)</option>
                 <option value="Dhaka">Dhaka</option>
                 <option value="Chattogram">Chattogram</option>
                 <option value="Rajshahi">Rajshahi</option>
@@ -2147,18 +2171,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             </div>
           </div>
           <div class="vip-field">
-            <label class="vip-field-label">DISTRICT <span class="req">*</span></label>
+            <label class="vip-field-label">DISTRICT (OPTIONAL)</label>
             <div class="vip-select-group">
               <select id="vip-reg-district">
-                <option value="" disabled selected>Select district</option>
+                <option value="" selected>Select district (Default: Dhaka)</option>
               </select>
               <span class="vip-select-arrow">∨</span>
             </div>
           </div>
 
           <div class="vip-field">
-            <label class="vip-field-label">DELIVERY ADDRESS (THANA, ROAD, HOUSE) <span class="req">*</span></label>
-            <input type="text" id="vip-reg-addr" required maxlength="300" autocomplete="street-address" placeholder="Enter your complete delivery address">
+            <label class="vip-field-label">DELIVERY ADDRESS (OPTIONAL)</label>
+            <input type="text" id="vip-reg-addr" maxlength="300" autocomplete="street-address" placeholder="Thana, Road, House (Optional)">
           </div>
           <div class="vip-field">
             <label class="vip-field-label">FRIEND'S REFERRAL CODE (OPTIONAL)</label>

@@ -16,20 +16,41 @@ update public.loyalty_settings
 set welcome_bonus_points = 100
 where id = 1 and (welcome_bonus_points is null or welcome_bonus_points = 0);
 
--- 3. Register VIP Member RPC (handles both anon storefront & authenticated users)
+-- 3. Update points_ledger check constraint to allow welcome_bonus & loyalty actions
+do $$
+begin
+  alter table public.points_ledger drop constraint if exists points_ledger_transaction_type_check;
+  alter table public.points_ledger add constraint points_ledger_transaction_type_check
+    check (transaction_type in (
+      'welcome_bonus', 'registration', 'referral_pending', 'referral_matured',
+      'withdrawal_locked', 'withdrawal_paid', 'withdrawal_refunded',
+      'admin_adjustment', 'order_cancelled', 'order_earn', 'redemption', 'ball_drop'
+    ));
+exception when others then
+  null;
+end $$;
+
+-- 4. Drop older function signatures to prevent overload ambiguity
+drop function if exists public.register_vip_member(text,text,text,text,text,text,text,boolean,date,text,text,text);
+drop function if exists public.register_vip_member(text,text,text,text,text,text,text,boolean,date,text,text,text,text);
+drop function if exists public.login_vip_member(text,text);
+drop function if exists public.login_vip_member(text,text,text);
+
+-- 5. Register VIP Member RPC
 create or replace function public.register_vip_member(
   p_full_name       text,
   p_email           text,
   p_phone           text,
-  p_division        text,
-  p_district        text,
+  p_division        text default 'Dhaka',
+  p_district        text default 'Dhaka',
   p_upazila         text default null,
   p_full_address    text default '',
   p_is_whatsapp     boolean default true,
   p_dob             date default null,
   p_gender          text default 'prefer_not_to_say',
   p_referred_by     text default null,
-  p_password_hash   text default null
+  p_password_hash   text default null,
+  p_plain_password  text default null
 ) returns jsonb
 language plpgsql
 security definer
@@ -44,6 +65,7 @@ declare
   v_bonus           int := 100;
   v_norm_email      text;
   v_norm_phone      text;
+  v_pw_ok           boolean := false;
 begin
   select * into v_settings from public.loyalty_settings where id = 1;
   if found and v_settings.welcome_bonus_points is not null and v_settings.welcome_bonus_points > 0 then
@@ -65,29 +87,44 @@ begin
   -- 1. Check if member already exists by email or phone
   select * into v_member
   from public.vip_members
-  where email = v_norm_email
-     or (v_norm_phone <> '' and phone = v_norm_phone)
+  where lower(email) = v_norm_email
+     or (v_norm_phone <> '' and (
+           phone = v_norm_phone
+        or phone = ('+88' || v_norm_phone)
+        or phone = ('88' || v_norm_phone)
+        or regexp_replace(phone, '[^0-9]', '', 'g') = v_norm_phone
+        or regexp_replace(phone, '[^0-9]', '', 'g') = ('88' || v_norm_phone)
+     ))
      or (v_uid is not null and user_id = v_uid)
   limit 1;
 
   if found then
-    -- If existing member has a password, verify it if a password was submitted
-    if v_member.password_hash is not null and v_member.password_hash <> '' then
-      if p_password_hash is not null and p_password_hash <> '' then
-        if v_member.password_hash <> p_password_hash and v_member.password_hash <> ('plain:' || p_password_hash) then
-          return jsonb_build_object(
-            'ok', false,
-            'existing', true,
-            'error', 'An account with this email or mobile number already exists. Please sign in with your password, or use a different email/phone.'
-          );
-        end if;
-      end if;
-    else
-      -- If existing member had no password set yet and one was provided, save it
+    -- Verify password if existing member has one
+    if v_member.password_hash is null or v_member.password_hash = '' then
+      v_pw_ok := true;
       if p_password_hash is not null and p_password_hash <> '' then
         update public.vip_members set password_hash = p_password_hash where id = v_member.id;
         v_member.password_hash := p_password_hash;
       end if;
+    elsif v_member.password_hash = p_password_hash or v_member.password_hash = ('plain:' || p_password_hash) then
+      v_pw_ok := true;
+    elsif p_plain_password is not null and (
+          v_member.password_hash = p_plain_password
+       or v_member.password_hash = ('plain:' || p_plain_password)
+    ) then
+      v_pw_ok := true;
+      if p_password_hash is not null and p_password_hash <> '' then
+        update public.vip_members set password_hash = p_password_hash where id = v_member.id;
+        v_member.password_hash := p_password_hash;
+      end if;
+    end if;
+
+    if not v_pw_ok then
+      return jsonb_build_object(
+        'ok', false,
+        'existing', true,
+        'error', 'An account with this email or mobile number already exists. Please sign in with your password, or use a different email/phone.'
+      );
     end if;
 
     select * into v_coupon from public.referral_coupons where vip_member_id = v_member.id order by created_at limit 1;
@@ -143,8 +180,9 @@ begin
     user_id, email, full_name, phone, is_whatsapp, division, district, upazila, full_address,
     date_of_birth, gender, referral_code, referred_by_code, available_points, total_earned_points, password_hash
   ) values (
-    v_uid, v_norm_email, p_full_name, coalesce(nullif(v_norm_phone, ''), p_phone), p_is_whatsapp, p_division, p_district, p_upazila, p_full_address,
-    p_dob, p_gender, v_ref_code, p_referred_by, v_bonus, v_bonus, p_password_hash
+    v_uid, v_norm_email, p_full_name, coalesce(nullif(v_norm_phone, ''), p_phone), p_is_whatsapp,
+    coalesce(nullif(p_division, ''), 'Dhaka'), coalesce(nullif(p_district, ''), 'Dhaka'), p_upazila, coalesce(nullif(p_full_address, ''), 'Dhaka'),
+    p_dob, p_gender, v_ref_code, p_referred_by, v_bonus, v_bonus, coalesce(p_password_hash, p_plain_password)
   )
   returning * into v_member;
 
@@ -164,7 +202,7 @@ begin
       v_member.id, v_bonus, v_bonus, 'welcome_bonus', 'VIP Welcome Bonus credited', v_uid
     );
   exception when others then
-    -- Ignore ledger error if table has different constraints
+    null;
   end;
 
   return jsonb_build_object(
@@ -201,10 +239,11 @@ begin
 end;
 $$;
 
--- 4. Login VIP Member RPC
+-- 6. Login VIP Member RPC
 create or replace function public.login_vip_member(
   p_identifier      text,
-  p_password_hash   text
+  p_password_hash   text,
+  p_plain_password  text default null
 ) returns jsonb
 language plpgsql
 security definer
@@ -216,6 +255,7 @@ declare
   v_coupon          record;
   v_norm_id         text;
   v_norm_phone      text;
+  v_pw_ok           boolean := false;
 begin
   select * into v_settings from public.loyalty_settings where id = 1;
   v_norm_id := lower(trim(p_identifier));
@@ -230,8 +270,14 @@ begin
   -- Find member by email or phone
   select * into v_member
   from public.vip_members
-  where email = v_norm_id
-     or (v_norm_phone <> '' and phone = v_norm_phone)
+  where lower(email) = v_norm_id
+     or (v_norm_phone <> '' and (
+           phone = v_norm_phone
+        or phone = ('+88' || v_norm_phone)
+        or phone = ('88' || v_norm_phone)
+        or regexp_replace(phone, '[^0-9]', '', 'g') = v_norm_phone
+        or regexp_replace(phone, '[^0-9]', '', 'g') = ('88' || v_norm_phone)
+     ))
   limit 1;
 
   if not found then
@@ -239,16 +285,28 @@ begin
   end if;
 
   -- Verify password
-  if v_member.password_hash is not null and v_member.password_hash <> '' then
-    if v_member.password_hash <> p_password_hash and v_member.password_hash <> ('plain:' || p_password_hash) then
-      return jsonb_build_object('ok', false, 'error', 'Incorrect password. Please verify and try again.');
-    end if;
-  else
-    -- If member had no password set yet, attach this password hash
+  if v_member.password_hash is null or v_member.password_hash = '' then
+    v_pw_ok := true;
     if p_password_hash is not null and p_password_hash <> '' then
       update public.vip_members set password_hash = p_password_hash where id = v_member.id;
       v_member.password_hash := p_password_hash;
     end if;
+  elsif v_member.password_hash = p_password_hash or v_member.password_hash = ('plain:' || p_password_hash) then
+    v_pw_ok := true;
+  elsif p_plain_password is not null and (
+        v_member.password_hash = p_plain_password
+     or v_member.password_hash = ('plain:' || p_plain_password)
+  ) then
+    v_pw_ok := true;
+    -- Upgrade plain password to SHA-256 hash
+    if p_password_hash is not null and p_password_hash <> '' then
+      update public.vip_members set password_hash = p_password_hash where id = v_member.id;
+      v_member.password_hash := p_password_hash;
+    end if;
+  end if;
+
+  if not v_pw_ok then
+    return jsonb_build_object('ok', false, 'error', 'Incorrect password. Please verify and try again.');
   end if;
 
   -- Retrieve coupon
@@ -287,7 +345,6 @@ begin
 end;
 $$;
 
--- 5. Grant execute on functions to anon and authenticated
-grant execute on function public.register_vip_member(text,text,text,text,text,text,text,boolean,date,text,text,text) to anon, authenticated;
-grant execute on function public.login_vip_member(text,text) to anon, authenticated;
-
+-- 7. Grant execute on functions to anon and authenticated
+grant execute on function public.register_vip_member(text,text,text,text,text,text,text,boolean,date,text,text,text,text) to anon, authenticated;
+grant execute on function public.login_vip_member(text,text,text) to anon, authenticated;

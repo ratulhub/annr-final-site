@@ -1860,7 +1860,7 @@
         });
       }
 
-      function callLoginRpc(identifier, passwordHash) {
+      function callLoginRpc(identifier, passwordHash, plainPassword) {
         return fetch(SB_URL + "/rest/v1/rpc/login_vip_member", {
           method: "POST",
           headers: {
@@ -1870,7 +1870,8 @@
           },
           body: JSON.stringify({
             p_identifier: identifier,
-            p_password_hash: passwordHash
+            p_password_hash: passwordHash,
+            p_plain_password: plainPassword || null
           })
         }).then(function(r) {
           return r.json().then(function(data) {
@@ -2286,28 +2287,28 @@
                     "</div>" +
 
                     "<div class='vip-field'>" +
-                      "<label class='vip-field-label'>DIVISION <span class='req'>*</span></label>" +
+                      "<label class='vip-field-label'>DIVISION (OPTIONAL)</label>" +
                       "<div class='vip-select-group'>" +
                         "<select id='vip-reg-division'>" +
-                          "<option value='' disabled selected>Select division</option>" +
+                          "<option value='' selected>Select division (Default: Dhaka)</option>" +
                           Object.keys(BD_GEO).map(function (d) { return "<option value='" + esc(d) + "'>" + esc(d) + "</option>"; }).join("") +
                         "</select>" +
                         "<span class='vip-select-arrow'>∨</span>" +
                       "</div>" +
                     "</div>" +
                     "<div class='vip-field'>" +
-                      "<label class='vip-field-label'>DISTRICT <span class='req'>*</span></label>" +
+                      "<label class='vip-field-label'>DISTRICT (OPTIONAL)</label>" +
                       "<div class='vip-select-group'>" +
                         "<select id='vip-reg-district'>" +
-                          "<option value='' disabled selected>Select district</option>" +
+                          "<option value='' selected>Select district (Default: Dhaka)</option>" +
                         "</select>" +
                         "<span class='vip-select-arrow'>∨</span>" +
                       "</div>" +
                     "</div>" +
 
                     "<div class='vip-field'>" +
-                      "<label class='vip-field-label'>DELIVERY ADDRESS (THANA, ROAD, HOUSE) <span class='req'>*</span></label>" +
-                      "<input type='text' id='vip-reg-addr' required maxlength='300' autocomplete='street-address' placeholder='Enter your complete delivery address'>" +
+                      "<label class='vip-field-label'>DELIVERY ADDRESS (OPTIONAL)</label>" +
+                      "<input type='text' id='vip-reg-addr' maxlength='300' autocomplete='street-address' placeholder='Thana, Road, House (Optional)'>" +
                     "</div>" +
                     "<div class='vip-field'>" +
                       "<label class='vip-field-label'>FRIEND'S REFERRAL CODE (OPTIONAL)</label>" +
@@ -2322,8 +2323,8 @@
                       "<span>Get updates and exclusive offers on WhatsApp.</span>" +
                     "</label>" +
                     "<label class='vip-checkbox-label'>" +
-                      "<input type='checkbox' id='vip-reg-terms' checked required>" +
-                      "<span>I agree to the <a href='/pages/terms' target='_blank'>Terms of Service</a> and <a href='/pages/privacy' target='_blank'>Privacy Policy</a>. <span class='req'>*</span></span>" +
+                      "<input type='checkbox' id='vip-reg-terms' checked>" +
+                      "<span>I agree to the <a href='/pages/terms' target='_blank'>Terms of Service</a> and <a href='/pages/privacy' target='_blank'>Privacy Policy</a>.</span>" +
                     "</label>" +
                   "</div>" +
 
@@ -2439,6 +2440,7 @@
             if (phone.length === 10 && /^1[3-9]/.test(phone)) phone = "0" + phone;
           }
 
+          var targetId = email || phone || idInput;
           var acc = (email ? accounts[email] : null) || (phone ? accounts[phone] : null);
 
           // If not directly in accounts, search annr-vip-members list
@@ -2509,8 +2511,8 @@
               try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
             }
 
-            // Attempt login via Supabase RPC
-            callLoginRpc(idInput, inputHash).then(function(res) {
+            // Attempt login via Supabase RPC with both hash and raw password
+            callLoginRpc(targetId, inputHash, pw).then(function(res) {
               if (res.ok && res.data && res.data.ok) {
                 var m = res.data.member;
                 var cpn = res.data.coupon || { code: m.referral_code };
@@ -2534,7 +2536,7 @@
               // Explicit credentials error returned by Supabase (e.g. wrong password)
               if (res.ok && res.data && res.data.ok === false && res.data.error) {
                 // If local account has matching password, let local work
-                if (acc && (acc.passHash === inputHash || acc.passHash === "plain:" + pw)) {
+                if (acc && (acc.passHash === inputHash || acc.passHash === "plain:" + pw || acc.passHash === pw)) {
                   useLocalAccount();
                   return;
                 }
@@ -2545,7 +2547,7 @@
 
               // Supabase permission denied (401) or network error: fallback to local account
               if (acc) {
-                if (acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw) {
+                if (acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw && acc.passHash !== pw) {
                   setBusy(fl, false);
                   showErr(fl, "Incorrect password. Please verify your password and try again.");
                   return;
@@ -2558,7 +2560,7 @@
               showErr(fl, "No VIP account found with this email or mobile number. Please check your credentials or click 'Create Account' to join.");
             }).catch(function() {
               if (acc) {
-                if (acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw) {
+                if (acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw && acc.passHash !== pw) {
                   setBusy(fl, false);
                   showErr(fl, "Incorrect password. Please verify your password and try again.");
                   return;
@@ -2603,22 +2605,38 @@
             showErr(fs, "Password must be at least 6 characters."); return;
           }
           if (!div) {
-            showErr(fs, "Please select your division."); return;
+            div = "Dhaka";
           }
           if (!dist) {
             dist = (BD_GEO[div] && BD_GEO[div][0]) || "Dhaka";
           }
-          if (addr.length < 3) {
-            showErr(fs, "Please enter your delivery address."); return;
-          }
-          if (!termsAgreed) {
-            showErr(fs, "Please agree to the Terms of Service and Privacy Policy."); return;
+          if (!addr || addr.length < 2) {
+            addr = "Dhaka";
           }
 
           showErr(fs, "");
           setBusy(fs, true, "CREATING VIP ACCOUNT…");
 
           hashPassword(pw).then(function(hash) {
+            // Check if existing local account matches password
+            var existingLocal = (em ? accounts[em] : null) || (ph ? accounts[ph] : null);
+            if (existingLocal) {
+              if (existingLocal.passHash === hash || existingLocal.passHash === "plain:" + pw || existingLocal.passHash === pw) {
+                saveSessionMember({
+                  member: existingLocal.member || existingLocal,
+                  coupon: existingLocal.coupon || { code: (existingLocal.member && existingLocal.member.referral_code) || "VIP-ANNR10" },
+                  settings: getVipSettings()
+                });
+                window.__annrVipNotice = {
+                  type: "ok",
+                  text: "Welcome back, " + (existingLocal.name || "VIP Member") + "! You are signed into your VIP account."
+                };
+                renderInPageVipHub();
+                try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(err) {}
+                return;
+              }
+            }
+
             callRegisterRpc({
               p_full_name: nm,
               p_email: em,
@@ -2629,12 +2647,23 @@
               p_full_address: addr,
               p_is_whatsapp: isWa,
               p_referred_by: ref || null,
-              p_password_hash: hash
+              p_password_hash: hash,
+              p_plain_password: pw
             }).then(function(res) {
               setBusy(fs, false);
 
-              // Explicit failure from backend (e.g. existing email with wrong password)
+              // Explicit failure from backend (e.g. existing email with different password)
               if (res.ok && res.data && res.data.ok === false) {
+                if (res.data.existing) {
+                  var idField = c.querySelector("#vip-login-id");
+                  if (idField) idField.value = em || ph;
+                  showSignin(true, true);
+                  var loginForm = c.querySelector("#vip-login-form");
+                  if (loginForm) {
+                    showErr(loginForm, "An account with this email or mobile number already exists. Please enter your password to sign in.");
+                  }
+                  return;
+                }
                 showErr(fs, res.data.error || "Could not complete registration. Please check your credentials.");
                 return;
               }
