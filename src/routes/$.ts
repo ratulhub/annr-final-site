@@ -198,7 +198,11 @@ function buildPredictiveSearchHtml(query: string): string {
   const terms = rawTerms.map((t) => SEARCH_SYNONYMS[t] || t);
   const matches = ((catalog.products || []) as Array<Record<string, unknown>>).filter((p) => {
     if (p["status"] && p["status"] !== "active") return false;
-    const hay = `${p["title"] || ""} ${p["description"] || ""} ${p["handle"] || ""} ${p["type"] || ""} ${p["tags"] || ""}`.toLowerCase();
+    const skus = Array.isArray(p["skus"]) ? (p["skus"] as string[]).join(" ") : "";
+    const variants = Array.isArray(p["variants"])
+      ? (p["variants"] as Array<Record<string, unknown>>).map((v) => `${v["sku"] || ""} ${v["id"] || ""} ${v["title"] || ""}`).join(" ")
+      : "";
+    const hay = `${p["title"] || ""} ${p["description"] || ""} ${p["handle"] || ""} ${p["type"] || ""} ${p["tags"] || ""} ${p["id"] || ""} ${skus} ${variants}`.toLowerCase();
     return terms.every((t, i) => hay.includes(t) || hay.includes(rawTerms[i]));
   }).slice(0, 10);
 

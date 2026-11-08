@@ -112,7 +112,10 @@
   var baseCatalog = [];
   try {
     var cachedCat = sessionStorage.getItem("annr_base_catalog_cache");
-    if (cachedCat) baseCatalog = JSON.parse(cachedCat);
+    if (cachedCat) {
+      var parsedCached = JSON.parse(cachedCat);
+      baseCatalog = Array.isArray(parsedCached) ? parsedCached : (parsedCached && Array.isArray(parsedCached.products) ? parsedCached.products : []);
+    }
   } catch (e) {}
 
   function loadBaseCatalog() {
@@ -120,9 +123,10 @@
       fetch("/_ext/catalog.json").then(function (r) {
         return r.ok ? r.json() : null;
       }).then(function (data) {
-        if (Array.isArray(data)) {
-          baseCatalog = data;
-          try { sessionStorage.setItem("annr_base_catalog_cache", JSON.stringify(data)); } catch (err) {}
+        var prods = Array.isArray(data) ? data : (data && Array.isArray(data.products) ? data.products : []);
+        if (prods && prods.length) {
+          baseCatalog = prods;
+          try { sessionStorage.setItem("annr_base_catalog_cache", JSON.stringify(prods)); } catch (err) {}
           if (tpl === "search") setupSearchPage();
         }
       }).catch(function () {});
@@ -217,8 +221,35 @@
       var title = (o.title || p.title || "").toLowerCase();
       var desc = (o.description || p.description || "").toLowerCase();
       var handle = (p.handle || "").toLowerCase();
-      var tags = (p.tags || "").toLowerCase();
-      var type = (p.type || "").toLowerCase();
+      var tags = (o.tags || p.tags || "").toLowerCase();
+      var type = (o.type || p.type || "").toLowerCase();
+      var idStr = String(o.id != null ? o.id : (p.id != null ? p.id : "")).toLowerCase();
+      var skuList = [];
+      if (Array.isArray(p.skus)) skuList = skuList.concat(p.skus);
+      if (Array.isArray(o.skus)) skuList = skuList.concat(o.skus);
+      if (p.sku) skuList.push(p.sku);
+      if (o.sku) skuList.push(o.sku);
+      if (Array.isArray(p.variants)) {
+        p.variants.forEach(function (v) {
+          if (v) {
+            if (v.sku) skuList.push(v.sku);
+            if (v.id) skuList.push(String(v.id));
+            if (v.barcode) skuList.push(String(v.barcode));
+            if (v.title) skuList.push(String(v.title));
+          }
+        });
+      }
+      if (Array.isArray(o.variants)) {
+        o.variants.forEach(function (v) {
+          if (v) {
+            if (v.sku) skuList.push(v.sku);
+            if (v.id) skuList.push(String(v.id));
+            if (v.barcode) skuList.push(String(v.barcode));
+            if (v.title) skuList.push(String(v.title));
+          }
+        });
+      }
+      var skusStr = skuList.join(" ").toLowerCase();
 
       var matchedAll = true;
       var score = 0;
@@ -228,6 +259,15 @@
         var rawT = rawTerms[j];
         var termMatched = false;
 
+        // Exact / partial match on Product Code, SKU, or Product ID (highest relevance)
+        if (idStr && (idStr === t || idStr === rawT || idStr.indexOf(t) >= 0 || idStr.indexOf(rawT) >= 0)) {
+          score += 150;
+          termMatched = true;
+        }
+        if (skusStr && (skusStr.indexOf(t) >= 0 || skusStr.indexOf(rawT) >= 0)) {
+          score += 130;
+          termMatched = true;
+        }
         if (title.indexOf(t) >= 0 || title.indexOf(rawT) >= 0) {
           score += 100;
           if (title.indexOf(t) === 0 || title.indexOf(rawT) === 0) score += 50; // starts with
@@ -436,6 +476,153 @@
       "position:fixed;left:0;right:0;bottom:0;z-index:99998;background:#e10600;color:#fff;text-align:center;font:10px/1 'NB Architekt Std',sans-serif;letter-spacing:1px;padding:10px");
   }
 
+  
+  // =========================================================================
+  // UNIVERSAL GLOBAL SEARCH SYSTEM FOR FULL SITE
+  // Handles desktop & mobile search triggers, live predictive drawer, and
+  // product code / SKU / barcode / ID / name / tag matching across all pages.
+  // =========================================================================
+  function initGlobalSearchEngine() {
+    var modal = document.querySelector("header-search-new, .header-search-new");
+    var overflow = document.querySelector(".header-search-overflow");
+    var input = document.getElementById("header-search-new-input");
+    var resultsEl = document.querySelector("[data-header-search-new-results]");
+    var trendingEl = document.querySelector("[data-header-search-new-trending]");
+
+    function openSearch() {
+      if (modal) {
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        modal.style.setProperty("display", "flex", "important");
+      }
+      if (overflow) {
+        overflow.classList.add("open");
+        overflow.style.setProperty("display", "block", "important");
+      }
+      if (input) {
+        setTimeout(function () { input.focus(); }, 60);
+      }
+    }
+
+    function closeSearch() {
+      if (modal) {
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+        modal.style.setProperty("display", "none", "important");
+      }
+      if (overflow) {
+        overflow.classList.remove("open");
+        overflow.style.setProperty("display", "none", "important");
+      }
+    }
+
+    // Attach to all search trigger buttons across desktop and mobile headers
+    var triggers = document.querySelectorAll(".js-header-search-trigger, .header-search-button, [data-header-search-trigger], #header-search-trigger, a[href*='/search']");
+    triggers.forEach(function (btn) {
+      if (btn.__annrSearchBound) return;
+      btn.__annrSearchBound = true;
+      btn.addEventListener("click", function (e) {
+        var isClose = btn.getAttribute("data-type") === "close" || btn.classList.contains("header-search-new__close");
+        if (isClose) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeSearch();
+          return;
+        }
+        // If clicking a search button in header, toggle/open modal
+        if (modal) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (modal.classList.contains("open")) {
+            closeSearch();
+          } else {
+            openSearch();
+          }
+        }
+      });
+    });
+
+    if (overflow && !overflow.__annrCloseBound) {
+      overflow.__annrCloseBound = true;
+      overflow.addEventListener("click", function (e) {
+        e.preventDefault();
+        closeSearch();
+      });
+    }
+
+    // Close on Escape key
+    if (!window.__annrSearchEscBound) {
+      window.__annrSearchEscBound = true;
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && modal && modal.classList.contains("open")) {
+          closeSearch();
+        }
+      });
+    }
+
+    // Live instant search typing listener inside predictive drawer
+    if (input && !input.__annrLiveBound) {
+      input.__annrLiveBound = true;
+      var liveTimer = null;
+      input.addEventListener("input", function () {
+        clearTimeout(liveTimer);
+        liveTimer = setTimeout(function () {
+          var val = input.value.trim();
+          if (!val) {
+            if (trendingEl) trendingEl.classList.add("is-active");
+            if (resultsEl) {
+              resultsEl.classList.remove("is-active");
+              resultsEl.innerHTML = "";
+            }
+            return;
+          }
+          if (trendingEl) trendingEl.classList.remove("is-active");
+          if (resultsEl) resultsEl.classList.add("is-active");
+
+          var matches = searchProducts(val).slice(0, 12);
+          if (matches.length > 0) {
+            var cardsHtml = matches.map(function (p) {
+              var pr = String(p.price || "0").replace(/\.00$/, "");
+              var img = (p.images && p.images[0]) || p.image || "";
+              return "<div class='product-card'>" +
+                "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(p.title) + "'>" +
+                  "<img src='" + esc(safeImg(img)) + "' alt='" + esc(p.title) + "' loading='lazy'>" +
+                "</a>" +
+                "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(p.title) + "</a>" +
+                "<div class='product-card-price'>Tk " + esc(pr) + " BDT</div>" +
+              "</div>";
+            }).join("");
+
+            resultsEl.innerHTML = "<div class='header-search-new__heading'>RESULTS FOR “" + esc(val.toUpperCase()) + "” (" + matches.length + ")</div>" +
+              "<div class='header-search-new__result-products'>" + cardsHtml + "</div>" +
+              "<div style='text-align:center;margin-top:16px'>" +
+                "<a href='/search/index.html?type=product&q=" + encodeURIComponent(val) + "' style='display:inline-block;padding:9px 20px;background:#e05a2b;color:#ffffff;font-family:'NB Architekt Std',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-radius:4px;text-decoration:none'>VIEW ALL " + matches.length + "+ RESULTS →</a>" +
+              "</div>";
+          } else {
+            resultsEl.innerHTML = "<div class='header-search-new__empty-state'>" +
+              "<p style='font-size:13px;font-weight:700;color:#fff;margin-bottom:6px'>NO PRODUCTS FOUND FOR “" + esc(val.toUpperCase()) + "”</p>" +
+              "<p style='font-size:11px;color:#a1a1aa'>Try searching by product title, product code (e.g. 8867606036700), or SKU (e.g. YOKLSAM-00).</p>" +
+            "</div>";
+          }
+        }, 120);
+      });
+    }
+
+    // Trending pills in search drawer
+    document.querySelectorAll(".header-search-new__tab").forEach(function (tab) {
+      if (tab.__annrPillBound) return;
+      tab.__annrPillBound = true;
+      tab.addEventListener("click", function (e) {
+        var term = tab.textContent.trim();
+        if (term.toLowerCase() === "all items") term = "";
+        if (input) {
+          input.value = term;
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+    });
+  }
+
   function setupSearchPage() {
     var q = (new URLSearchParams(location.search).get("q") || "").trim();
     var input = document.getElementById("search");
@@ -501,9 +688,31 @@
       } else if (q) {
         gridEl.innerHTML = "<div style='grid-column:1/-1;text-align:center;padding:60px 20px;font:12px/1.6 \"NB Architekt Std\",sans-serif;letter-spacing:1px;text-transform:uppercase;opacity:.8'>" +
           "<p style='font-size:14px;margin-bottom:8px'>No products found matching “" + esc(q) + "”</p>" +
-          "<p style='font-size:11px;opacity:.6'>Try checking your spelling or use general keywords like “hoodie”, “jacket”, “tee”, “jeans”.</p>" +
+          "<p style='font-size:11px;opacity:.6'>Try checking your spelling, product code (e.g. 8867606036700), or keywords like “hoodie”, “jacket”, “tee”, “jeans”.</p>" +
         "</div>";
       }
+    }
+
+    // Top Category Filters on Search Page
+    var topFilter = document.querySelector(".collection-top-filter");
+    if (topFilter) {
+      var categories = ["ALL", "HOODIES", "TEES", "JACKETS", "JEANS", "HATS", "ACCESSORIES"];
+      topFilter.innerHTML = "<div style='display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px'>" +
+        categories.map(function (cat) {
+          var isActive = (!q && cat === "ALL") || (q.toLowerCase() === (SEARCH_SYNONYMS[cat.toLowerCase()] || cat.toLowerCase()));
+          return "<button type='button' class='annr-search-tag-pill' data-cat='" + esc(cat) + "' style='padding:6px 14px;border:1px solid " + (isActive ? "#e05a2b" : "rgba(0,0,0,0.15)") + ";background:" + (isActive ? "#e05a2b" : "#ffffff") + ";color:" + (isActive ? "#ffffff" : "#111111") + ";font-family:\'NB Architekt Std\',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .15s ease'>" + esc(cat) + "</button>";
+        }).join("") +
+      "</div>";
+
+      topFilter.querySelectorAll(".annr-search-tag-pill").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var cat = btn.getAttribute("data-cat");
+          var term = cat === "ALL" ? "" : cat.toLowerCase();
+          var newUrl = term ? ("/search/index.html?type=product&q=" + encodeURIComponent(term)) : "/search/index.html";
+          history.pushState(null, "", newUrl);
+          setupSearchPage();
+        });
+      });
     }
 
     var searchForm = document.querySelector(".search-head-form.js-search-form");
@@ -574,6 +783,7 @@
   function apply() {
     refreshState();
     if (preview) previewBar();
+    initGlobalSearchEngine();
     if (tpl === "search") {
       setupSearchPage();
     }
@@ -1363,7 +1573,7 @@
           var prods = getFullCatalog().filter(function(p) { return !a.collection || a.collection === "all" || (p.collections && p.collections.indexOf(a.collection) >= 0); }).slice(0, Number(a.limit) || 4);
           extraHtml = "<div class='collection-product-grid' style='display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px;margin-top:24px'>" + prods.map(function(p) { return renderProductCardHtml(p, P && P[p.handle]); }).join("") + "</div>";
         }
-        el.innerHTML = "<div style='padding:48px 20px;max-width:1440px;margin:0 auto'>" + img + (a.heading ? "<h2 style='font-family:\"Druk Wide\",sans-serif;text-transform:uppercase;font-size:24px;margin:0 0 12px'>" + esc(a.heading) + "</h2>" : "") + (a.text ? "<p style='font-family:\"NB Architekt Std\",sans-serif;font-size:12px;line-height:1.6;white-space:pre-line;margin:0'>" + esc(a.text) + "</p>" : "") + extraHtml + btn + "</div>";
+        el.innerHTML = "<div style='padding:48px 20px;max-width:1440px;margin:0 auto'>" + img + (a.heading ? "<h2 style='font-family:\"Druk Wide\",sans-serif;text-transform:uppercase;font-size:24px;margin:0 0 12px'>" + esc(a.heading) + "</h2>" : "") + (a.text ? "<p style='font-family:\'NB Architekt Std\',sans-serif;font-size:12px;line-height:1.6;white-space:pre-line;margin:0'>" + esc(a.text) + "</p>" : "") + extraHtml + btn + "</div>";
       }
       el.id = "shopify-section-adm__" + s.key;
       if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor); else document.body.appendChild(el);
@@ -1843,6 +2053,26 @@
       }
 
       function callRegisterRpc(profile) {
+        profile = profile || {};
+        var normEmail = String(profile.p_email || "").trim().toLowerCase();
+        var rawPhone = String(profile.p_phone || "").replace(/[^0-9]/g, "");
+        if (rawPhone.startsWith("880")) rawPhone = rawPhone.slice(3);
+        if (rawPhone.length === 10 && rawPhone.startsWith("1")) rawPhone = "0" + rawPhone;
+        var payload = {
+          p_full_name: profile.p_full_name || "VIP Member",
+          p_email: normEmail,
+          p_phone: rawPhone,
+          p_division: profile.p_division || "Dhaka",
+          p_district: profile.p_district || "Dhaka",
+          p_upazila: profile.p_upazila || null,
+          p_full_address: profile.p_full_address || "Dhaka",
+          p_is_whatsapp: profile.p_is_whatsapp !== false,
+          p_dob: profile.p_dob || null,
+          p_gender: profile.p_gender || "prefer_not_to_say",
+          p_referred_by: profile.p_referred_by || null,
+          p_password_hash: profile.p_password_hash || null,
+          p_plain_password: profile.p_plain_password || null
+        };
         return fetch(SB_URL + "/rest/v1/rpc/register_vip_member", {
           method: "POST",
           headers: {
@@ -1850,7 +2080,7 @@
             "Authorization": "Bearer " + SB_KEY,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify(profile)
+          body: JSON.stringify(payload)
         }).then(function(r) {
           return r.json().then(function(data) {
             return { ok: r.ok, status: r.status, data: data };
@@ -1861,6 +2091,20 @@
       }
 
       function callLoginRpc(identifier, passwordHash, plainPassword) {
+        var normId = String(identifier || "").trim();
+        if (normId.indexOf("@") === -1) {
+          var digits = normId.replace(/[^0-9]/g, "");
+          if (digits.startsWith("880")) digits = digits.slice(3);
+          if (digits.length === 10 && digits.startsWith("1")) digits = "0" + digits;
+          normId = digits || normId;
+        } else {
+          normId = normId.toLowerCase();
+        }
+        var payload = {
+          p_identifier: normId,
+          p_password_hash: passwordHash || null,
+          p_plain_password: plainPassword || null
+        };
         return fetch(SB_URL + "/rest/v1/rpc/login_vip_member", {
           method: "POST",
           headers: {
@@ -1868,11 +2112,7 @@
             "Authorization": "Bearer " + SB_KEY,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            p_identifier: identifier,
-            p_password_hash: passwordHash,
-            p_plain_password: plainPassword || null
-          })
+          body: JSON.stringify(payload)
         }).then(function(r) {
           return r.json().then(function(data) {
             return { ok: r.ok, status: r.status, data: data };
@@ -1887,10 +2127,11 @@
         var st = document.createElement("style");
         st.id = "vip-inpage-styles";
         st.textContent = "" +
-          "header-search-new, .header-search-new { display: none !important; }\n" +
-          "header-search-new.open, .header-search-new.open { display: block !important; position: fixed !important; top: 12px !important; right: 12px !important; bottom: 12px !important; left: 12px !important; z-index: 1300 !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; }\n" +
-          ".header-search-overflow { display: none !important; }\n" +
-          ".header-search-overflow.open { display: block !important; position: fixed !important; inset: 0 !important; background: rgba(0,0,0,0.6) !important; z-index: 1290 !important; }\n" +
+          "header-search-new:not(.open), .header-search-new:not(.open), .header-search-overflow:not(.open) { display: none !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }\n" +
+          "header-search-new.open, .header-search-new.open { display: flex !important; flex-direction: column !important; position: fixed !important; z-index: 1300 !important; background: #0d0d10f2 !important; backdrop-filter: blur(24px) saturate(180%) !important; -webkit-backdrop-filter: blur(24px) saturate(180%) !important; border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 8px !important; box-shadow: 0 24px 60px rgba(0,0,0,0.65) !important; color: #ffffff !important; overflow: hidden !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; }\n" +
+          "@media (min-width: 1025px) { header-search-new.open, .header-search-new.open { top: 60px !important; right: 32px !important; left: auto !important; bottom: auto !important; width: min(640px, 92vw) !important; max-height: calc(100vh - 84px) !important; } }\n" +
+          "@media (max-width: 1024px) { header-search-new.open, .header-search-new.open { top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100dvh !important; border-radius: 0 !important; } }\n" +
+          ".header-search-overflow.open { display: block !important; position: fixed !important; inset: 0 !important; background: rgba(0,0,0,0.65) !important; backdrop-filter: blur(4px) !important; -webkit-backdrop-filter: blur(4px) !important; z-index: 1290 !important; }\n" +
           "body.vip-page, .vip-page .wrapper, .vip-page .wrapper-vip, .vip-page .vip, .vip-page .vip-wrapper, .vip-page .main { background: #f7f4ef !important; color: #111111 !important; min-height: 100vh !important; margin: 0 !important; padding: 0 !important; }\n" +
           ".vip-page .vip-bg, .vip-page .vip-dec, .vip-page .vip-top, .vip-page .vip-tab, .vip-page .vip-admin-link, .vip-page .vip-reset-password, .vip-page .vip-preloader { display: none !important; }\n" +
           ".vip-page .vip-form { padding: 0 !important; margin: 0 !important; background: transparent !important; width: 100% !important; max-width: 100% !important; }\n" +
@@ -2604,8 +2845,8 @@
           if (!/^[^@\s]{1,64}@[^@\s]{1,190}\.[a-z]{2,}$/i.test(em)) {
             showErr(fs, "Enter a valid email address."); return;
           }
-          if (!/^01[3-9][0-9]{8}$/.test(ph)) {
-            showErr(fs, "Enter a valid 11-digit mobile number (e.g. 017XXXXXXXX)."); return;
+          if (ph.length < 8 || ph.length > 15) {
+            showErr(fs, "Please enter a valid mobile number (8 to 15 digits)."); return;
           }
           if (pw.length < 6) {
             showErr(fs, "Password must be at least 6 characters."); return;
@@ -2662,13 +2903,45 @@
               // Explicit failure from backend (e.g. existing email with different password)
               if (res.ok && res.data && res.data.ok === false) {
                 if (res.data.existing) {
-                  var idField = c.querySelector("#vip-login-id");
-                  if (idField) idField.value = em || ph;
-                  showSignin(true, true);
-                  var loginForm = c.querySelector("#vip-login-form");
-                  if (loginForm) {
-                    showErr(loginForm, "An account with this email or mobile number already exists. Please enter your password to sign in.");
-                  }
+                  // User already exists: automatically try to log them in with the password they just entered!
+                  callLoginRpc(em || ph, hash, pw).then(function(loginRes) {
+                    if (loginRes.ok && loginRes.data && loginRes.data.ok) {
+                      var m = loginRes.data.member;
+                      var cpn = loginRes.data.coupon || { code: m.referral_code };
+                      saveSessionMember({ member: m, coupon: cpn, settings: loginRes.data.settings || getVipSettings() });
+                      saveVipAccount({
+                        email: (m.email || em).toLowerCase().trim(),
+                        phone: m.phone || ph,
+                        name: m.full_name,
+                        passHash: hash,
+                        available_points: m.available_points,
+                        member: m,
+                        coupon: cpn
+                      });
+                      window.__annrVipNotice = {
+                        type: "ok",
+                        text: "Welcome back, " + (m.full_name || "VIP Member") + "! You are signed into your VIP account."
+                      };
+                      renderInPageVipHub();
+                      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(err) {}
+                      return;
+                    }
+                    var idField = c.querySelector("#vip-login-id");
+                    if (idField) idField.value = em || ph;
+                    showSignin(true, true);
+                    var loginForm = c.querySelector("#vip-login-form");
+                    if (loginForm) {
+                      showErr(loginForm, "An account with this email or mobile number already exists. Please enter your password to sign in.");
+                    }
+                  }).catch(function() {
+                    var idField = c.querySelector("#vip-login-id");
+                    if (idField) idField.value = em || ph;
+                    showSignin(true, true);
+                    var loginForm = c.querySelector("#vip-login-form");
+                    if (loginForm) {
+                      showErr(loginForm, "An account with this email or mobile number already exists. Please enter your password to sign in.");
+                    }
+                  });
                   return;
                 }
                 showErr(fs, res.data.error || "Could not complete registration. Please check your credentials.");
@@ -3797,6 +4070,7 @@
   window.addEventListener("shihiko:collection:loaded", function () { apply(); });
   window.addEventListener("popstate", function () { setTimeout(apply, 0); });
   whenReady(apply);
+  whenReady(initGlobalSearchEngine);
 
   // Background sync published config and loyalty/campaign settings from Supabase
   (function syncPublishedFromSupabase() {
