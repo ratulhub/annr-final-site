@@ -2088,6 +2088,7 @@
           }
         };
         dv.onchange = upd;
+        if (dv.value) upd();
         var ref = root.querySelector("#vip-reg-refcode");
         var urlRef = new URLSearchParams(location.search).get("ref") || "";
         if (!urlRef) {
@@ -2374,6 +2375,8 @@
         }
 
         var fl = c.querySelector("#vip-login-form"), fs = c.querySelector("#vip-signup-form");
+        if (fl) { fl.setAttribute("action", "javascript:void(0);"); fl.onsubmit = function(e) { e.preventDefault(); }; }
+        if (fs) { fs.setAttribute("action", "javascript:void(0);"); fs.onsubmit = function(e) { e.preventDefault(); }; }
         var tabSignup = c.querySelector("#vip-tab-signup-btn"), tabSignin = c.querySelector("#vip-tab-signin-btn");
         var formTitle = c.querySelector("#vip-form-title"), formSub = c.querySelector("#vip-form-sub");
         var switchToLogin = c.querySelector("#vip-switch-to-login"), switchToSignup = c.querySelector("#vip-switch-to-signup");
@@ -2571,6 +2574,9 @@
               setBusy(fl, false);
               showErr(fl, "No VIP account found with this email or mobile number. Please check your credentials or click 'Create Account' to join.");
             });
+          }).catch(function(err) {
+            setBusy(fl, false);
+            showErr(fl, (err && err.message) || "Could not complete authentication. Please try again.");
           });
         };
 
@@ -2619,6 +2625,7 @@
 
           hashPassword(pw).then(function(hash) {
             // Check if existing local account matches password
+            var accounts = getVipAccounts();
             var existingLocal = (em ? accounts[em] : null) || (ph ? accounts[ph] : null);
             if (existingLocal) {
               if (existingLocal.passHash === hash || existingLocal.passHash === "plain:" + pw || existingLocal.passHash === pw) {
@@ -2837,6 +2844,9 @@
               renderInPageVipHub();
               try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
             });
+          }).catch(function(err) {
+            setBusy(fs, false);
+            showErr(fs, (err && err.message) || "Could not complete account creation. Please try again.");
           });
         };
       }
@@ -3871,15 +3881,30 @@
   ["utm_source", "utm_medium", "utm_campaign"].forEach(function (k) { if (q.get(k)) pv[k] = q.get(k).slice(0, 60); });
   trackEvent("page_view", pv);
 
-  // AnnR logo navigation handler
+  // AnnR logo navigation handler - guarantees home navigation without reload delay
   document.addEventListener("click", function (e) {
     var logo = e.target && e.target.closest && e.target.closest(".header-logo, .header-new__logo, .icon-logo");
     if (logo) {
-      if (logo.tagName === "A" && logo.getAttribute("href")) return;
       e.preventDefault();
+      e.stopPropagation();
       window.location.href = "/home.html";
     }
-  });
+  }, true);
+
+  // Instant VIP navigation with zero lag, zero preloader flash
+  document.addEventListener("click", function (e) {
+    var vipLink = e.target && e.target.closest && e.target.closest(".js-vip-page-link, [href*='/account/login'], [href*='/account/register'], [href*='/vip']");
+    if (vipLink) {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      try { localStorage.setItem("ShihikoEnableReverseAnimation", "false"); } catch(err) {}
+      var h = vipLink.getAttribute("href") || "/account/login/index.html";
+      if (location.pathname + location.search !== h) {
+        e.preventDefault();
+        window.location.href = h;
+      }
+    }
+  }, true);
 
   document.addEventListener("click", function (e) {
     var a = e.target.closest && e.target.closest("a,button"); if (!a) return;
