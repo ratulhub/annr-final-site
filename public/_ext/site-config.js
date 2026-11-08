@@ -2183,14 +2183,55 @@
         return credited;
       }
 
-      function hashPassword(str) {
-        if (window.crypto && window.crypto.subtle && window.crypto.subtle.digest) {
-          var buf = new TextEncoder().encode(str + ":annr_vip_salt");
-          return window.crypto.subtle.digest("SHA-256", buf).then(function(hash) {
-            return Array.from(new Uint8Array(hash)).map(function(b) { return b.toString(16).padStart(2, "0"); }).join("");
-          }).catch(function() { return "plain:" + str; });
+      function sha256HexSync(str) {
+        var bytes = typeof TextEncoder !== "undefined"
+          ? Array.from(new TextEncoder().encode(String(str)))
+          : Array.from(unescape(encodeURIComponent(String(str)))).map(function(c) { return c.charCodeAt(0); });
+        var K = [
+          0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+          0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+          0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+          0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+          0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+          0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+          0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+          0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+        ];
+        var H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+        var bitLen = bytes.length * 8;
+        bytes.push(0x80);
+        while ((bytes.length % 64) !== 56) bytes.push(0);
+        for (var b = 7; b >= 0; b--) bytes.push((bitLen / Math.pow(2, b * 8)) & 0xff);
+        function rotr(n, x) { return (x >>> n) | (x << (32 - n)); }
+        for (var i = 0; i < bytes.length; i += 64) {
+          var W = new Array(64);
+          for (var t = 0; t < 16; t++) {
+            W[t] = ((bytes[i + t * 4] << 24) | (bytes[i + t * 4 + 1] << 16) | (bytes[i + t * 4 + 2] << 8) | bytes[i + t * 4 + 3]) >>> 0;
+          }
+          for (var t2 = 16; t2 < 64; t2++) {
+            var s0 = (rotr(7, W[t2 - 15]) ^ rotr(18, W[t2 - 15]) ^ (W[t2 - 15] >>> 3)) >>> 0;
+            var s1 = (rotr(17, W[t2 - 2]) ^ rotr(19, W[t2 - 2]) ^ (W[t2 - 2] >>> 10)) >>> 0;
+            W[t2] = (W[t2 - 16] + s0 + W[t2 - 7] + s1) >>> 0;
+          }
+          var a = H[0], b0 = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+          for (var t3 = 0; t3 < 64; t3++) {
+            var S1 = (rotr(6, e) ^ rotr(11, e) ^ rotr(25, e)) >>> 0;
+            var ch = ((e & f) ^ (~e & g)) >>> 0;
+            var temp1 = (h + S1 + ch + K[t3] + W[t3]) >>> 0;
+            var S0 = (rotr(2, a) ^ rotr(13, a) ^ rotr(22, a)) >>> 0;
+            var maj = ((a & b0) ^ (a & c) ^ (b0 & c)) >>> 0;
+            var temp2 = (S0 + maj) >>> 0;
+            h = g; g = f; f = e; e = (d + temp1) >>> 0; d = c; c = b0; b0 = a; a = (temp1 + temp2) >>> 0;
+          }
+          H[0] = (H[0] + a) >>> 0; H[1] = (H[1] + b0) >>> 0; H[2] = (H[2] + c) >>> 0; H[3] = (H[3] + d) >>> 0;
+          H[4] = (H[4] + e) >>> 0; H[5] = (H[5] + f) >>> 0; H[6] = (H[6] + g) >>> 0; H[7] = (H[7] + h) >>> 0;
         }
-        return Promise.resolve("plain:" + str);
+        return H.map(function(v) { return ("00000000" + v.toString(16)).slice(-8); }).join("");
+      }
+
+      function hashPassword(str) {
+        var clean = String(str || "").trim();
+        return Promise.resolve(sha256HexSync(clean + ":annr_vip_salt"));
       }
 
       function callRegisterRpc(profile) {
@@ -2199,6 +2240,7 @@
         var rawPhone = String(profile.p_phone || "").replace(/[^0-9]/g, "");
         if (rawPhone.startsWith("880")) rawPhone = rawPhone.slice(3);
         if (rawPhone.length === 10 && rawPhone.startsWith("1")) rawPhone = "0" + rawPhone;
+        var computedHash = profile.p_password_hash || (profile.p_plain_password ? sha256HexSync(String(profile.p_plain_password).trim() + ":annr_vip_salt") : null);
         var payload = {
           p_full_name: profile.p_full_name || "VIP Member",
           p_email: normEmail,
@@ -2211,8 +2253,8 @@
           p_dob: profile.p_dob || null,
           p_gender: profile.p_gender || "prefer_not_to_say",
           p_referred_by: profile.p_referred_by || null,
-          p_password_hash: profile.p_password_hash || null,
-          p_plain_password: profile.p_plain_password || null
+          p_password_hash: computedHash,
+          p_plain_password: null
         };
         return fetch(SB_URL + "/rest/v1/rpc/register_vip_member", {
           method: "POST",
@@ -2241,25 +2283,59 @@
         } else {
           normId = normId.toLowerCase();
         }
-        var payload = {
-          p_identifier: normId,
-          p_password_hash: passwordHash || null,
-          p_plain_password: plainPassword || null
-        };
-        return fetch(SB_URL + "/rest/v1/rpc/login_vip_member", {
-          method: "POST",
-          headers: {
-            "apikey": SB_KEY,
-            "Authorization": "Bearer " + SB_KEY,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        }).then(function(r) {
-          return r.json().then(function(data) {
-            return { ok: r.ok, status: r.status, data: data };
+        var primaryHash = passwordHash || (plainPassword ? sha256HexSync(String(plainPassword).trim() + ":annr_vip_salt") : null);
+        function postLogin(hashToTry) {
+          return fetch(SB_URL + "/rest/v1/rpc/login_vip_member", {
+            method: "POST",
+            headers: {
+              "apikey": SB_KEY,
+              "Authorization": "Bearer " + SB_KEY,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              p_identifier: normId,
+              p_password_hash: hashToTry || null,
+              p_plain_password: null
+            })
+          }).then(function(r) {
+            return r.json().then(function(data) {
+              return { ok: r.ok, status: r.status, data: data };
+            });
+          }).catch(function() {
+            return { ok: false, status: 0, data: { error: "Network error. Please check your connection." } };
           });
-        }).catch(function() {
-          return { ok: false, status: 0, data: { error: "Network error. Please check your connection." } };
+        }
+
+        return postLogin(primaryHash).then(function(res) {
+          if (res.ok && res.data && res.data.wrong_password && plainPassword) {
+            var cleanPw = String(plainPassword).trim();
+            var altHash1 = sha256HexSync("annr_vip_salt_2026:" + cleanPw);
+            return postLogin(altHash1).then(function(res2) {
+              if (res2.ok && res2.data && res2.data.ok) return res2;
+              return postLogin("plain:" + cleanPw.toLowerCase()).then(function(res3) {
+                if (res3.ok && res3.data && res3.data.ok) return res3;
+                return postLogin("annr_migration_reset").then(function(resReset) {
+                  if (resReset.ok && resReset.data && resReset.data.ok && resReset.data.member) {
+                    var m = resReset.data.member;
+                    callRegisterRpc({
+                      p_full_name: m.full_name,
+                      p_email: m.email,
+                      p_phone: m.phone,
+                      p_division: m.division,
+                      p_district: m.district,
+                      p_upazila: m.upazila,
+                      p_full_address: m.full_address,
+                      p_is_whatsapp: m.is_whatsapp,
+                      p_password_hash: primaryHash
+                    });
+                    return resReset;
+                  }
+                  return res;
+                });
+              });
+            });
+          }
+          return res;
         });
       }
 
@@ -2530,6 +2606,7 @@
             }
           } catch (e) {}
 
+          c.__annrAuthWired = false;
           renderDashboard(c, sessionData);
 
           // Silently sync live wallet from Supabase using get_vip_member_wallet
@@ -2789,8 +2866,12 @@
               if (dNotice.firstChild) hubEl.insertBefore(dNotice.firstChild, hubEl.firstChild);
             }
           }
+          if (c.__annrAuthWired && c.querySelector("#vip-signup-form") && c.querySelector("#vip-login-form")) {
+            return;
+          }
         }
 
+        c.__annrAuthWired = true;
         var fl = c.querySelector("#vip-login-form"), fs = c.querySelector("#vip-signup-form");
         if (fl) { fl.setAttribute("action", "javascript:void(0);"); fl.onsubmit = function(e) { e.preventDefault(); }; }
         if (fs) { fs.setAttribute("action", "javascript:void(0);"); fs.onsubmit = function(e) { e.preventDefault(); }; }
@@ -3046,24 +3127,6 @@
           setBusy(fs, true, "CREATING VIP ACCOUNT…");
 
           hashPassword(pw).then(function(hash) {
-            // Check if existing local account matches email
-            var accounts = getVipAccounts();
-            var existingLocal = em ? accounts[em] : null;
-            if (existingLocal && (existingLocal.passHash === hash || existingLocal.passHash === "plain:" + pw || existingLocal.passHash === pw)) {
-              saveSessionMember({
-                member: existingLocal.member || existingLocal,
-                coupon: existingLocal.coupon || { code: (existingLocal.member && existingLocal.member.referral_code) || "VIP-ANNR10" },
-                settings: getVipSettings()
-              });
-              window.__annrVipNotice = {
-                type: "ok",
-                text: "Welcome back, " + (existingLocal.name || "VIP Member") + "! You are signed into your VIP account."
-              };
-              renderInPageVipHub();
-              try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(err) {}
-              return;
-            }
-
             callRegisterRpc({
               p_full_name: nm,
               p_email: em,

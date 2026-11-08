@@ -109,6 +109,27 @@ create policy "loyalty_settings_public_read"
   to anon, authenticated
   using (true);
 
+-- Clean up temporary diagnostic test rows if present
+delete from public.points_ledger
+where vip_member_id in (
+  select id from public.vip_members
+  where lower(email) in ('diag_vip_check@annr.store', 'diag_vip_check2@annr.store', 'ratul_new_test_2026@gmail.com')
+);
+delete from public.referral_coupons
+where vip_member_id in (
+  select id from public.vip_members
+  where lower(email) in ('diag_vip_check@annr.store', 'diag_vip_check2@annr.store', 'ratul_new_test_2026@gmail.com')
+);
+delete from public.vip_members
+where lower(email) in ('diag_vip_check@annr.store', 'diag_vip_check2@annr.store', 'ratul_new_test_2026@gmail.com');
+
+-- Ensure any existing VIP member created when welcome_bonus_points was 0 receives their welcome bonus
+update public.vip_members
+set
+  available_points = greatest(available_points, 200),
+  total_earned_points = greatest(total_earned_points, 200)
+where available_points = 0 and total_earned_points = 0;
+
 -- -----------------------------------------------------------------------------
 -- 2. DROP ALL PREVIOUS OVERLOADS AUTOMATICALLY TO PREVENT HTTP 300 (PGRST203)
 -- -----------------------------------------------------------------------------
@@ -149,7 +170,7 @@ create or replace function public.generate_vip_referral_code(
 returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_prefix text := 'VIP-';
@@ -204,7 +225,7 @@ create or replace function public.get_vip_member_wallet(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_clean_id text := lower(trim(coalesce(p_identifier, '')));
@@ -408,7 +429,7 @@ create or replace function public.register_vip_member(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_uid uuid := auth.uid();
@@ -468,7 +489,7 @@ begin
   if p_password_hash is not null and trim(p_password_hash) <> '' then
     v_final_hash := lower(trim(p_password_hash));
   elsif p_plain_password is not null and trim(p_plain_password) <> '' then
-    v_final_hash := encode(digest(trim(p_plain_password) || ':annr_vip_salt', 'sha256'), 'hex');
+    v_final_hash := encode(pg_catalog.sha256(convert_to(trim(p_plain_password) || ':annr_vip_salt', 'UTF8')), 'hex');
   else
     v_final_hash := null;
   end if;
@@ -697,7 +718,7 @@ create or replace function public.login_vip_member(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_clean_id text := lower(trim(coalesce(p_identifier, '')));
@@ -722,8 +743,8 @@ begin
     v_hash_client := lower(trim(p_password_hash));
   end if;
   if p_plain_password is not null and trim(p_plain_password) <> '' then
-    v_hash_alt1 := encode(digest(trim(p_plain_password) || ':annr_vip_salt', 'sha256'), 'hex');
-    v_hash_alt2 := encode(digest('annr_vip_salt_2026:' || trim(p_plain_password), 'sha256'), 'hex');
+    v_hash_alt1 := encode(pg_catalog.sha256(convert_to(trim(p_plain_password) || ':annr_vip_salt', 'UTF8')), 'hex');
+    v_hash_alt2 := encode(pg_catalog.sha256(convert_to('annr_vip_salt_2026:' || trim(p_plain_password), 'UTF8')), 'hex');
   end if;
 
   -- If logging in by phone where multiple rows exist, prefer the row whose password matches or most recently updated
@@ -764,12 +785,16 @@ begin
     );
   end if;
 
-  if v_member.password_hash is not null and v_member.password_hash <> '' then
+  if v_member.password_hash is not null
+     and v_member.password_hash <> ''
+     and lower(v_member.password_hash) <> 'annr_migration_reset'
+  then
     if lower(v_member.password_hash) not in (
       coalesce(v_hash_client, ''),
       coalesce(v_hash_alt1, ''),
       coalesce(v_hash_alt2, ''),
-      'plain:' || lower(trim(coalesce(p_plain_password, '')))
+      'plain:' || lower(trim(coalesce(p_plain_password, ''))),
+      lower(trim(coalesce(p_plain_password, '')))
     ) then
       return jsonb_build_object(
         'ok', false,
@@ -778,7 +803,7 @@ begin
       );
     end if;
   elsif coalesce(v_hash_client, v_hash_alt1) is not null then
-    -- Legacy account without password_hash: save their password on first sign-in
+    -- Legacy / migrated account: save their password on first sign-in
     update public.vip_members
     set
       password_hash = coalesce(v_hash_client, v_hash_alt1),
@@ -810,7 +835,7 @@ create or replace function public.validate_referral_coupon(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_clean_code text := upper(trim(coalesce(p_code, '')));
@@ -899,7 +924,7 @@ create or replace function public.request_vip_withdrawal(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_uid uuid := auth.uid();
@@ -1040,7 +1065,7 @@ create or replace function public.place_store_order(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_settings public.loyalty_settings;
@@ -1305,7 +1330,7 @@ create or replace function public.admin_get_loyalty_overview()
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_settings public.loyalty_settings;
@@ -1418,7 +1443,7 @@ create or replace function public.admin_save_loyalty_settings(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_settings public.loyalty_settings;
@@ -1473,7 +1498,7 @@ create or replace function public.admin_adjust_member_points(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_member public.vip_members;
@@ -1547,7 +1572,7 @@ create or replace function public.admin_update_vip_member(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_member public.vip_members;
@@ -1623,7 +1648,7 @@ create or replace function public.admin_process_withdrawal(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_req public.withdrawal_requests;
