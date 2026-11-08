@@ -2823,6 +2823,7 @@
       }
 
       function renderAuthForms(c) {
+        try { document.documentElement.classList.remove("vip-has-session"); } catch (e) {}
         var st = getVipSettings();
         var discLabel = st.friend_discount_type === "fixed" ? ("৳" + Number(st.friend_discount_value || 100) + " OFF") : (Number(st.friend_discount_value || 10) + "% OFF");
         var refPts = Number(st.points_per_referral || 100);
