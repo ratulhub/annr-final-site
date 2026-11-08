@@ -56,8 +56,26 @@ function VipPage() {
 
   const referralLink = useMemo(() => {
     if (!member || typeof window === "undefined") return "";
-    return `${window.location.origin}/vip?mode=signup&ref=${encodeURIComponent(member.referral_code)}`;
+    return `${window.location.origin}/account/register/index.html?ref=${encodeURIComponent(member.referral_code)}`;
   }, [member]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    const m = params.get("mode");
+    if (ref && /^[A-Za-z0-9_-]{3,24}$/.test(ref)) {
+      try {
+        localStorage.setItem("annr_active_ref_code", ref.toUpperCase());
+        localStorage.setItem("annr_cart_coupon", ref.toUpperCase());
+      } catch {}
+    }
+    const targetPath =
+      ref || m === "signup" || m === "register"
+        ? `/account/register/index.html${window.location.search}`
+        : `/account/login/index.html${window.location.search}`;
+    window.location.replace(targetPath);
+  }, []);
 
   const restoreSession = useCallback(async () => {
     try {

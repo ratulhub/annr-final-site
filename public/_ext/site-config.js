@@ -1899,20 +1899,161 @@
       var VIP_SESSION_KEY = "annr_vip_member_session";
       var VIP_ACCOUNTS_KEY = "annr_vip_accounts_v1";
 
+      function normalizeVipSettings(raw) {
+        raw = raw || {};
+        var pv = Number(raw.point_value_bdt != null ? raw.point_value_bdt : (raw.redemption_rate_bdt_per_point != null ? raw.redemption_rate_bdt_per_point : 1.0)) || 1.0;
+        var minWPts = Number(raw.min_withdrawal_points != null ? raw.min_withdrawal_points : 100);
+        var minWBdt = Number(raw.min_withdrawal_bdt != null ? raw.min_withdrawal_bdt : Math.round(minWPts * pv)) || 100;
+        var discType = String(raw.friend_discount_type || raw.referral_discount_type || "percent").toLowerCase();
+        if (discType === "percentage") discType = "percent";
+        return Object.assign({}, raw, {
+          point_value_bdt: pv,
+          min_withdrawal_bdt: minWBdt,
+          min_withdrawal_points: minWPts,
+          points_per_referral: Number(raw.points_per_referral != null ? raw.points_per_referral : 100),
+          welcome_bonus_points: Number(raw.welcome_bonus_points != null ? raw.welcome_bonus_points : (raw.welcome_points != null ? raw.welcome_points : 200)),
+          friend_discount_value: Number(raw.friend_discount_value != null ? raw.friend_discount_value : (raw.referral_discount_value != null ? raw.referral_discount_value : 10)),
+          friend_discount_type: discType,
+          min_order_for_coupon: Number(raw.min_order_for_coupon != null ? raw.min_order_for_coupon : (raw.referral_min_order_amount != null ? raw.referral_min_order_amount : 500)),
+          allowed_payout_methods: Array.isArray(raw.allowed_payout_methods) && raw.allowed_payout_methods.length ? raw.allowed_payout_methods : ["bkash", "nagad", "rocket", "bank"]
+        });
+      }
+
       function getVipSettings() {
         try {
           var s = localStorage.getItem("annr-loyalty-settings-v1") || localStorage.getItem("annr-loyalty-settings");
-          if (s) return JSON.parse(s);
+          if (s) return normalizeVipSettings(JSON.parse(s));
         } catch(e) {}
-        return {
-          point_value_bdt: 1.0,
-          min_withdrawal_bdt: 100,
-          points_per_referral: 100,
-          friend_discount_value: 10,
-          friend_discount_type: "percent",
-          min_order_for_coupon: 1000,
-          allowed_payout_methods: ["bkash", "nagad", "rocket", "bank"]
+        return normalizeVipSettings({});
+      }
+
+      function normalizeMemberRecord(m, coupon, settings) {
+        if (!m) return null;
+        var st = normalizeVipSettings(settings || getVipSettings());
+        var refCode = (coupon && coupon.code) || m.referral_code || ("VIP-ANNR" + Math.floor(100 + Math.random() * 899));
+        var avail = Number(m.available_points != null ? m.available_points : 0);
+        var pend = Number(m.pending_points != null ? m.pending_points : 0);
+        var lifetimeEarned = Math.max(
+          Number(m.total_earned_points != null ? m.total_earned_points : 0),
+          Number(m.lifetime_points_earned != null ? m.lifetime_points_earned : 0),
+          avail + pend
+        );
+        var withdrawn = Math.max(
+          Number(m.withdrawn_points != null ? m.withdrawn_points : 0),
+          Number(m.lifetime_points_withdrawn != null ? m.lifetime_points_withdrawn : 0)
+        );
+        return Object.assign({}, m, {
+          full_name: m.full_name || m.name || "VIP Member",
+          email: String(m.email || "").toLowerCase().trim(),
+          phone: m.phone || "",
+          division: m.division || "Dhaka",
+          district: m.district || "Dhaka",
+          tier: m.tier || st.default_tier || "Silver",
+          available_points: avail,
+          pending_points: pend,
+          total_earned_points: lifetimeEarned,
+          lifetime_points_earned: lifetimeEarned,
+          withdrawn_points: withdrawn,
+          lifetime_points_withdrawn: withdrawn,
+          redeemed_points: Number(m.redeemed_points || 0),
+          friends_referred: Math.max(Number(m.friends_referred || 0), Number((coupon && coupon.times_used) || 0)),
+          referral_code: refCode,
+          status: m.status || "active"
+        });
+      }
+
+      function syncRemoteWalletPayload(payload) {
+        if (!payload || !payload.member) return null;
+        var st = normalizeVipSettings(payload.settings || getVipSettings());
+        var cpn = payload.coupon || { code: payload.member.referral_code || "VIP-ANNR10" };
+        var normM = normalizeMemberRecord(payload.member, cpn, st);
+        cpn = {
+          code: cpn.code || normM.referral_code,
+          discount_value: Number(cpn.discount_value != null ? cpn.discount_value : st.friend_discount_value),
+          discount_type: (cpn.discount_type === "percentage" ? "percent" : cpn.discount_type) || st.friend_discount_type,
+          min_order_bdt: Number(cpn.min_order_bdt != null ? cpn.min_order_bdt : (cpn.min_order_amount != null ? cpn.min_order_amount : st.min_order_for_coupon)),
+          times_used: Math.max(Number(cpn.times_used || 0), Number(normM.friends_referred || 0)),
+          total_points_generated: Number(cpn.total_points_generated || (Number(cpn.times_used || 0) * st.points_per_referral))
         };
+
+        // Sync remote ledger entries if provided
+        if (Array.isArray(payload.ledger) && payload.ledger.length) {
+          try {
+            var rawLed = localStorage.getItem("annr-vip-points-ledger-v1");
+            var curLed = rawLed ? JSON.parse(rawLed) : [];
+            if (!Array.isArray(curLed)) curLed = [];
+            var ledIds = {};
+            curLed.forEach(function (x) { if (x && x.id) ledIds[x.id] = true; });
+            payload.ledger.forEach(function (l) {
+              if (l && l.id && !ledIds[l.id]) {
+                ledIds[l.id] = true;
+                curLed.push({
+                  id: l.id,
+                  member_id: l.member_id || normM.id,
+                  member_email: normM.email,
+                  member_name: normM.full_name,
+                  transaction_type: l.transaction_type || "welcome_bonus",
+                  points_delta: Number(l.points_delta || 0),
+                  balance_after: Number(l.balance_after || normM.available_points),
+                  reference_id: l.reference_id || null,
+                  description: l.note || l.description || l.transaction_type,
+                  actor: "system",
+                  created_at: l.created_at || new Date().toISOString()
+                });
+              }
+            });
+            curLed.sort(function (a, b) { return String(b.created_at || "").localeCompare(String(a.created_at || "")); });
+            localStorage.setItem("annr-vip-points-ledger-v1", JSON.stringify(curLed.slice(0, 500)));
+          } catch (e) {}
+        }
+
+        // Sync remote withdrawals if provided
+        if (Array.isArray(payload.withdrawals) && payload.withdrawals.length) {
+          try {
+            ["annr-withdrawals", "annr-withdrawals-v1"].forEach(function (k) {
+              var rawW = localStorage.getItem(k);
+              var curW = rawW ? JSON.parse(rawW) : [];
+              if (!Array.isArray(curW)) curW = [];
+              var wIds = {};
+              curW.forEach(function (w) { if (w && w.id) wIds[w.id] = w; });
+              payload.withdrawals.forEach(function (rw) {
+                if (!rw || !rw.id) return;
+                var mappedW = {
+                  id: rw.id,
+                  request_number: rw.request_number || String(rw.id).slice(0, 6).toUpperCase(),
+                  vip_member_id: rw.member_id || normM.id,
+                  member_name: normM.full_name,
+                  member_email: normM.email,
+                  points_amount: Number(rw.points_amount || 0),
+                  money_amount_bdt: Number(rw.bdt_amount != null ? rw.bdt_amount : rw.points_amount || 0),
+                  payout_method: rw.payout_method || "bkash",
+                  account_number: rw.account_number || normM.phone,
+                  account_name: rw.account_name || normM.full_name,
+                  account_holder_name: rw.account_name || normM.full_name,
+                  status: rw.status || "pending",
+                  transaction_ref: rw.transaction_ref || null,
+                  admin_note: rw.admin_note || null,
+                  requested_at: rw.created_at || new Date().toISOString(),
+                  created_at: rw.created_at || new Date().toISOString(),
+                  vip_members: {
+                    full_name: normM.full_name,
+                    email: normM.email,
+                    phone: normM.phone,
+                    tier: normM.tier
+                  }
+                };
+                if (wIds[rw.id]) {
+                  Object.assign(wIds[rw.id], mappedW);
+                } else {
+                  curW.unshift(mappedW);
+                }
+              });
+              localStorage.setItem(k, JSON.stringify(curW.slice(0, 200)));
+            });
+          } catch (e) {}
+        }
+
+        return { member: normM, coupon: cpn, settings: st };
       }
 
       function getSessionMember() {
@@ -2119,6 +2260,27 @@
           });
         }).catch(function() {
           return { ok: false, status: 0, data: { error: "Network error. Please check your connection." } };
+        });
+      }
+
+      function callWalletRpc(identifier) {
+        var normId = String(identifier || "").trim();
+        if (!normId) return Promise.resolve({ ok: false, status: 0, data: null });
+        if (normId.indexOf("@") !== -1) normId = normId.toLowerCase();
+        return fetch(SB_URL + "/rest/v1/rpc/get_vip_member_wallet", {
+          method: "POST",
+          headers: {
+            "apikey": SB_KEY,
+            "Authorization": "Bearer " + SB_KEY,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ p_identifier: normId })
+        }).then(function(r) {
+          return r.json().then(function(data) {
+            return { ok: r.ok, status: r.status, data: data };
+          });
+        }).catch(function() {
+          return { ok: false, status: 0, data: null };
         });
       }
 
@@ -2370,35 +2532,36 @@
 
           renderDashboard(c, sessionData);
 
-          // Silently sync from Supabase without overwriting higher local points/referrals
-          if (sessionData.member.email) {
-            callRegisterRpc({
-              p_full_name: sessionData.member.full_name || "VIP Member",
-              p_email: sessionData.member.email,
-              p_phone: sessionData.member.phone || "01700000000",
-              p_division: sessionData.member.division || "Dhaka",
-              p_district: sessionData.member.district || "Dhaka"
-            }).then(function(res) {
-              if (res.ok && res.data && res.data.member) {
-                var remoteMember = res.data.member;
+          // Silently sync live wallet from Supabase using get_vip_member_wallet
+          if (sessionData.member.email || sessionData.member.id) {
+            callWalletRpc(sessionData.member.email || sessionData.member.id).then(function(res) {
+              if (res.ok && res.data && res.data.ok && res.data.member) {
+                var synced = syncRemoteWalletPayload(res.data);
+                if (!synced) return;
                 var curSess = getSessionMember() || sessionData;
                 var curM = curSess.member || {};
-                remoteMember.available_points = Math.max(Number(curM.available_points || 0), Number(remoteMember.available_points || 0));
-                remoteMember.total_earned_points = Math.max(Number(curM.total_earned_points || 0), Number(remoteMember.total_earned_points || 0));
-                remoteMember.withdrawn_points = Math.max(Number(curM.withdrawn_points || 0), Number(remoteMember.withdrawn_points || 0));
-                remoteMember.friends_referred = Math.max(Number(curM.friends_referred || 0), Number(remoteMember.friends_referred || 0));
+                var prevPts = Number(curM.available_points || 0);
+                var prevPend = Number(curM.pending_points || 0);
+                var prevRefs = Number(curM.friends_referred || 0);
 
-                var remoteCoupon = res.data.coupon || curSess.coupon || { code: remoteMember.referral_code };
+                synced.member.available_points = Math.max(prevPts, Number(synced.member.available_points || 0));
+                synced.member.total_earned_points = Math.max(Number(curM.total_earned_points || 0), Number(synced.member.total_earned_points || 0));
+                synced.member.withdrawn_points = Math.max(Number(curM.withdrawn_points || 0), Number(synced.member.withdrawn_points || 0));
+                synced.member.friends_referred = Math.max(prevRefs, Number(synced.member.friends_referred || 0));
+
                 if (curSess.coupon) {
-                  remoteCoupon.times_used = Math.max(Number(curSess.coupon.times_used || 0), Number(remoteCoupon.times_used || 0));
-                  remoteCoupon.total_points_generated = Math.max(Number(curSess.coupon.total_points_generated || 0), Number(remoteCoupon.total_points_generated || 0));
+                  synced.coupon.times_used = Math.max(Number(curSess.coupon.times_used || 0), Number(synced.coupon.times_used || 0));
+                  synced.coupon.total_points_generated = Math.max(Number(curSess.coupon.total_points_generated || 0), Number(synced.coupon.total_points_generated || 0));
                 }
 
-                saveSessionMember({
-                  member: remoteMember,
-                  coupon: remoteCoupon,
-                  settings: res.data.settings || curSess.settings || getVipSettings()
-                });
+                saveSessionMember(synced);
+                if (
+                  synced.member.available_points !== prevPts ||
+                  Number(synced.member.pending_points || 0) !== prevPend ||
+                  synced.member.friends_referred !== prevRefs
+                ) {
+                  renderDashboard(c, synced);
+                }
               }
             });
           }
@@ -2422,9 +2585,13 @@
         var welcomePts = Number(st.welcome_bonus_points != null ? st.welcome_bonus_points : 100);
         var isLoginPage = /\/account\/login/i.test(location.pathname);
         var isRegisterPage = /\/account\/register/i.test(location.pathname);
-        var openLoginInitially = (isLoginPage && location.hash !== "#register" && location.search.indexOf("mode=register") === -1) ||
-                                 location.hash === "#login" ||
-                                 location.search.indexOf("mode=login") !== -1;
+        var hasRefParam = /[?&]ref=[^&]+/i.test(location.search);
+        var openLoginInitially = (
+          isLoginPage &&
+          !hasRefParam &&
+          location.hash !== "#register" &&
+          location.search.indexOf("mode=register") === -1
+        ) || location.hash === "#login" || location.search.indexOf("mode=login") !== -1;
 
         var eyeOpenSvg = "<svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg>";
         var eyeClosedSvg = "<svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24'/><line x1='1' y1='1' x2='23' y2='23'/></svg>";
@@ -2603,6 +2770,15 @@
             "</div>" +
           "</div>";
         } else {
+          // Keep pre-rendered Vault card perk numbers synced with live loyalty settings
+          try {
+            var perkVals = c.querySelectorAll(".vip-vault-perk-text .perk-val");
+            if (perkVals.length >= 3) {
+              perkVals[0].textContent = "+৳" + welcomePts + " CASH POINTS";
+              perkVals[1].textContent = discLabel;
+              perkVals[2].textContent = "+৳" + refPts + " / SUCCESSFUL REFERRAL";
+            }
+          } catch (e) {}
           var nHtml = noticeHtml();
           if (nHtml) {
             var existingNotice = c.querySelector(".vip-notice-banner");
@@ -2758,9 +2934,14 @@
             // Attempt login via Supabase RPC with both hash and raw password
             callLoginRpc(targetId, inputHash, pw).then(function(res) {
               if (res.ok && res.data && res.data.ok) {
-                var m = res.data.member;
-                var cpn = res.data.coupon || { code: m.referral_code };
-                var sets = res.data.settings || getVipSettings();
+                var synced = syncRemoteWalletPayload(res.data) || {
+                  member: res.data.member,
+                  coupon: res.data.coupon || { code: res.data.member.referral_code },
+                  settings: res.data.settings || getVipSettings()
+                };
+                var m = synced.member;
+                var cpn = synced.coupon;
+                var sets = synced.settings;
                 saveSessionMember({ member: m, coupon: cpn, settings: sets });
                 saveVipAccount({
                   email: (m.email || email).toLowerCase().trim(),
@@ -2865,24 +3046,22 @@
           setBusy(fs, true, "CREATING VIP ACCOUNT…");
 
           hashPassword(pw).then(function(hash) {
-            // Check if existing local account matches password
+            // Check if existing local account matches email
             var accounts = getVipAccounts();
-            var existingLocal = (em ? accounts[em] : null) || (ph ? accounts[ph] : null);
-            if (existingLocal) {
-              if (existingLocal.passHash === hash || existingLocal.passHash === "plain:" + pw || existingLocal.passHash === pw) {
-                saveSessionMember({
-                  member: existingLocal.member || existingLocal,
-                  coupon: existingLocal.coupon || { code: (existingLocal.member && existingLocal.member.referral_code) || "VIP-ANNR10" },
-                  settings: getVipSettings()
-                });
-                window.__annrVipNotice = {
-                  type: "ok",
-                  text: "Welcome back, " + (existingLocal.name || "VIP Member") + "! You are signed into your VIP account."
-                };
-                renderInPageVipHub();
-                try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(err) {}
-                return;
-              }
+            var existingLocal = em ? accounts[em] : null;
+            if (existingLocal && (existingLocal.passHash === hash || existingLocal.passHash === "plain:" + pw || existingLocal.passHash === pw)) {
+              saveSessionMember({
+                member: existingLocal.member || existingLocal,
+                coupon: existingLocal.coupon || { code: (existingLocal.member && existingLocal.member.referral_code) || "VIP-ANNR10" },
+                settings: getVipSettings()
+              });
+              window.__annrVipNotice = {
+                type: "ok",
+                text: "Welcome back, " + (existingLocal.name || "VIP Member") + "! You are signed into your VIP account."
+              };
+              renderInPageVipHub();
+              try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(err) {}
+              return;
             }
 
             callRegisterRpc({
@@ -2900,15 +3079,20 @@
             }).then(function(res) {
               setBusy(fs, false);
 
-              // Explicit failure from backend (e.g. existing email with different password)
+              // Explicit failure from backend (e.g. existing email or legacy phone collision)
               if (res.ok && res.data && res.data.ok === false) {
                 if (res.data.existing) {
-                  // User already exists: automatically try to log them in with the password they just entered!
-                  callLoginRpc(em || ph, hash, pw).then(function(loginRes) {
+                  // Check if the EMAIL exists by trying to log in with email first
+                  callLoginRpc(em, hash, pw).then(function(loginRes) {
                     if (loginRes.ok && loginRes.data && loginRes.data.ok) {
-                      var m = loginRes.data.member;
-                      var cpn = loginRes.data.coupon || { code: m.referral_code };
-                      saveSessionMember({ member: m, coupon: cpn, settings: loginRes.data.settings || getVipSettings() });
+                      var synced = syncRemoteWalletPayload(loginRes.data) || {
+                        member: loginRes.data.member,
+                        coupon: loginRes.data.coupon || { code: loginRes.data.member.referral_code },
+                        settings: loginRes.data.settings || getVipSettings()
+                      };
+                      var m = synced.member;
+                      var cpn = synced.coupon;
+                      saveSessionMember({ member: m, coupon: cpn, settings: synced.settings });
                       saveVipAccount({
                         email: (m.email || em).toLowerCase().trim(),
                         phone: m.phone || ph,
@@ -2926,21 +3110,21 @@
                       try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(err) {}
                       return;
                     }
-                    var idField = c.querySelector("#vip-login-id");
-                    if (idField) idField.value = em || ph;
-                    showSignin(true, true);
-                    var loginForm = c.querySelector("#vip-login-form");
-                    if (loginForm) {
-                      showErr(loginForm, "An account with this email or mobile number already exists. Please enter your password to sign in.");
+                    // If email actually exists in DB (wrong_password: true), switch to Sign In for that email
+                    if (loginRes.ok && loginRes.data && loginRes.data.wrong_password) {
+                      var idField = c.querySelector("#vip-login-id");
+                      if (idField) idField.value = em;
+                      showSignin(true, true);
+                      var loginForm = c.querySelector("#vip-login-form");
+                      if (loginForm) {
+                        showErr(loginForm, "An account with " + em + " already exists. Please enter your password to sign in.");
+                      }
+                      return;
                     }
+                    // Otherwise (not_found on email = only a phone number collision on an old test row!), complete registration seamlessly!
+                    completeRegistrationWithMember(null, null, getVipSettings(), false);
                   }).catch(function() {
-                    var idField = c.querySelector("#vip-login-id");
-                    if (idField) idField.value = em || ph;
-                    showSignin(true, true);
-                    var loginForm = c.querySelector("#vip-login-form");
-                    if (loginForm) {
-                      showErr(loginForm, "An account with this email or mobile number already exists. Please enter your password to sign in.");
-                    }
+                    completeRegistrationWithMember(null, null, getVipSettings(), false);
                   });
                   return;
                 }
@@ -2948,13 +3132,23 @@
                 return;
               }
 
-              var member = (res.ok && res.data && res.data.ok && res.data.member) ? res.data.member : null;
-              var coupon = (res.ok && res.data && res.data.ok && res.data.coupon) ? res.data.coupon : null;
-              var settings = (res.ok && res.data && res.data.settings) ? res.data.settings : getVipSettings();
+              var syncedPayload = (res.ok && res.data && res.data.ok && res.data.member)
+                ? syncRemoteWalletPayload(res.data)
+                : null;
+              var member = syncedPayload ? syncedPayload.member : null;
+              var coupon = syncedPayload ? syncedPayload.coupon : null;
+              var settings = syncedPayload ? syncedPayload.settings : getVipSettings();
+              completeRegistrationWithMember(member, coupon, settings, !!(res.data && res.data.existing));
+            }).catch(function() {
+              setBusy(fs, false);
+              completeRegistrationWithMember(null, null, getVipSettings(), false);
+            });
 
-              var welcomePts = Number(settings.welcome_bonus_points != null && Number(settings.welcome_bonus_points) > 0 ? settings.welcome_bonus_points : 100);
+            function completeRegistrationWithMember(member, coupon, settings, isExisting) {
+              settings = normalizeVipSettings(settings || getVipSettings());
+              var welcomePts = Number(settings.welcome_bonus_points != null && Number(settings.welcome_bonus_points) > 0 ? settings.welcome_bonus_points : 200);
               if (!member) {
-                var prefix = String(settings.referral_code_prefix || "ANNR").toUpperCase();
+                var prefix = String(settings.referral_code_prefix || "VIP").toUpperCase();
                 var fallbackCode = prefix + "-" + nm.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() + Math.floor(100 + Math.random() * 899);
                 member = {
                   id: "vip-" + Date.now().toString(36),
@@ -2973,6 +3167,7 @@
                   redeemed_points: 0,
                   expired_points: 0,
                   total_earned_points: welcomePts,
+                  lifetime_points_earned: welcomePts,
                   lifetime_spend_bdt: 0,
                   orders_count: 0,
                   friends_referred: 0,
@@ -2985,19 +3180,21 @@
                   code: fallbackCode,
                   discount_value: Number(settings.friend_discount_value || 10),
                   discount_type: settings.friend_discount_type || "percent",
-                  min_order_bdt: Number(settings.min_order_for_coupon || 1000),
+                  min_order_bdt: Number(settings.min_order_for_coupon || 500),
                   times_used: 0,
                   total_points_generated: 0
                 };
+              } else {
+                member = normalizeMemberRecord(member, coupon, settings);
               }
 
-              if (member.available_points == null || member.available_points < welcomePts) {
+              if (!isExisting && (member.available_points == null || member.available_points < welcomePts)) {
                 member.available_points = welcomePts;
                 member.total_earned_points = Math.max(welcomePts, Number(member.total_earned_points || welcomePts));
               }
 
               // Record initial Welcome Bonus in points ledger & member notifications
-              if (welcomePts > 0 && (!res.data || !res.data.existing)) {
+              if (welcomePts > 0 && !isExisting) {
                 appendVipLedgerEntry({
                   member_id: member.id,
                   member_email: em,
@@ -3019,7 +3216,7 @@
 
               // If user registered with a Friend's Referral Code, credit the referrer immediately
               var refBonusNote = "";
-              if (ref && ref !== member.referral_code && (!res.data || !res.data.existing)) {
+              if (ref && ref !== member.referral_code && !isExisting) {
                 creditReferrerOnSignup(ref, nm, em);
                 try {
                   localStorage.setItem("annr_cart_coupon", ref);
@@ -3044,7 +3241,7 @@
                 settings: settings
               });
 
-              if (res.data && res.data.existing) {
+              if (isExisting) {
                 window.__annrVipNotice = {
                   type: "ok",
                   text: "Welcome back, " + (member.full_name || "VIP Member") + "! You are signed into your VIP account (" + member.available_points + " points available)."
@@ -3052,71 +3249,13 @@
               } else {
                 window.__annrVipNotice = {
                   type: "ok",
-                  text: "Welcome to AnnR VIP! +" + welcomePts + " Welcome Points credited to your vault. Your personal referral coupon is " + (coupon ? coupon.code : member.referral_code) + "." + refBonusNote
+                  text: "Welcome to AnnR VIP! +" + member.available_points + " Welcome Points credited to your vault. Your personal referral coupon is " + (coupon ? coupon.code : member.referral_code) + "." + refBonusNote
                 };
               }
 
               renderInPageVipHub();
               try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
-            }).catch(function() {
-              setBusy(fs, false);
-              var prefix = String(getVipSettings().referral_code_prefix || "ANNR").toUpperCase();
-              var fallbackCode = prefix + "-" + nm.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() + Math.floor(100 + Math.random() * 899);
-              var welcomePts = Number(getVipSettings().welcome_bonus_points != null ? getVipSettings().welcome_bonus_points : 100);
-              var fallbackMember = {
-                id: "vip-" + Date.now().toString(36),
-                full_name: nm,
-                email: em,
-                phone: ph,
-                division: div,
-                district: dist,
-                upazila: thana,
-                full_address: addr,
-                is_whatsapp: isWa,
-                tier: getVipSettings().default_tier || "Silver",
-                available_points: welcomePts,
-                pending_points: 0,
-                withdrawn_points: 0,
-                redeemed_points: 0,
-                expired_points: 0,
-                total_earned_points: welcomePts,
-                lifetime_spend_bdt: 0,
-                orders_count: 0,
-                friends_referred: 0,
-                referral_code: fallbackCode,
-                referred_by_code: ref || null,
-                status: "active",
-                created_at: new Date().toISOString()
-              };
-              var fallbackCoupon = {
-                code: fallbackCode,
-                discount_value: Number(getVipSettings().friend_discount_value || 10),
-                discount_type: getVipSettings().friend_discount_type || "percent",
-                min_order_bdt: Number(getVipSettings().min_order_for_coupon || 1000),
-                times_used: 0,
-                total_points_generated: 0
-              };
-              saveVipAccount({
-                email: em,
-                phone: ph,
-                name: nm,
-                passHash: hash,
-                available_points: fallbackMember.available_points,
-                member: fallbackMember,
-                coupon: fallbackCoupon
-              });
-              saveSessionMember({
-                member: fallbackMember,
-                coupon: fallbackCoupon,
-                settings: getVipSettings()
-              });
-              window.__annrVipNotice = {
-                type: "ok",
-                text: "Welcome to AnnR VIP! +" + fallbackMember.available_points + " Welcome Points credited to your vault. Your personal referral coupon is " + fallbackCoupon.code + "."
-              };
-              renderInPageVipHub();
-              try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
-            });
+            }
           }).catch(function(err) {
             setBusy(fs, false);
             showErr(fs, (err && err.message) || "Could not complete account creation. Please try again.");
@@ -3295,7 +3434,7 @@
 
               // 5-Card Telemetry Strip
               "<div class='vip-dash-grid'>" +
-                statBox("01", "Available Points", avail.toLocaleString() + " PTS", "Worth " + tk(avail) + " at checkout / MFS", "#22c55e") +
+                statBox("01", "Available Points", avail.toLocaleString() + " PTS", "Worth " + tk(avail) + (Number(m.pending_points || 0) > 0 ? " (+" + Number(m.pending_points) + " pending)" : " at checkout / MFS"), "#22c55e") +
                 statBox("02", "Friends Referred", String(timesUsed), "Signups & orders with your code", "#ffffff") +
                 statBox("03", "Referral Income", tk(couponIncomePts), "Earned from referral coupon", "#22c55e") +
                 statBox("04", "Welcome & Bonuses", tk(welcomeBonusPts), "Registration & campaign grants", "#fa9442") +
@@ -3552,7 +3691,7 @@
         var copyLinkBtn = c.querySelector("#vip-copy-link-btn");
         if (copyLinkBtn) {
           copyLinkBtn.onclick = function () {
-            var refLink = location.origin + "/account/login/index.html?ref=" + encodeURIComponent(myCode);
+            var refLink = location.origin + "/account/register/index.html?ref=" + encodeURIComponent(myCode);
             copyHelper(copyLinkBtn, refLink, "✓ SIGNUP LINK COPIED!", "🔗 COPY VIP SIGNUP LINK");
           };
         }
@@ -3665,15 +3804,22 @@
               category: "withdrawal"
             });
 
-            // Also call Supabase RPC in background
+            // Also call Supabase RPC in background with member identifier
             fetch(SB_URL + "/rest/v1/rpc/request_vip_withdrawal", {
               method: "POST",
-              headers: { "apikey": SB_KEY, "Content-Type": "application/json" },
+              headers: {
+                "apikey": SB_KEY,
+                "Authorization": "Bearer " + SB_KEY,
+                "Content-Type": "application/json"
+              },
               body: JSON.stringify({
                 p_points_amount: pts,
                 p_payout_method: meth,
                 p_account_number: acc,
-                p_account_name: nm
+                p_account_name: nm,
+                p_bank_details: null,
+                p_member_id: (m.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(m.id))) ? m.id : null,
+                p_email: m.email || null
               })
             }).catch(function() {});
 

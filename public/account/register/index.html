@@ -7,6 +7,12 @@
     background-color: #f7f4ef !important;
     color: #111111 !important;
   }
+  .reload-overflow, .loading-bar, .vip-preloader, .vip-bg, .vip-dec, .vip-top, .vip-tab, .vip-admin-link, .vip-reset-password {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
   /* Instant zero-glimpse guard: header search modal strictly hidden when not open */
   header-search-new:not(.open),
   .header-search-new:not(.open),
@@ -4280,7 +4286,7 @@ document.addEventListener("click", function(e) {
   setTimeout(function() { o.classList.remove("show"); }, 1200);
 });
 </script>
-<script src="/_ext/site-config.js?v=20261108-v6"></script>
+<script src="/_ext/site-config.js?v=20261109-v7"></script>
 </body>
 </html>
 

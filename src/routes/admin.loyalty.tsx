@@ -20,6 +20,7 @@ import {
   getLoyaltyAdminLogs,
   getLoyaltyNotifications,
   pushLoyaltyNotification,
+  syncAdminLoyaltyOverviewFromDb,
   type LoyaltySettings,
   type WithdrawalRequest,
   type VipMember,
@@ -178,8 +179,22 @@ function LoyaltyAdmin() {
       const s = await getLoyaltySettings();
       setSettings(s);
 
-      const w = await getAdminWithdrawalRequests();
-      setWithdrawals(w);
+      const overview = await syncAdminLoyaltyOverviewFromDb();
+      const localW = await getAdminWithdrawalRequests();
+      const wMap = new Map<string, WithdrawalRequest>();
+      if (overview?.withdrawals) {
+        for (const rw of overview.withdrawals) {
+          wMap.set(String(rw.id), rw);
+        }
+      }
+      for (const lw of localW) {
+        wMap.set(String(lw.id || lw.request_number), lw);
+      }
+      setWithdrawals(
+        Array.from(wMap.values()).sort(
+          (a, b) => new Date(b.requested_at || 0).getTime() - new Date(a.requested_at || 0).getTime()
+        )
+      );
 
       setTiers(getVipTiers());
       setCampaigns(getLoyaltyCampaigns());
@@ -193,7 +208,13 @@ function LoyaltyAdmin() {
         memberMap.set(dm.email.toLowerCase(), dm);
       }
 
-      if (isSupabaseConfigured()) {
+      if (overview?.members) {
+        for (const rm of overview.members) {
+          if (rm && rm.email) {
+            memberMap.set(rm.email.toLowerCase().trim(), rm);
+          }
+        }
+      } else if (isSupabaseConfigured()) {
         try {
           const { data: mData } = await supabase
             .from("vip_members")
@@ -244,23 +265,19 @@ function LoyaltyAdmin() {
 
   const handleSaveMemberEdit = async (updatedMember: VipMember) => {
     syncMemberAcrossLocalStores(updatedMember);
-    if (
-      isSupabaseConfigured() &&
-      updatedMember.id &&
-      !updatedMember.id.startsWith("m-") &&
-      !updatedMember.id.startsWith("vip-")
-    ) {
+    if (isSupabaseConfigured()) {
       try {
-        await supabase
-          .from("vip_members")
-          .update({
-            available_points: updatedMember.available_points,
-            pending_points: updatedMember.pending_points,
-            tier: updatedMember.tier,
-            status: updatedMember.status,
-            referral_code: updatedMember.referral_code,
-          })
-          .eq("id", updatedMember.id);
+        const isUuid =
+          updatedMember.id &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(updatedMember.id));
+        await supabase.rpc("admin_update_vip_member", {
+          p_member_id: isUuid ? updatedMember.id : null,
+          p_email: updatedMember.email,
+          p_tier: updatedMember.tier,
+          p_available_points: updatedMember.available_points,
+          p_status: updatedMember.status,
+          p_coupon_active: updatedMember.status === "active",
+        });
       } catch {}
     }
     await loadData();

@@ -445,7 +445,20 @@ export async function getLoyaltySettings(): Promise<LoyaltySettings> {
         .maybeSingle();
 
       if (!error && data) {
-        const res = { ...DEFAULT_LOYALTY_SETTINGS, ...(data as Partial<LoyaltySettings>) };
+        const d = data as any;
+        const mapped: Partial<LoyaltySettings> = {
+          ...(d as Partial<LoyaltySettings>),
+          program_enabled: d.program_enabled ?? d.is_program_enabled ?? true,
+          welcome_bonus_points: Number(d.welcome_bonus_points ?? d.welcome_points ?? 200),
+          points_per_referral: Number(d.points_per_referral ?? 100),
+          friend_discount_value: Number(d.friend_discount_value ?? d.referral_discount_value ?? 10),
+          friend_discount_type:
+            d.friend_discount_type === "fixed" || d.referral_discount_type === "fixed" ? "fixed" : "percent",
+          min_order_for_coupon: Number(d.min_order_for_coupon ?? d.referral_min_order_amount ?? 500),
+          point_value_bdt: Number(d.point_value_bdt ?? d.redemption_rate_bdt_per_point ?? 1),
+          min_withdrawal_bdt: Number(d.min_withdrawal_bdt ?? d.min_withdrawal_points ?? 100),
+        };
+        const res = { ...DEFAULT_LOYALTY_SETTINGS, ...mapped };
         try {
           const str = JSON.stringify(res);
           localStorage.setItem(LOCAL_SETTINGS_KEY, str);
@@ -476,11 +489,22 @@ export async function saveLoyaltySettings(
 ): Promise<{ ok: boolean; error?: string }> {
   if (isSupabaseConfigured()) {
     try {
-      await supabase
-        .from("loyalty_settings")
-        .upsert({ id: 1, ...settings, updated_at: new Date().toISOString() });
+      await supabase.rpc("admin_save_loyalty_settings", {
+        p_settings: {
+          is_program_enabled: settings.program_enabled ?? true,
+          welcome_points: settings.welcome_bonus_points ?? 200,
+          referral_discount_type: settings.friend_discount_type === "fixed" ? "fixed" : "percentage",
+          referral_discount_value: settings.friend_discount_value ?? 10,
+          referral_min_order_amount: settings.min_order_for_coupon ?? 500,
+          points_per_referral: settings.points_per_referral ?? 100,
+          referral_signup_bonus_points: settings.points_per_referral ?? 100,
+          redemption_rate_bdt_per_point: settings.point_value_bdt ?? 1,
+          earn_rate_bdt_per_point: settings.earn_rate_bdt_per_point ?? 100,
+          min_withdrawal_points: settings.min_withdrawal_bdt ?? 100,
+        },
+      });
     } catch (e: any) {
-      console.warn("Supabase loyalty_settings network notice:", e?.message);
+      console.warn("Supabase admin_save_loyalty_settings notice:", e?.message);
     }
   }
 
@@ -800,11 +824,15 @@ export async function adminAdjustMemberPoints(params: {
     message: `${cleanReason} · Updated available balance: ${newAvailable} ANNR Points.`,
   });
 
-  if (isSupabaseConfigured() && target.id && !target.id.startsWith("m-") && !target.id.startsWith("vip-") && !target.id.startsWith("local-")) {
+  if (isSupabaseConfigured()) {
     try {
+      const isUuid =
+        target.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(target.id));
       await supabase.rpc("admin_adjust_member_points", {
-        p_member_id: target.id,
+        p_member_id: isUuid ? target.id : null,
+        p_email: target.email,
         p_points_delta: delta,
+        p_note: cleanReason,
         p_reason: cleanReason,
       });
     } catch {}
@@ -1086,29 +1114,39 @@ export async function registerVipMember(payload: {
   dateOfBirth?: string;
   gender?: string;
   referredBy?: string;
+  passwordHash?: string;
+  plainPassword?: string;
 }): Promise<{ ok: boolean; member?: VipMember; coupon?: any; error?: string }> {
   const settings = await getLoyaltySettings();
-  const welcomePts = Number(settings.welcome_bonus_points ?? 100);
+  const welcomePts = Number(settings.welcome_bonus_points ?? 200);
   const prefix = (settings.coupon_prefix || "VIP-").toUpperCase();
 
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.rpc("register_vip_member", {
         p_full_name: payload.fullName,
-        p_email: payload.email,
-        p_phone: payload.phone,
-        p_division: payload.division,
-        p_district: payload.district,
+        p_email: payload.email.trim().toLowerCase(),
+        p_phone: payload.phone.trim(),
+        p_division: payload.division || "Dhaka",
+        p_district: payload.district || "Dhaka",
         p_upazila: payload.upazila || null,
-        p_full_address: payload.fullAddress || "",
+        p_full_address: payload.fullAddress || "Dhaka",
         p_is_whatsapp: payload.isWhatsapp !== false,
         p_dob: payload.dateOfBirth || null,
         p_gender: payload.gender || "prefer_not_to_say",
         p_referred_by: payload.referredBy || null,
+        p_password_hash: payload.passwordHash || null,
+        p_plain_password: payload.plainPassword || null,
       });
 
       if (!error && data?.ok && data.member) {
-        const member = data.member as VipMember;
+        const mRaw = data.member as any;
+        const member: VipMember = {
+          ...mRaw,
+          referral_code: data.coupon?.code || mRaw.referral_code || "",
+          total_earned_points: Number(mRaw.total_earned_points ?? mRaw.lifetime_points_earned ?? welcomePts),
+          withdrawn_points: Number(mRaw.withdrawn_points ?? mRaw.lifetime_points_withdrawn ?? 0),
+        };
         syncMemberAcrossLocalStores(member);
         return { ok: true, member, coupon: data.coupon };
       }
@@ -1664,18 +1702,25 @@ export async function requestVipWithdrawal(payload: {
   accountNumber: string;
   accountName?: string;
   bankDetails?: any;
+  memberId?: string;
+  email?: string;
 }): Promise<{ ok: boolean; moneyAmountBdt?: number; error?: string }> {
   if (isSupabaseConfigured()) {
     try {
+      const isUuid =
+        payload.memberId &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(payload.memberId));
       const { data, error } = await supabase.rpc("request_vip_withdrawal", {
         p_points_amount: payload.pointsAmount,
         p_payout_method: payload.payoutMethod,
         p_account_number: payload.accountNumber,
         p_account_name: payload.accountName || null,
         p_bank_details: payload.bankDetails || null,
+        p_member_id: isUuid ? payload.memberId : null,
+        p_email: payload.email || null,
       });
       if (!error && data?.ok) {
-        return { ok: true, moneyAmountBdt: data.money_amount_bdt };
+        return { ok: true, moneyAmountBdt: Number(data.bdt_amount ?? data.money_amount_bdt ?? payload.pointsAmount) };
       }
       if (error) {
         return { ok: false, error: error.message };
@@ -1687,6 +1732,75 @@ export async function requestVipWithdrawal(payload: {
   }
 
   return { ok: true, moneyAmountBdt: payload.pointsAmount * 1.0 };
+}
+
+/**
+ * Sync full loyalty overview (members, withdrawals, ledger, referrals) from Supabase for Admin Panel
+ */
+export async function syncAdminLoyaltyOverviewFromDb(): Promise<{
+  members: VipMember[];
+  withdrawals: WithdrawalRequest[];
+} | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const { data, error } = await supabase.rpc("admin_get_loyalty_overview");
+    if (error || !data?.ok) return null;
+
+    const remoteMembers: VipMember[] = Array.isArray(data.members)
+      ? data.members.map((m: any) => ({
+          id: m.id,
+          email: (m.email || "").toLowerCase().trim(),
+          full_name: m.full_name || "VIP Member",
+          phone: m.phone || "",
+          is_whatsapp: m.marketing_consent !== false,
+          division: m.division || "Dhaka",
+          district: m.district || "Dhaka",
+          upazila: m.upazila || "",
+          full_address: m.full_address || "",
+          tier: m.tier || "Silver",
+          tier_multiplier:
+            m.tier === "Black" ? 2.0 : m.tier === "Diamond" ? 1.75 : m.tier === "Platinum" ? 1.5 : m.tier === "Gold" ? 1.25 : 1.0,
+          available_points: Number(m.available_points || 0),
+          pending_points: Number(m.pending_points || 0),
+          redeemed_points: Number(m.redeemed_points || 0),
+          withdrawn_points: Number(m.lifetime_points_withdrawn || 0),
+          total_earned_points: Number(m.lifetime_points_earned || m.available_points || 0),
+          friends_referred: Number(m.friends_referred || m.coupon_times_used || 0),
+          referral_code: m.referral_code || "",
+          referred_by_code: m.referred_by_code || null,
+          status: m.status || "active",
+          created_at: m.created_at || new Date().toISOString(),
+        }))
+      : [];
+
+    const remoteWithdrawals: WithdrawalRequest[] = Array.isArray(data.withdrawals)
+      ? data.withdrawals.map((w: any) => ({
+          id: String(w.id),
+          request_number: w.request_number || String(w.id).slice(0, 6).toUpperCase(),
+          vip_member_id: String(w.member_id || ""),
+          points_amount: Number(w.points_amount || 0),
+          money_amount_bdt: Number(w.bdt_amount ?? w.money_amount_bdt ?? w.points_amount ?? 0),
+          payout_method: w.payout_method || "bkash",
+          account_number: w.account_number || "",
+          account_name: w.account_name || w.vip_members?.full_name || "",
+          status: w.status || "pending",
+          admin_notes: w.admin_note || w.admin_notes || null,
+          transaction_ref: w.transaction_ref || null,
+          requested_at: w.created_at || w.requested_at || new Date().toISOString(),
+          processed_at: w.processed_at || null,
+          vip_members: w.vip_members || {
+            full_name: w.account_name || "VIP Member",
+            email: "",
+            phone: w.account_number || "",
+            tier: "Silver",
+          },
+        }))
+      : [];
+
+    return { members: remoteMembers, withdrawals: remoteWithdrawals };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -1769,8 +1883,10 @@ export async function processAdminWithdrawal(
     try {
       await supabase.rpc("admin_process_withdrawal", {
         p_request_id: requestId,
+        p_new_status: action,
         p_action: action,
         p_transaction_ref: transactionRef || null,
+        p_admin_note: adminNotes || null,
         p_admin_notes: adminNotes || null,
       });
     } catch {}
