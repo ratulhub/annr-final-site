@@ -1898,6 +1898,173 @@
       var SB_KEY = "sb_publishable_rWZ3_sO_15nX-jMpRMrnng_CrRhuJK5";
       var VIP_SESSION_KEY = "annr_vip_member_session";
       var VIP_ACCOUNTS_KEY = "annr_vip_accounts_v1";
+      var VIP_LEDGER_KEY = "annr-vip-points-ledger-v1";
+      var VIP_NOTIFS_KEY = "annr-vip-notifications-v1";
+      var VIP_TIERS_KEY = "annr-vip-tiers-v1";
+      var VIP_CAMPAIGNS_KEY = "annr-vip-campaigns-v1";
+
+      function getVipTiers() {
+        var defaultTiers = [
+          {
+            id: "tier-silver",
+            name: "Silver",
+            rank_order: 1,
+            badge_color: "#a1a1aa",
+            min_earned_points: 0,
+            min_referrals: 0,
+            point_multiplier: 1.0,
+            points_multiplier: 1.0,
+            extra_discount_percent: 0,
+            tier_discount_percent: 0,
+            perks: ["200 Welcome ANNR Points", "Personal 10% OFF Referral Coupon", "Redeem Points at Checkout or MFS"],
+            active: true
+          },
+          {
+            id: "tier-gold",
+            name: "Gold",
+            rank_order: 2,
+            badge_color: "#f59e0b",
+            min_earned_points: 500,
+            min_referrals: 3,
+            point_multiplier: 1.25,
+            points_multiplier: 1.25,
+            extra_discount_percent: 3,
+            tier_discount_percent: 3,
+            perks: ["1.25× Points Multiplier on Orders & Referrals", "3% Extra VIP Tier Discount", "Early Drop Access"],
+            active: true
+          },
+          {
+            id: "tier-platinum",
+            name: "Platinum",
+            rank_order: 3,
+            badge_color: "#38bdf8",
+            min_earned_points: 1500,
+            min_referrals: 8,
+            point_multiplier: 1.5,
+            points_multiplier: 1.5,
+            extra_discount_percent: 5,
+            tier_discount_percent: 5,
+            perks: ["1.5× Points Multiplier", "5% Extra VIP Tier Discount", "Priority MFS Payout Processing"],
+            active: true
+          },
+          {
+            id: "tier-diamond",
+            name: "Diamond",
+            rank_order: 4,
+            badge_color: "#c084fc",
+            min_earned_points: 3500,
+            min_referrals: 15,
+            point_multiplier: 2.0,
+            points_multiplier: 2.0,
+            extra_discount_percent: 10,
+            tier_discount_percent: 10,
+            perks: ["2.0× Double Points Multiplier", "10% Extra VIP Tier Discount", "Dedicated VIP Concierge & Birthday Gift"],
+            active: true
+          }
+        ];
+        try {
+          var raw = localStorage.getItem(VIP_TIERS_KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length) {
+              return parsed.map(function (t) {
+                return Object.assign({}, t, {
+                  point_multiplier: Number(t.point_multiplier != null ? t.point_multiplier : (t.points_multiplier != null ? t.points_multiplier : 1)),
+                  extra_discount_percent: Number(t.extra_discount_percent != null ? t.extra_discount_percent : (t.tier_discount_percent != null ? t.tier_discount_percent : 0)),
+                  perks: Array.isArray(t.perks) ? t.perks : []
+                });
+              });
+            }
+          }
+        } catch (e) {}
+        return defaultTiers;
+      }
+
+      function getActiveVipCampaigns() {
+        var defaultCampaigns = [
+          {
+            id: "camp-welcome-200",
+            name: "VIP Vault Welcome Grant",
+            description: "Every new VIP member automatically receives Welcome ANNR Points upon registration.",
+            status: "active",
+            points_multiplier: 1,
+            bonus_points: 200
+          },
+          {
+            id: "camp-spend-5000",
+            name: "Heavyweight Spend Bonus (৳5,000+)",
+            description: "Earn +150 Bonus ANNR Points automatically on any order above ৳5,000.",
+            status: "active",
+            points_multiplier: 1,
+            bonus_points: 150
+          }
+        ];
+        try {
+          var raw = localStorage.getItem(VIP_CAMPAIGNS_KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length) {
+              return parsed
+                .filter(function (c) { return c && (!c.status || c.status === "active"); })
+                .map(function (c) {
+                  return Object.assign({}, c, {
+                    points_multiplier: c.reward_type === "multiplier" ? Number(c.reward_value || 2) : Number(c.points_multiplier || 1),
+                    bonus_points: Number(c.bonus_points != null ? c.bonus_points : (c.reward_value || 100))
+                  });
+                });
+            }
+          }
+        } catch (e) {}
+        return defaultCampaigns;
+      }
+
+      function appendVipLedgerEntry(entry) {
+        if (!entry) return;
+        try {
+          var raw = localStorage.getItem(VIP_LEDGER_KEY);
+          var list = raw ? JSON.parse(raw) : [];
+          if (!Array.isArray(list)) list = [];
+          var delta = Number(entry.points_delta != null ? entry.points_delta : (entry.amount || 0));
+          list.unshift({
+            id: entry.id || ("led-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6)),
+            vip_member_id: entry.member_id || entry.vip_member_id || "",
+            member_id: entry.member_id || entry.vip_member_id || "",
+            member_email: String(entry.member_email || "").toLowerCase().trim(),
+            member_name: entry.member_name || "VIP Member",
+            transaction_type: entry.transaction_type || "welcome_bonus",
+            amount: delta,
+            points_delta: delta,
+            balance_after: Number(entry.balance_after || 0),
+            reference_id: entry.reference_id || null,
+            note: entry.description || entry.note || "",
+            description: entry.description || entry.note || "",
+            status: "completed",
+            actor: entry.actor || "system",
+            created_at: entry.created_at || new Date().toISOString()
+          });
+          localStorage.setItem(VIP_LEDGER_KEY, JSON.stringify(list.slice(0, 500)));
+        } catch (e) {}
+      }
+
+      function appendVipNotification(notif) {
+        if (!notif) return;
+        try {
+          var raw = localStorage.getItem(VIP_NOTIFS_KEY);
+          var list = raw ? JSON.parse(raw) : [];
+          if (!Array.isArray(list)) list = [];
+          list.unshift({
+            id: notif.id || ("notif-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6)),
+            member_id: notif.member_id || "",
+            member_email: String(notif.member_email || "").toLowerCase().trim(),
+            event_type: notif.category || notif.event_type || "points_earned",
+            title: notif.title || "VIP Reward Alert",
+            message: notif.message || "",
+            is_read: false,
+            created_at: notif.created_at || new Date().toISOString()
+          });
+          localStorage.setItem(VIP_NOTIFS_KEY, JSON.stringify(list.slice(0, 200)));
+        } catch (e) {}
+      }
 
       function normalizeVipSettings(raw) {
         raw = raw || {};
