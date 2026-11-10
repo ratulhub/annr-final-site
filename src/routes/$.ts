@@ -197,12 +197,14 @@ function buildPredictiveSearchHtml(query: string): string {
   }
   const terms = rawTerms.map((t) => SEARCH_SYNONYMS[t] || t);
   const matches = ((catalog.products || []) as Array<Record<string, unknown>>).filter((p) => {
-    if (p["status"] && p["status"] !== "active") return false;
+    if (p["status"] && p["status"] !== "active" && p["status"] !== "sold" && p["status"] !== "reserved") return false;
     const skus = Array.isArray(p["skus"]) ? (p["skus"] as string[]).join(" ") : "";
     const variants = Array.isArray(p["variants"])
       ? (p["variants"] as Array<Record<string, unknown>>).map((v) => `${v["sku"] || ""} ${v["id"] || ""} ${v["title"] || ""}`).join(" ")
       : "";
-    const hay = `${p["title"] || ""} ${p["description"] || ""} ${p["handle"] || ""} ${p["type"] || ""} ${p["tags"] || ""} ${p["id"] || ""} ${skus} ${variants}`.toLowerCase();
+    const code = String(p["code"] || "");
+    const size = String(p["size"] || "");
+    const hay = `${p["title"] || ""} ${p["description"] || ""} ${p["handle"] || ""} ${p["type"] || ""} ${code} ${size} ${p["tags"] || ""} ${p["id"] || ""} ${skus} ${variants}`.toLowerCase();
     return terms.every((t, i) => hay.includes(t) || hay.includes(rawTerms[i]));
   }).slice(0, 10);
 
@@ -212,16 +214,21 @@ function buildPredictiveSearchHtml(query: string): string {
 
   const cards = matches.map((p) => {
     const images = Array.isArray(p["images"]) ? (p["images"] as string[]) : [];
-    const img = (typeof p["image"] === "string" ? p["image"] : "") || images[0] || "";
+    const img = (typeof p["image"] === "string" ? p["image"] : "") || images[0] || "/cdn/shop/t/75/assets/image_logo.svg";
     const pTitle = esc(p["title"]);
     const price = String(p["price"] || "0").replace(/\.00$/, "");
     const handle = String(p["handle"] || "");
+    const code = esc(p["code"] || "");
+    const size = esc(p["size"] || "");
+    const badgeText = p["status"] === "sold" ? "SOLD / ARCHIVE" : `1 OF 1${size ? ` · SIZE ${size}` : ""}`;
     return `<div class="lazy-item product-card">
-	<div class="product-card-image">
+	<div class="product-card-image" style="position:relative">
+    <div style="position:absolute;top:6px;left:6px;background:rgba(17,17,17,0.9);color:#fff;font-family:'FK Grotesk SemiMono',monospace;font-size:8px;font-weight:700;padding:2px 6px;letter-spacing:1px;z-index:2">${badgeText}</div>
 		<a href="/products/${esc(handle)}/index.html" class="product-card-image-wrapper" aria-label="${pTitle}">
 			<img src="${esc(img)}" alt="${pTitle}" loading="lazy">
 		</a>
 	</div>
+  ${code ? `<div style="font-family:'FK Grotesk SemiMono',monospace;font-size:9px;color:#e05a2b;font-weight:700;margin-top:6px">${code}</div>` : ""}
 	<a href="/products/${esc(handle)}/index.html" class="product-card-title">
 		${pTitle}
 	</a>

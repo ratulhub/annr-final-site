@@ -3,7 +3,15 @@ import { useEffect, useState } from "react";
 import catalog from "../admin/catalog.json";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
-type SearchProduct = { handle: string; title: string; price?: number };
+type SearchProduct = {
+  handle: string;
+  title: string;
+  price?: number;
+  code?: string;
+  size?: string;
+  status?: string;
+  images?: string[];
+};
 
 export const Route = createFileRoute("/search")({ component: SearchPage });
 
@@ -25,27 +33,63 @@ function SearchPage() {
       if (isSupabaseConfigured()) {
         const { data, error } = await supabase
           .from("products")
-          .select("handle,title,price")
-          .eq("status", "active")
+          .select("handle,title,price,code,size,status,images")
+          .in("status", ["active", "reserved", "sold"])
           .order("updated_at", { ascending: false });
-        if (error) throw error;
-        setProducts(
-          ((data || []) as SearchProduct[]).filter(
-            (product) => !q || `${product.title} ${product.handle}`.toLowerCase().includes(q),
-          ),
-        );
-        return;
+        if (!error && Array.isArray(data) && data.length > 0) {
+          setProducts(
+            ((data || []) as SearchProduct[]).filter(
+              (product) =>
+                !q ||
+                `${product.title} ${product.handle} ${product.code || ""} ${product.size || ""}`
+                  .toLowerCase()
+                  .includes(q),
+            ),
+          );
+          return;
+        }
       }
-      const local = (
-        (catalog.products || []) as Array<{ handle?: string; title?: string; price?: number }>
-      ).map((product) => ({
-        handle: product.handle || "",
-        title: product.title || "",
-        price: product.price,
-      }));
+
+      // Local fallback from admin store or catalog
+      let localProducts: SearchProduct[] = [];
+      try {
+        const rawAdm = localStorage.getItem("shihiko-admin-v1");
+        if (rawAdm) {
+          const parsed = JSON.parse(rawAdm);
+          if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) {
+            localProducts = parsed.products.map((p: any) => ({
+              handle: p.handle || "",
+              title: p.title || "",
+              price: parseFloat(p.price) || 0,
+              code: p.code || "",
+              size: p.size || "",
+              status: p.status || "active",
+              images: p.images || [],
+            }));
+          }
+        }
+      } catch {}
+
+      if (!localProducts.length) {
+        localProducts = (
+          (catalog.products || []) as Array<{ handle?: string; title?: string; price?: number; code?: string; size?: string }>
+        ).map((product) => ({
+          handle: product.handle || "",
+          title: product.title || "",
+          price: product.price,
+          code: product.code || "",
+          size: product.size || "",
+          status: "active",
+        }));
+      }
+
       setProducts(
-        local.filter(
-          (product) => !q || `${product.title} ${product.handle}`.toLowerCase().includes(q),
+        localProducts.filter(
+          (product) =>
+            !q ||
+            `${product.title} ${product.handle} ${product.code || ""} ${product.size || ""}`
+              .toLowerCase()
+              .includes(q),
         ),
       );
     } finally {
@@ -92,18 +136,38 @@ function SearchPage() {
             : `${products.length} result${products.length === 1 ? "" : "s"}`}
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((product) => (
-            <Link
-              key={product.handle}
-              to={`/products/${product.handle}/index.html`}
-              className="rounded-lg border p-4 hover:border-foreground"
-            >
-              <h2 className="font-semibold">{product.title}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {product.price ? `৳${Number(product.price).toLocaleString()}` : "View product"}
-              </p>
-            </Link>
-          ))}
+          {products.map((product) => {
+            const isSold = product.status === "sold";
+            return (
+              <Link
+                key={product.handle}
+                to={`/products/${product.handle}/index.html`}
+                className="group relative flex flex-col justify-between rounded-lg border bg-card p-5 transition-all hover:border-foreground"
+              >
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className={`inline-block rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${isSold ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"}`}>
+                      {isSold ? "SOLD / ARCHIVE" : `1 OF 1 · SIZE ${product.size || "M"}`}
+                    </span>
+                    {product.code && (
+                      <span className="font-mono text-xs font-semibold text-[#e05a2b]">
+                        {product.code}
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-base font-bold text-foreground group-hover:underline">
+                    {product.title}
+                  </h2>
+                </div>
+                <div className="mt-4 flex items-baseline justify-between border-t pt-3">
+                  <span className="font-mono text-xs text-muted-foreground">BDT</span>
+                  <span className="text-lg font-black text-foreground">
+                    {product.price ? `৳${Number(product.price).toLocaleString()}` : "View piece"}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </main>

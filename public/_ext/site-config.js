@@ -4692,4 +4692,15 @@
     new PerformanceObserver(function (l) { l.getEntries().forEach(function (en) { inp = Math.max(inp, en.duration); }); }).observe({ type: "event", buffered: true, durationThreshold: 40 });
     addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && !window.__v) { window.__v = 1; if (lcp) vital("LCP", lcp); vital("CLS", cls); if (inp) vital("INP", inp); } });
   } catch (e) { /* older browser */ }
+
+  // Load AnnR Unique One-of-One Archival Catalog engine
+  try {
+    if (!document.getElementById("annr-unique-catalog-script")) {
+      var ucScript = document.createElement("script");
+      ucScript.id = "annr-unique-catalog-script";
+      ucScript.src = "/_ext/unique-catalog.js";
+      ucScript.defer = true;
+      document.body.appendChild(ucScript);
+    }
+  } catch (e) {}
 })();

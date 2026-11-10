@@ -81,14 +81,16 @@ function CheckoutPage() {
       loadedItems = [
         {
           id: "prod-1",
-          title: "AnnR Divine Sanctum Heavyweight Hoodie",
+          title: "AnnR Archival One-of-One Piece",
           price: 4800,
           quantity: 1,
-          size: "L",
-          image: "/cdn/shop/files/clocked-out-hoodie-black-1.jpg",
+          size: "M",
+          image: "/cdn/shop/t/75/assets/image_logo.svg",
         },
       ];
     }
+    // Enforce unique piece rule: quantity is locked to 1
+    loadedItems = loadedItems.map((item) => ({ ...item, quantity: 1 }));
     setItems(loadedItems);
 
     getLoyaltySettings().then((s) => setLoyaltySettings(s));
@@ -385,6 +387,31 @@ function CheckoutPage() {
         localStorage.removeItem("annr-cart");
         localStorage.removeItem("shihiko-cart");
         localStorage.removeItem("annr_cart_coupon");
+
+        // Mark purchased one-of-one pieces as sold in local store and Supabase
+        try {
+          const rawAdm = localStorage.getItem("shihiko-admin-v1");
+          if (rawAdm) {
+            const adm = JSON.parse(rawAdm);
+            if (Array.isArray(adm.products)) {
+              adm.products = adm.products.map((p: any) => {
+                if (items.some((it) => it.id === p.id || (p.handle && it.id === p.handle) || it.title === p.title)) {
+                  return { ...p, status: "sold", stock: 0, soldAt: new Date().toISOString() };
+                }
+                return p;
+              });
+              localStorage.setItem("shihiko-admin-v1", JSON.stringify(adm));
+            }
+          }
+        } catch {}
+
+        if (isSupabaseConfigured()) {
+          for (const it of items) {
+            if (it.id && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(it.id)) {
+              supabase.rpc("mark_product_sold", { p_product_id: it.id }).then(() => {}).catch(() => {});
+            }
+          }
+        }
       } catch {}
 
       setOrderSuccess({
