@@ -87,3 +87,15 @@ select cron.schedule(
 );
 ```
 
+
+---
+
+## §8. One-of-One Products, Categories & Campaigns (`14_unique_products.sql`)
+
+Run `database/sql/14_unique_products.sql` (mirror: `supabase/migrations/20261110000014_unique_products.sql`) after `13`. It is idempotent.
+
+- **Tables**: `categories` (Hoodies, Sweatshirts, Trousers, Sweaters, T-Shirts, Jackets, Knitwear, Accessories seeded), `campaigns` (`unique-campaign` seeded), `product_reservations` (private; tokens never readable by `anon`).
+- **`products` extensions**: `code` (unique, case-insensitive), `category_id`, `campaign_id` (nullable), `size`, `measurements` (chest/length/shoulder/sleeve/waist/inseam in cm, validated by `valid_measurements()`), `fabric`, `condition`, `images[]` (https:// or site-relative only), `stock` (0–1), `reserved_until`, `sold_at`, `published_at`. Status is now `draft | active | reserved | sold | archived`.
+- **RPCs**: `reserve_product(id)` (row lock, 15-minute hold, returns authoritative price + token), `release_reservation(id, token)` (holder or `orders.write` staff), `attach_reservation_order(id, token, order_id)` (links a hold to a placed order), `mark_product_sold(id)` (`orders.write` only), `release_expired_reservations()` (scheduled every minute via `pg_cron` when available), `search_products(q, limit)` (security invoker).
+- **RLS**: public reads of `active/reserved/sold` products and visible categories / active+ended campaigns; writes require `catalog.write` (products additionally `pricing.write`, unchanged from `05`).
+- **Verify**: run `database/tests/unique_products_verification.sql` (BEGIN … ROLLBACK).
