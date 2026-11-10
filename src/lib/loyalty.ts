@@ -499,7 +499,7 @@ export async function saveLoyaltySettings(
           points_per_referral: settings.points_per_referral ?? 100,
           referral_signup_bonus_points: settings.points_per_referral ?? 100,
           redemption_rate_bdt_per_point: settings.point_value_bdt ?? 1,
-          earn_rate_bdt_per_point: settings.earn_rate_bdt_per_point ?? 100,
+          earn_rate_bdt_per_point: (settings as any).earn_rate_bdt_per_point ?? 100,
           min_withdrawal_points: settings.min_withdrawal_bdt ?? 100,
         },
       });
@@ -564,7 +564,7 @@ export function saveVipTiers(tiers: VipTierConfig[], adminEmail = "admin@annr.st
  */
 export function evaluateMemberTierLocally(member: VipMember): { upgraded: boolean; tier: VipTierConfig } {
   const tiers = getVipTiers().filter((t) => t.active);
-  let matched = tiers[0] || DEFAULT_VIP_TIERS[0];
+  let matched: VipTierConfig = tiers[0] || DEFAULT_VIP_TIERS[0]!;
 
   const earned = Number(member.total_earned_points || member.available_points || 0);
   const refs = Number(member.friends_referred || 0);
@@ -1043,7 +1043,7 @@ export async function awardOrderLoyaltyPoints(params: {
     orderSubtotal: params.orderTotalBdt,
     memberTier: member.tier,
     isFirstOrder,
-    itemHandles: params.itemHandles,
+    itemHandles: params.itemHandles || [],
     basePointsEarned: basePts,
   });
 
@@ -1478,7 +1478,7 @@ export function creditVipReferrerLocally(params: {
         amount: pts,
         balance_after: owner.available_points,
         transaction_type: "referral_matured",
-        reference_id: params.orderNumber ? `#${params.orderNumber}` : undefined,
+        reference_id: params.orderNumber ? `#${params.orderNumber}` : null,
         note:
           params.eventType === "order"
             ? `Referral reward (+${pts} PTS) from ${params.buyerName || "Friend"} on Order #${params.orderNumber}`
@@ -1687,7 +1687,7 @@ export async function validateReferralCoupon(
       discount_type: discType,
       discount_value: discVal,
       points_reward: pointsReward,
-      referrer_name: owner?.full_name,
+      ...(owner?.full_name ? { referrer_name: owner.full_name } : {}),
     };
   }
   return { valid: false, error: "Invalid coupon code" };

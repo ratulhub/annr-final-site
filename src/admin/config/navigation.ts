@@ -29,7 +29,9 @@ export const NAV_GROUPS: NavGroup[] = [
     group: "Products & Catalog",
     iconKey: "products",
     items: [
-      { label: "Products", to: "/admin/products" },
+      { label: "Products (1-of-1)", to: "/admin/products", badge: "Archive" },
+      { label: "Categories", to: "/admin/categories" },
+      { label: "Campaigns & Drops", to: "/admin/campaigns", badge: "Unique" },
       { label: "Collections", to: "/admin/collections" },
       { label: "Discounts & Coupons", to: "/admin/discounts" },
     ],

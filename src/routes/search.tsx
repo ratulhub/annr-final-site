@@ -6,11 +6,11 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 type SearchProduct = {
   handle: string;
   title: string;
-  price?: number;
-  code?: string;
-  size?: string;
-  status?: string;
-  images?: string[];
+  price?: number | undefined;
+  code?: string | undefined;
+  size?: string | undefined;
+  status?: string | undefined;
+  images?: string[] | undefined;
 };
 
 export const Route = createFileRoute("/search")({ component: SearchPage });
@@ -139,9 +139,9 @@ function SearchPage() {
           {products.map((product) => {
             const isSold = product.status === "sold";
             return (
-              <Link
+              <a
                 key={product.handle}
-                to={`/products/${product.handle}/index.html`}
+                href={`/products/${product.handle}/index.html`}
                 className="group relative flex flex-col justify-between rounded-lg border bg-card p-5 transition-all hover:border-foreground"
               >
                 <div>
@@ -165,7 +165,7 @@ function SearchPage() {
                     {product.price ? `৳${Number(product.price).toLocaleString()}` : "View piece"}
                   </span>
                 </div>
-              </Link>
+              </a>
             );
           })}
         </div>

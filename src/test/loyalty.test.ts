@@ -155,6 +155,7 @@ describe("ANNR Points Wallet, Checkout Redemption, Tiers, Campaigns & Audit Cont
       referral_code: "ANNR-TIER01",
       referred_by_code: null,
       status: "active" as const,
+      tier_multiplier: 1.0,
       created_at: new Date().toISOString(),
     };
 
@@ -208,18 +209,19 @@ describe("ANNR Points Wallet, Checkout Redemption, Tiers, Campaigns & Audit Cont
     expect(okRes.updatedMember?.available_points).toBe(target.available_points + 250);
 
     const ledger = getPointsLedger(target.email);
-    expect(ledger[0].transaction_type).toBe("admin_adjustment");
-    expect(ledger[0].amount).toBe(250);
+    expect(ledger[0]!.transaction_type).toBe("admin_adjustment");
+    expect(ledger[0]!.amount).toBe(250);
 
     const logs = getLoyaltyAdminLogs();
-    expect(logs[0].action_type).toBe("points_added");
-    expect(logs[0].reason).toContain("goodwill bonus");
+    expect(logs[0]!.action_type).toBe("points_added");
+    expect(logs[0]!.reason).toContain("goodwill bonus");
   });
 
   it("atomically redeems checkout points and automatically refunds them if the order is cancelled", async () => {
+    const testEmail = `buyer-${Math.random().toString(36).slice(2, 8)}@example.com`;
     const reg = await registerVipMember({
       fullName: "Redeem Buyer",
-      email: "buyer@example.com",
+      email: testEmail,
       phone: "01811223344",
       division: "Dhaka",
       district: "Dhaka",
@@ -227,7 +229,8 @@ describe("ANNR Points Wallet, Checkout Redemption, Tiers, Campaigns & Audit Cont
       fullAddress: "Block C",
     });
     const member = reg.member!;
-    // Credit +300 pts so member has 400 available points
+    const initialPoints = member.available_points;
+    // Credit +300 pts
     await adminAdjustMemberPoints({
       memberEmail: member.email,
       pointsDelta: 300,
@@ -236,7 +239,7 @@ describe("ANNR Points Wallet, Checkout Redemption, Tiers, Campaigns & Audit Cont
 
     const beforeMembers = getAllLocalVipMembers();
     const seededMember = beforeMembers.find((m) => m.email === member.email)!;
-    expect(seededMember.available_points).toBe(400);
+    expect(seededMember.available_points).toBe(initialPoints + 300);
 
     const orderNumber = "1088";
     // Save mock order into annr-orders so updateStoreOrderStatus can cancel & refund it

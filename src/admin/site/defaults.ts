@@ -34,7 +34,7 @@ export function siteDefaults(): SiteConfig {
     sections,
     texts: [],
     images: [],
-    media: catalog.products.filter((p) => p.image).map((p) => ({ id: id(), name: p.title, url: p.image, alt: p.title, caption: "", type: "image", size: 0, source: "store" as const, addedAt: "" })),
+    media: (catalog.products as any[]).filter((p) => p && p.image).map((p) => ({ id: id(), name: p.title, url: p.image, alt: p.title, caption: "", type: "image", size: 0, source: "store" as const, addedAt: "" })),
     forms: [
       { id: "newsletter", name: "Newsletter (footer)", where: "Every page footer", title: "STAY CONNECTED", button: "subscribe", success: "", error: "", consent: "", fields: [{ id: id(), key: "email", label: "Email", placeholder: "enter your e-mail", required: true, enabled: true }] },
       { id: "vip-login", name: "VIP login", where: "/account/login", title: "", button: "", success: "", error: "", consent: "", fields: [{ id: id(), key: "email", label: "Email", placeholder: "", required: true, enabled: true }, { id: id(), key: "password", label: "Password", placeholder: "", required: true, enabled: true }] },

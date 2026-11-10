@@ -602,7 +602,8 @@ function EventsManager() {
                       value={prize.label}
                       onChange={(e) => {
                         const newPrizes = [...(loyaltySettings.ball_drop_config?.prizes || [])];
-                        newPrizes[idx] = { ...newPrizes[idx], label: e.target.value };
+                        const cur = newPrizes[idx] || { label: "", weight: 10 };
+                        newPrizes[idx] = { ...cur, label: e.target.value, weight: cur.weight ?? 10 };
                         setLoyaltySettings({
                           ...loyaltySettings,
                           ball_drop_config: { ...loyaltySettings.ball_drop_config, prizes: newPrizes },
@@ -623,7 +624,8 @@ function EventsManager() {
                       value={prize.code || ""}
                       onChange={(e) => {
                         const newPrizes = [...(loyaltySettings.ball_drop_config?.prizes || [])];
-                        newPrizes[idx] = { ...newPrizes[idx], code: e.target.value };
+                        const cur = newPrizes[idx] || { label: "", weight: 10 };
+                        newPrizes[idx] = { ...cur, label: cur.label || "", weight: cur.weight ?? 10, code: e.target.value };
                         setLoyaltySettings({
                           ...loyaltySettings,
                           ball_drop_config: { ...loyaltySettings.ball_drop_config, prizes: newPrizes },
@@ -648,7 +650,8 @@ function EventsManager() {
                         value={prize.weight}
                         onChange={(e) => {
                           const newPrizes = [...(loyaltySettings.ball_drop_config?.prizes || [])];
-                          newPrizes[idx] = { ...newPrizes[idx], weight: Number(e.target.value) || 10 };
+                          const cur = newPrizes[idx] || { label: "", weight: 10 };
+                          newPrizes[idx] = { ...cur, label: cur.label || "", weight: Number(e.target.value) || 10 };
                           setLoyaltySettings({
                             ...loyaltySettings,
                             ball_drop_config: { ...loyaltySettings.ball_drop_config, prizes: newPrizes },

@@ -44,8 +44,8 @@ function CheckoutPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
     discountAmount: number;
-    pointsReward?: number;
-    referrerName?: string;
+    pointsReward?: number | undefined;
+    referrerName?: string | undefined;
   } | null>(null);
   const [couponError, setCouponError] = useState("");
 
@@ -408,7 +408,11 @@ function CheckoutPage() {
         if (isSupabaseConfigured()) {
           for (const it of items) {
             if (it.id && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(it.id)) {
-              supabase.rpc("mark_product_sold", { p_product_id: it.id }).then(() => {}).catch(() => {});
+              void (async () => {
+                try {
+                  await supabase.rpc("mark_product_sold", { p_product_id: it.id });
+                } catch {}
+              })();
             }
           }
         }

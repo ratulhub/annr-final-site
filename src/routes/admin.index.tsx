@@ -32,11 +32,9 @@ function Dashboard() {
   const activeEvents = s.site.events ? s.site.events.filter((e) => e.status === "active").length : 0;
 
   const stats: { k: string; v: string | number; sub: string; to: string; chip?: { text: string; tone: "active" | "info" | "warning" | "purple" } }[] = [
-    { k: "Active products", v: `${activeProducts} of ${s.products.length}`, sub: `${s.products.length - activeProducts} drafts`, to: "/admin/products", chip: { text: "Live", tone: "active" } },
+    { k: "1-of-1 Archival pieces", v: `${s.products.length} pieces`, sub: `${activeProducts} available · ${s.products.filter(p => p.status === "sold").length} sold`, to: "/admin/products", chip: { text: "Archive", tone: "active" } },
+    { k: "Unique Campaign & Drops", v: `${s.campaigns?.length || 1} drops`, sub: `${s.categories?.length || 8} active categories`, to: "/admin/campaigns", chip: { text: "Active", tone: "purple" } },
     { k: "Total revenue", v: `৳${totalRevenue}`, sub: `${s.orders.length} orders placed`, to: "/admin/orders", chip: { text: "+14.8%", tone: "active" } },
-    { k: "Inventory units", v: stock.toLocaleString(), sub: "Across all sizes", to: "/admin/products", chip: { text: "In Stock", tone: "info" } },
-    { k: "Low stock items", v: low.length, sub: low.length > 0 ? "Requires restock" : "All variants stocked", to: "/admin/products", chip: { text: low.length > 0 ? "Alert" : "Optimal", tone: low.length > 0 ? "warning" : "active" } },
-    { k: "Active campaigns", v: activeEvents, sub: "Live store drops", to: "/admin/events", chip: { text: `${activeEvents} Active`, tone: "purple" } },
     { k: "Total customers", v: s.customers.length, sub: `${vipCount} VIP members`, to: "/admin/customers", chip: { text: "Growing", tone: "info" } },
     { k: "Security status", v: "Verified", sub: "OWASP ASVS & RLS ready", to: "/admin/security", chip: { text: "Passing", tone: "active" } },
     { k: "Custom pages", v: s.site.customPages.length, sub: `${s.site.hiddenPages.length} hidden`, to: "/admin/website", chip: { text: "Configured", tone: "info" } },

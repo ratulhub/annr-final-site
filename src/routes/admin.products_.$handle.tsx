@@ -98,12 +98,12 @@ const SIZE_GUIDE_PRESETS: Record<string, StructuredSizeGuide> = {
 
 function detectDefaultPreset(handle: string, title: string): StructuredSizeGuide {
   const s = `${handle} ${title}`.toLowerCase();
-  if (/jean|pant|trouser|cargo|jogger|sweatpant/.test(s)) return SIZE_GUIDE_PRESETS.pants!;
-  if (/short/.test(s)) return SIZE_GUIDE_PRESETS.shorts!;
-  if (/jacket|coat|bomber|vest|workwear|windbreaker/.test(s)) return SIZE_GUIDE_PRESETS.jacket!;
-  if (/hoodie|zip|sweatshirt|fleece/.test(s)) return SIZE_GUIDE_PRESETS.hoodie!;
-  if (/longsleeve|long-sleeve|knit|sweater|crewneck|thermal/.test(s)) return SIZE_GUIDE_PRESETS.longsleeve!;
-  return SIZE_GUIDE_PRESETS.tee!;
+  if (/jean|pant|trouser|cargo|jogger|sweatpant/.test(s)) return SIZE_GUIDE_PRESETS["pants"]!;
+  if (/short/.test(s)) return SIZE_GUIDE_PRESETS["shorts"]!;
+  if (/jacket|coat|bomber|vest|workwear|windbreaker/.test(s)) return SIZE_GUIDE_PRESETS["jacket"]!;
+  if (/hoodie|zip|sweatshirt|fleece/.test(s)) return SIZE_GUIDE_PRESETS["hoodie"]!;
+  if (/longsleeve|long-sleeve|knit|sweater|crewneck|thermal/.test(s)) return SIZE_GUIDE_PRESETS["longsleeve"]!;
+  return SIZE_GUIDE_PRESETS["tee"]!;
 }
 
 function parseSizeChart(raw: string | undefined, handle: string, title: string): StructuredSizeGuide {
@@ -185,9 +185,127 @@ function Edit() {
           <button className="adm-btn danger" onClick={() => { if (confirm("Delete this product?")) { setState((x) => ({ ...x, products: x.products.filter((y) => y.handle !== handle) })); nav({ to: "/admin/products" }); } }}>Delete</button>
         </div>
       </div>
+      <Card title="One-of-One Archival Garment Configuration" subtitle="Configure unique piece code, exact size, hand measurements, campaign and collector status.">
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="adm-grid">
+            <Text label="Piece Code / SKU (e.g. ANNR-U001)" value={p.code || ""} onChange={(v) => up({ code: v.toUpperCase() })} />
+            <label className="adm-field">
+              <span>Category</span>
+              <select
+                value={p.category || "hoodies"}
+                onChange={(e) => up({ category: e.target.value })}
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 4, border: "1px solid var(--p-border-subdued)" }}
+              >
+                {(s.categories || [
+                  { slug: "hoodies", name: "Hoodies" },
+                  { slug: "sweatshirts", name: "Sweatshirts" },
+                  { slug: "trousers", name: "Trousers" },
+                  { slug: "sweaters", name: "Sweaters" },
+                  { slug: "t-shirts", name: "T-Shirts" },
+                  { slug: "jackets", name: "Jackets" },
+                  { slug: "knitwear", name: "Knitwear" },
+                  { slug: "accessories", name: "Accessories" },
+                ]).map((c) => (
+                  <option key={c.slug} value={c.slug}>{c.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="adm-field">
+              <span>Campaign Drop</span>
+              <select
+                value={p.campaign || "unique-campaign"}
+                onChange={(e) => up({ campaign: e.target.value })}
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 4, border: "1px solid var(--p-border-subdued)" }}
+              >
+                <option value="unique-campaign">Unique Campaign (1-of-1 Drop)</option>
+                <option value="none">Standard Category Only</option>
+              </select>
+            </label>
+            <Select
+              label="Archival Status"
+              value={p.status}
+              options={["active", "reserved", "sold", "draft", "archived"]}
+              onChange={(v) => up({ status: v as Product["status"], stock: v === "sold" ? 0 : 1 })}
+            />
+          </div>
+
+          <div className="adm-grid">
+            <Text label="Exact Single Size (e.g. S, M, L, XL, Free Size)" value={p.size || "M"} onChange={(v) => up({ size: v.toUpperCase() })} />
+            <Text label="Fabric Details (e.g. 480 GSM Heavy French Terry)" value={p.fabric || ""} onChange={(v) => up({ fabric: v })} />
+            <Text label="Garment Condition (e.g. 10/10 Deadstock Archival)" value={p.condition || ""} onChange={(v) => up({ condition: v })} />
+            <Text label="Care Instructions (e.g. Cold Hand Wash Only)" value={p.careInstructions || ""} onChange={(v) => up({ careInstructions: v })} />
+          </div>
+
+          <div style={{ background: "#f9fafb", border: "1px solid var(--p-border-subdued)", borderRadius: 6, padding: "14px 16px" }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
+              Garment Exact Flat Measurements (in Centimeters)
+            </div>
+            <p className="adm-hint" style={{ margin: "0 0 12px" }}>
+              Measurements entered here are displayed on the storefront's luxury one-of-one specification table.
+            </p>
+            <div className="adm-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
+              <label className="adm-field">
+                <span>Chest (cm)</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 60"
+                  value={p.measurements?.chest ?? ""}
+                  onChange={(e) => up({ measurements: { ...p.measurements, chest: e.target.value ? Number(e.target.value) : null } })}
+                />
+              </label>
+              <label className="adm-field">
+                <span>Length (cm)</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 72"
+                  value={p.measurements?.length ?? ""}
+                  onChange={(e) => up({ measurements: { ...p.measurements, length: e.target.value ? Number(e.target.value) : null } })}
+                />
+              </label>
+              <label className="adm-field">
+                <span>Shoulder (cm)</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 50"
+                  value={p.measurements?.shoulder ?? ""}
+                  onChange={(e) => up({ measurements: { ...p.measurements, shoulder: e.target.value ? Number(e.target.value) : null } })}
+                />
+              </label>
+              <label className="adm-field">
+                <span>Sleeve (cm)</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 62"
+                  value={p.measurements?.sleeve ?? ""}
+                  onChange={(e) => up({ measurements: { ...p.measurements, sleeve: e.target.value ? Number(e.target.value) : null } })}
+                />
+              </label>
+              <label className="adm-field">
+                <span>Waist (cm)</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 82"
+                  value={p.measurements?.waist ?? ""}
+                  onChange={(e) => up({ measurements: { ...p.measurements, waist: e.target.value ? Number(e.target.value) : null } })}
+                />
+              </label>
+              <label className="adm-field">
+                <span>Inseam (cm)</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 76"
+                  value={p.measurements?.inseam ?? ""}
+                  onChange={(e) => up({ measurements: { ...p.measurements, inseam: e.target.value ? Number(e.target.value) : null } })}
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <Card title="Details"><div className="adm-grid">
         <Text label="Title" value={p.title} onChange={(v) => up({ title: v })} />
-        <Select label="Status" value={p.status} options={["active", "draft", "archived"]} onChange={(v) => up({ status: v as Product["status"] })} />
+        <Select label="Status" value={p.status} options={["active", "reserved", "sold", "draft", "archived"]} onChange={(v) => up({ status: v as Product["status"] })} />
         <Text label="Vendor" value={p.vendor} onChange={(v) => up({ vendor: v })} />
         <Text label="Product type" value={p.type} onChange={(v) => up({ type: v })} />
         <Text label="Tags (comma separated)" value={p.tags} onChange={(v) => up({ tags: v })} />

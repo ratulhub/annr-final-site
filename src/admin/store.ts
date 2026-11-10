@@ -9,11 +9,70 @@ import { supabase, isSupabaseConfigured } from "../lib/supabase";
 // Demo-only admin data layer. Everything lives in the browser (localStorage) until a
 // real database is connected; swap load/save for API calls later.
 export type Variant = { id: string; option: string; sku: string; price: string; stock: number };
+export type Campaign = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  heroImageUrl?: string;
+  heroTitle?: string;
+  heroSubtitle?: string;
+  status: "draft" | "active" | "ended" | "archived";
+  startsAt?: string;
+  endsAt?: string;
+  sortOrder: number;
+};
+export type Category = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  imageUrl?: string;
+  sortOrder: number;
+  visible: boolean;
+};
 export type Product = {
-  handle: string; title: string; description: string; price: string; compareAt: string; currency: string;
-  status: "active" | "draft" | "archived"; vendor: string; type: string; tags: string; images: string[];
-  variants: Variant[]; collections: string[]; seoTitle: string; seoDescription: string; weight: string;
-  badge: string; featured: boolean; trackStock: boolean; allowBackorder: boolean; sizeChart: string;
+  id?: string;
+  handle: string;
+  code?: string;
+  title: string;
+  description: string;
+  price: string;
+  compareAt: string;
+  currency: string;
+  status: "active" | "draft" | "archived" | "reserved" | "sold";
+  vendor: string;
+  type: string;
+  category?: string;
+  campaign?: string;
+  tags: string;
+  images: string[];
+  variants: Variant[];
+  collections: string[];
+  seoTitle: string;
+  seoDescription: string;
+  weight: string;
+  badge: string;
+  featured: boolean;
+  trackStock: boolean;
+  allowBackorder: boolean;
+  sizeChart: string;
+  isOneOfOne?: boolean;
+  size?: string;
+  measurements?: {
+    chest?: number | string | null;
+    length?: number | string | null;
+    shoulder?: number | string | null;
+    sleeve?: number | string | null;
+    waist?: number | string | null;
+    inseam?: number | string | null;
+  };
+  fabric?: string;
+  condition?: string;
+  careInstructions?: string;
+  stock?: number;
+  soldAt?: string;
+  reservedUntil?: string;
 };
 export type Collection = { handle: string; title: string; description: string; image: string; visible: boolean; sort: string; products: string[]; seoTitle: string; seoDescription: string };
 export type Page = { handle: string; title: string; body: string; visible: boolean; seoTitle: string; seoDescription: string };
@@ -23,9 +82,18 @@ export type Discount = { id: string; code: string; type: string; value: string; 
 export type MenuItem = { id: string; label: string; url: string };
 export type AdminUser = { id: string; name: string; email: string; role: string };
 export type State = {
-  products: Product[]; collections: Collection[]; pages: Page[]; orders: Order[]; customers: Customer[];
-  discounts: Discount[]; menus: Record<string, MenuItem[]>; admins: AdminUser[];
-  theme: Record<string, string | boolean>; settings: Record<string, string | boolean>;
+  products: Product[];
+  categories: Category[];
+  campaigns: Campaign[];
+  collections: Collection[];
+  pages: Page[];
+  orders: Order[];
+  customers: Customer[];
+  discounts: Discount[];
+  menus: Record<string, MenuItem[]>;
+  admins: AdminUser[];
+  theme: Record<string, string | boolean>;
+  settings: Record<string, string | boolean>;
   activity: Activity[];
   site: SiteConfig;
 };
@@ -37,18 +105,72 @@ export const uid = () => Math.random().toString(36).slice(2, 9);
 function seed(): State {
   const sizes = ["S", "M", "L", "XL"];
   return {
-    products: catalog.products.map((p) => ({
-      handle: p.handle, title: p.title, description: p.description, price: p.price, compareAt: "",
-      currency: p.currency, status: "active", vendor: "AnnR", type: "", tags: "", images: p.image ? [p.image] : [],
-      variants: (p.sizes.length ? p.sizes : sizes).map((s) => ({ id: uid(), option: s, sku: `${p.handle}-${s}`.toUpperCase(), price: p.price, stock: 10 })),
-      collections: [], seoTitle: p.title, seoDescription: p.description, weight: "0.5", badge: "", featured: false,
-      trackStock: true, allowBackorder: false, sizeChart: "",
+    products: catalog.products.map((p: any) => ({
+      handle: p.handle,
+      code: p.code || `ANNR-${p.handle.toUpperCase()}`,
+      title: p.title,
+      description: p.description,
+      price: p.price,
+      compareAt: "",
+      currency: p.currency,
+      status: "active" as const,
+      vendor: "AnnR",
+      type: p.type || "",
+      category: p.category || "hoodies",
+      campaign: "unique-campaign",
+      tags: "",
+      images: p.image ? [p.image] : [],
+      variants: (p.sizes && p.sizes.length ? p.sizes : sizes).map((s: string) => ({
+        id: uid(),
+        option: s,
+        sku: `${p.handle}-${s}`.toUpperCase(),
+        price: p.price,
+        stock: 1,
+      })),
+      collections: [],
+      seoTitle: p.title,
+      seoDescription: p.description,
+      weight: "0.5",
+      badge: "1 OF 1",
+      featured: false,
+      trackStock: true,
+      allowBackorder: false,
+      sizeChart: "",
+      isOneOfOne: true,
+      size: "M",
+      measurements: { chest: 60, length: 72, shoulder: 50, sleeve: 62 },
+      fabric: "480 GSM French Terry",
+      condition: "10/10 Archival Deadstock",
+      stock: 1,
     })),
+    categories: [
+      { id: uid(), slug: "hoodies", name: "Hoodies", description: "One-of-one heavyweight archival hoodies crafted from luxury custom fabrics.", imageUrl: "", sortOrder: 1, visible: true },
+      { id: uid(), slug: "sweatshirts", name: "Sweatshirts", description: "Unique crewnecks and pullovers with custom cut-and-sew silhouettes.", imageUrl: "", sortOrder: 2, visible: true },
+      { id: uid(), slug: "trousers", name: "Trousers", description: "Architectural trousers, tailored cargo bottoms, and bespoke denim pieces.", imageUrl: "", sortOrder: 3, visible: true },
+      { id: uid(), slug: "sweaters", name: "Sweaters", description: "Heavy knitwear and textured artisanal sweaters.", imageUrl: "", sortOrder: 4, visible: true },
+      { id: uid(), slug: "t-shirts", name: "T-Shirts", description: "Single-edition luxury heavyweight t-shirts with bespoke graphics.", imageUrl: "", sortOrder: 5, visible: true },
+      { id: uid(), slug: "jackets", name: "Jackets", description: "Archival statement jackets, bombers, and structured outerwear.", imageUrl: "", sortOrder: 6, visible: true },
+      { id: uid(), slug: "knitwear", name: "Knitwear", description: "Handcrafted and technical knit garments.", imageUrl: "", sortOrder: 7, visible: true },
+      { id: uid(), slug: "accessories", name: "Accessories", description: "One-off leather goods, flight tags, hats, and hardware.", imageUrl: "", sortOrder: 8, visible: true },
+    ],
+    campaigns: [
+      {
+        id: uid(),
+        slug: "unique-campaign",
+        name: "Unique Campaign",
+        description: "Archival One-of-One Collection. Exactly one piece in existence.",
+        heroImageUrl: "",
+        heroTitle: "Unique Campaign",
+        heroSubtitle: "One of one. When it is gone, it is gone.",
+        status: "active",
+        sortOrder: 1,
+      },
+    ],
     collections: catalog.collections.map((c) => ({ handle: c.handle, title: c.title, description: c.description, image: c.image, visible: true, sort: "manual", products: [], seoTitle: c.title, seoDescription: c.description })),
     pages: catalog.pages.map((p) => ({ handle: p.handle, title: p.title, body: p.description, visible: true, seoTitle: p.title, seoDescription: p.description })),
     orders: [
-      { id: "#1001", date: "2026-10-20", customer: "Arif Hasan", email: "arif@example.com", total: "8,600.00", status: "Unfulfilled", payment: "Paid", items: "Divine Sanctum Tee × 1", address: "Dhaka", note: "" },
-      { id: "#1002", date: "2026-10-22", customer: "Nadia Islam", email: "nadia@example.com", total: "19,600.00", status: "Fulfilled", payment: "Paid", items: "Aka Manto Longsleeve × 2", address: "Chattogram", note: "" },
+      { id: "#1001", date: "2026-10-20", customer: "Arif Hasan", email: "arif@example.com", total: "8,600.00", status: "Unfulfilled", payment: "Paid", items: "Archival One-of-One Piece × 1", address: "Dhaka", note: "" },
+      { id: "#1002", date: "2026-10-22", customer: "Nadia Islam", email: "nadia@example.com", total: "19,600.00", status: "Fulfilled", payment: "Paid", items: "Archival One-of-One Piece × 1", address: "Chattogram", note: "" },
     ],
     customers: [
       { id: uid(), name: "Arif Hasan", email: "arif@example.com", phone: "+8801700000000", orders: 1, points: 86, tier: "Bronze", tags: "", blocked: false },
@@ -56,7 +178,18 @@ function seed(): State {
     ],
     discounts: [{ id: uid(), code: "WELCOME10", type: "percentage", value: "10", minOrder: "0", uses: 0, limit: "", active: true, starts: "", ends: "" }],
     menus: {
-      main: [{ id: uid(), label: "NEW IN", url: "/collections/all/index.html" }, { id: uid(), label: "VAULT", url: "/collections/vault/index.html" }],
+      main: [
+        { id: uid(), label: "UNIQUE CAMPAIGN", url: "/collections/unique-campaign/index.html" },
+        { id: uid(), label: "HOODIES", url: "/collections/hoodies/index.html" },
+        { id: uid(), label: "SWEATSHIRTS", url: "/collections/sweatshirts/index.html" },
+        { id: uid(), label: "TROUSERS", url: "/collections/trousers/index.html" },
+        { id: uid(), label: "SWEATERS", url: "/collections/sweaters/index.html" },
+        { id: uid(), label: "T-SHIRTS", url: "/collections/t-shirts/index.html" },
+        { id: uid(), label: "JACKETS", url: "/collections/jackets/index.html" },
+        { id: uid(), label: "KNITWEAR", url: "/collections/knitwear/index.html" },
+        { id: uid(), label: "ACCESSORIES", url: "/collections/accessories/index.html" },
+        { id: uid(), label: "ALL PIECES", url: "/collections/all/index.html" },
+      ],
       footer: [{ id: uid(), label: "FAQ", url: "/pages/faq/index.html" }, { id: uid(), label: "Shipping", url: "/pages/shipping-policy/index.html" }],
     },
     admins: [{ id: uid(), name: "Ratul", email: "ratul123@gmail.com", role: "super_admin" }],
@@ -104,7 +237,7 @@ function diffList(section: string, a: Record<string, unknown>[], b: Record<strin
 }
 export function diffStates(a: State, b: State): Change[] {
   const out: Change[] = [];
-  for (const sec of ["products", "collections", "pages", "orders", "customers", "discounts", "admins"] as const)
+  for (const sec of ["products", "categories", "campaigns", "collections", "pages", "orders", "customers", "discounts", "admins"] as const)
     if (a[sec] !== b[sec]) diffList(sec, a[sec] || [], b[sec] || [], out);
   if (a.site !== b.site) for (const k of Object.keys({ ...a.site, ...b.site }) as (keyof SiteConfig)[])
     if (JSON.stringify(a.site?.[k]) !== JSON.stringify(b.site?.[k])) out.push({ section: "website", action: "updated", item: k, fields: "draft" });

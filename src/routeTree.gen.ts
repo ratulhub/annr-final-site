@@ -17,6 +17,8 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as VipRouteImport } from './routes/vip'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminActivityRouteImport } from './routes/admin.activity'
+import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
+import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminCollectionsRouteImport } from './routes/admin.collections'
 import { Route as AdminContentRouteImport } from './routes/admin.content'
 import { Route as AdminCustomersRouteImport } from './routes/admin.customers'
@@ -82,6 +84,16 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminActivityRoute = AdminActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminCollectionsRoute = AdminCollectionsRouteImport.update({
@@ -223,6 +235,8 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/vip': typeof VipRoute
   '/admin/activity': typeof AdminActivityRoute
+  '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/collections': typeof AdminCollectionsRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
@@ -258,6 +272,8 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/vip': typeof VipRoute
   '/admin/activity': typeof AdminActivityRoute
+  '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/collections': typeof AdminCollectionsRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
@@ -295,6 +311,8 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/vip': typeof VipRoute
   '/admin/activity': typeof AdminActivityRoute
+  '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/collections': typeof AdminCollectionsRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRoute
@@ -333,6 +351,8 @@ export interface FileRouteTypes {
     | '/search'
     | '/vip'
     | '/admin/activity'
+    | '/admin/campaigns'
+    | '/admin/categories'
     | '/admin/collections'
     | '/admin/content'
     | '/admin/customers'
@@ -368,6 +388,8 @@ export interface FileRouteTypes {
     | '/search'
     | '/vip'
     | '/admin/activity'
+    | '/admin/campaigns'
+    | '/admin/categories'
     | '/admin/collections'
     | '/admin/content'
     | '/admin/customers'
@@ -404,6 +426,8 @@ export interface FileRouteTypes {
     | '/search'
     | '/vip'
     | '/admin/activity'
+    | '/admin/campaigns'
+    | '/admin/categories'
     | '/admin/collections'
     | '/admin/content'
     | '/admin/customers'
@@ -499,6 +523,20 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/admin/activity'
       preLoaderRoute: typeof AdminActivityRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/campaigns': {
+      id: '/admin/campaigns'
+      path: '/campaigns'
+      fullPath: '/admin/campaigns'
+      preLoaderRoute: typeof AdminCampaignsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/categories': {
+      id: '/admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AdminCategoriesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/collections': {
@@ -688,6 +726,8 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminActivityRoute: typeof AdminActivityRoute
+  AdminCampaignsRoute: typeof AdminCampaignsRoute
+  AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminCollectionsRoute: typeof AdminCollectionsRoute
   AdminContentRoute: typeof AdminContentRoute
   AdminCustomersRoute: typeof AdminCustomersRoute
@@ -718,6 +758,8 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminActivityRoute: AdminActivityRoute,
+  AdminCampaignsRoute: AdminCampaignsRoute,
+  AdminCategoriesRoute: AdminCategoriesRoute,
   AdminCollectionsRoute: AdminCollectionsRoute,
   AdminContentRoute: AdminContentRoute,
   AdminCustomersRoute: AdminCustomersRoute,

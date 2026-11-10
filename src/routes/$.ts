@@ -205,7 +205,7 @@ function buildPredictiveSearchHtml(query: string): string {
     const code = String(p["code"] || "");
     const size = String(p["size"] || "");
     const hay = `${p["title"] || ""} ${p["description"] || ""} ${p["handle"] || ""} ${p["type"] || ""} ${code} ${size} ${p["tags"] || ""} ${p["id"] || ""} ${skus} ${variants}`.toLowerCase();
-    return terms.every((t, i) => hay.includes(t) || hay.includes(rawTerms[i]));
+    return terms.every((t, i) => hay.includes(t) || Boolean(rawTerms[i] && hay.includes(rawTerms[i]!)));
   }).slice(0, 10);
 
   if (!matches.length) {
