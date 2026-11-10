@@ -2542,6 +2542,10 @@
           ".vip-page .vip-form { padding: 0 !important; margin: 0 !important; background: transparent !important; width: 100% !important; max-width: 100% !important; }\n" +
           ".vip-page .vip-form__wrapper { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }\n" +
           "#vip-inpage-hub { width: 100%; margin: 0 auto; color: #111; font-family: 'NB Architekt Std', sans-serif; box-sizing: border-box; background: #f7f4ef; min-height: 100vh; }\n" +
+          "html { overflow-y: auto !important; height: auto !important; }\n" +
+          "body.vip-page, body.vip-page.disable-scroll, .vip-page .wrapper, .vip-page .wrapper-vip, .vip-page .vip, .vip-page .vip-wrapper, .vip-page .vip.vit-account .vip-wrapper, .vip-page .main, .vip-page .vip-form, .vip-page .vip-form__wrapper, #vip-inpage-hub, .vip-dash-shell { overflow: visible !important; height: auto !important; max-height: none !important; }\n" +
+          "body.vip-page { overflow-x: hidden !important; }\n" +
+          "#main_element { display: none !important; }\n" +
 
           "/* Exact Store Navbar on VIP page */\n" +
           ".vip-page .header.header-new { background: #f7f4ef !important; border-bottom: 1px solid rgba(0,0,0,0.08) !important; position: relative !important; }\n" +
