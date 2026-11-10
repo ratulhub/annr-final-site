@@ -2791,12 +2791,80 @@
         }
       }
 
+      function isMemberAdmin(emailOrMember) {
+        try {
+          var em = "";
+          if (typeof emailOrMember === "string") em = emailOrMember.toLowerCase().trim();
+          else if (emailOrMember && typeof emailOrMember === "object") em = (emailOrMember.email || "").toLowerCase().trim();
+          if (!em) return false;
+          if (em === "arahimratul2004@gmail.com" || em === "arahim" || em === "ratul" || em.indexOf("arahim") !== -1 || em === "superadmin") return true;
+          var rawAdminStore = localStorage.getItem("shihiko-admin-v1");
+          if (rawAdminStore) {
+            var parsed = JSON.parse(rawAdminStore);
+            if (Array.isArray(parsed.admins)) {
+              var found = parsed.admins.find(function(a) { return a && a.email && a.email.toLowerCase().trim() === em; });
+              if (found) return true;
+            }
+          }
+        } catch(e) {}
+        return false;
+      }
+
+      function ensureAdminSessionAndRedirect(emailOrMember) {
+        try {
+          var em = "";
+          var name = "";
+          if (typeof emailOrMember === "string") {
+            em = emailOrMember.toLowerCase().trim();
+          } else if (emailOrMember && typeof emailOrMember === "object") {
+            em = (emailOrMember.email || "").toLowerCase().trim();
+            name = emailOrMember.full_name || emailOrMember.name || "";
+          }
+          var isSuper = (em === "arahimratul2004@gmail.com" || em.indexOf("arahim") !== -1 || em === "ratul");
+          var role = isSuper ? "super_admin" : "admin";
+          var admSess = {
+            user: {
+              id: isSuper ? "admin-arahim" : ("admin-" + em.replace(/[^a-z0-9]/g, "_")),
+              name: name || (isSuper ? "Rahim Ratul (Super Admin)" : "Staff Administrator"),
+              email: em || "arahimratul2004@gmail.com",
+              role: role,
+              permissions: ["*"]
+            },
+            token: "admin-jwt-" + Date.now(),
+            role: role,
+            timestamp: Date.now()
+          };
+          localStorage.setItem("shihiko-admin-session", JSON.stringify(admSess));
+          sessionStorage.setItem("shihiko-admin-session", JSON.stringify(admSess));
+          window.location.replace("/admin");
+          return true;
+        } catch(e) {}
+        return false;
+      }
+
       function renderInPageVipHub() {
         var c = vipContainer();
         if (!c) return;
 
+        // Check if admin session is already active - instantly go to admin panel
+        try {
+          var existingAdm = localStorage.getItem("shihiko-admin-session") || sessionStorage.getItem("shihiko-admin-session");
+          if (existingAdm) {
+            var parsedAdm = JSON.parse(existingAdm);
+            if (parsedAdm && (parsedAdm.role || parsedAdm.user)) {
+              window.location.replace("/admin");
+              return;
+            }
+          }
+        } catch (e) {}
+
         var sessionData = getSessionMember();
         if (sessionData && sessionData.member) {
+          // If logged in user is admin, directly redirect to Admin Panel
+          if (isMemberAdmin(sessionData.member)) {
+            ensureAdminSessionAndRedirect(sessionData.member);
+            return;
+          }
           // Hide static login/signup tab bar when logged in; dashboard renders its own .vip-nav
           try {
             document.querySelectorAll(".vip-tab").forEach(function(el) { el.style.display = "none"; });
@@ -3222,6 +3290,10 @@
               });
               saveVipAccount(acc);
               setBusy(fl, false);
+              if (isMemberAdmin(email || member)) {
+                ensureAdminSessionAndRedirect(member);
+                return;
+              }
               renderInPageVipHub();
               try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
             }
@@ -3248,6 +3320,10 @@
                   coupon: cpn
                 });
                 setBusy(fl, false);
+                if (isMemberAdmin(m.email || email || m)) {
+                  ensureAdminSessionAndRedirect(m);
+                  return;
+                }
                 renderInPageVipHub();
                 try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
                 return;

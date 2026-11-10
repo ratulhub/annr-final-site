@@ -105,7 +105,7 @@
     }
 
     // 2. Fetch live products from Supabase
-    var endpoint = SUPABASE_URL + "/rest/v1/products?select=id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,care_instructions,category_id,campaign_id,stock,reserved_until,images,categories(id,slug,name),campaigns(id,slug,name,title)&order=created_at.desc";
+    var endpoint = SUPABASE_URL + "/rest/v1/products?select=id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,stock,reserved_until,images,category_id,campaign_id,created_at&order=created_at.desc";
 
     fetch(endpoint, {
       headers: {
@@ -133,9 +133,9 @@
               condition: p.condition || "10/10 Archival",
               careInstructions: p.care_instructions || "",
               categoryId: p.category_id,
-              categorySlug: p.categories ? p.categories.slug : "",
+              categorySlug: "",
               campaignId: p.campaign_id,
-              campaignSlug: p.campaigns ? p.campaigns.slug : "",
+              campaignSlug: "",
               images: p.images && p.images.length ? p.images : ["/cdn/shop/t/75/assets/image_logo.svg"],
               stock: typeof p.stock === "number" ? p.stock : 1,
               reservedUntil: p.reserved_until,
@@ -175,6 +175,79 @@
 
       var priceEl = document.querySelector(".price-item--regular, .product-price .money, [data-product-price]");
       if (priceEl) priceEl.innerHTML = "Tk " + formatMoney(prod.price) + "<span class='money-currency-code'> BDT</span>";
+
+      // Update Product Images in Carousel & Thumbnails
+      if (prod.images && prod.images.length > 0) {
+        var mainWrapper = document.querySelector(".product-gallery-carousel .swiper-wrapper");
+        var thumbWrapper = document.querySelector(".product-gallery-thumb-carousel .swiper-wrapper");
+        if (mainWrapper) {
+          var mainSlides = "";
+          var thumbSlides = "";
+          prod.images.forEach(function (imgSrc, idx) {
+            mainSlides +=
+              "<div class='swiper-slide' data-media-id='" + idx + "'>" +
+                "<div class='carousel-item' style='aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;background:#faf8f4;overflow:hidden;'>" +
+                  "<img src='" + esc(imgSrc) + "' alt='" + esc(prod.title) + " - View " + (idx + 1) + "' onerror=\"this.src='/cdn/shop/t/75/assets/image_logo.svg'\" style='width:100%;height:100%;object-fit:cover;' loading='" + (idx === 0 ? "eager" : "lazy") + "'>" +
+                "</div>" +
+              "</div>";
+
+            thumbSlides +=
+              "<div class='swiper-slide prod-thumb-slide " + (idx === 0 ? "swiper-slide-thumb-active" : "") + "'>" +
+                "<div class='carousel-thumb-item' style='width:64px;height:64px;overflow:hidden;border:1.5px solid " + (idx === 0 ? "#111" : "#e6e1d7") + ";background:#fff;cursor:pointer;'>" +
+                  "<img src='" + esc(imgSrc) + "' alt='Thumbnail " + (idx + 1) + "' onerror=\"this.src='/cdn/shop/t/75/assets/image_logo.svg'\" style='width:100%;height:100%;object-fit:cover;'>" +
+                "</div>" +
+              "</div>";
+          });
+          mainWrapper.innerHTML = mainSlides;
+          if (thumbWrapper) thumbWrapper.innerHTML = thumbSlides;
+
+          var mainCarouselEl = document.querySelector(".product-gallery-carousel");
+          var thumbCarouselEl = document.querySelector(".product-gallery-thumb-carousel");
+          if (mainCarouselEl && mainCarouselEl.swiper) {
+            try { mainCarouselEl.swiper.update(); mainCarouselEl.swiper.slideTo(0); } catch(e) {}
+          }
+          if (thumbCarouselEl && thumbCarouselEl.swiper) {
+            try { thumbCarouselEl.swiper.update(); thumbCarouselEl.swiper.slideTo(0); } catch(e) {}
+          }
+
+          if (thumbWrapper) {
+            thumbWrapper.querySelectorAll(".prod-thumb-slide").forEach(function (th, tIdx) {
+              th.onclick = function () {
+                if (mainCarouselEl && mainCarouselEl.swiper) {
+                  try { mainCarouselEl.swiper.slideTo(tIdx); } catch(e) {}
+                }
+                var allMain = mainWrapper.querySelectorAll(".swiper-slide");
+                allMain.forEach(function (ms, mIdx) {
+                  ms.style.display = (mIdx === tIdx) ? "block" : "none";
+                });
+                thumbWrapper.querySelectorAll(".prod-thumb-slide").forEach(function (s) {
+                  s.classList.remove("swiper-slide-thumb-active");
+                  var cti = s.querySelector(".carousel-thumb-item");
+                  if (cti) cti.style.borderColor = "#e6e1d7";
+                });
+                th.classList.add("swiper-slide-thumb-active");
+                var activeCti = th.querySelector(".carousel-thumb-item");
+                if (activeCti) activeCti.style.borderColor = "#111";
+              };
+            });
+          }
+        }
+
+        var allImgs = document.querySelectorAll(".product-gallery img, .product__media img, .product-media img");
+        if (allImgs.length > 0 && prod.images[0]) {
+          allImgs.forEach(function (im, i) {
+            if (im.closest && im.closest(".product-info-save-button")) return;
+            var targetSrc = prod.images[i] || prod.images[0];
+            im.src = targetSrc;
+            if (im.srcset) im.removeAttribute("srcset");
+          });
+        }
+
+        var ogImg = document.querySelector("meta[property='og:image']");
+        if (ogImg && prod.images[0]) ogImg.setAttribute("content", prod.images[0]);
+        var twImg = document.querySelector("meta[name='twitter:image']");
+        if (twImg && prod.images[0]) twImg.setAttribute("content", prod.images[0]);
+      }
 
       // Replace Size Selector with 1-of-1 Archival Badge & Measurement Table
       var variantArea = document.querySelector("variant-buttons, variant-radios, .product-form__variants, .size-selector, .product-info-size-selector");
@@ -404,8 +477,8 @@
                 "<div class='annr-card-one-badge'>1 OF 1 · SIZE " + esc(p.size) + "</div>" +
                 (isSold ? "<div class='annr-card-sold-overlay'><div class='annr-card-sold-tag'>SOLD / ARCHIVED</div></div>" : "") +
                 "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(p.title) + "'>" +
-                  "<img src='" + esc(img) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy'>" +
-                  (img2 && img2 !== img ? "<img src='" + esc(img2) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy'>" : "") +
+                  "<img src='" + esc(img) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy' onerror=\"this.src='/cdn/shop/t/75/assets/image_logo.svg'\">" +
+                  (img2 && img2 !== img ? "<img src='" + esc(img2) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy' onerror=\"this.src='/cdn/shop/t/75/assets/image_logo.svg'\">" : "") +
                 "</a>" +
               "</div>" +
               "<div style='padding-top:10px'>" +

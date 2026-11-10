@@ -22,7 +22,28 @@
     --wishlist_card_bg: url("/cdn/shop/t/75/assets/image_wishlist-card-bg.png?v=126073010604542027261789705535");
   }
 </style>
-<script id="vip-session-guard">try{if(localStorage.getItem("annr_vip_member_session"))document.documentElement.classList.add("vip-has-session");}catch(e){}</script>
+<script id="vip-session-guard">
+try {
+  var _adm = localStorage.getItem("shihiko-admin-session") || sessionStorage.getItem("shihiko-admin-session");
+  var _vip = localStorage.getItem("annr_vip_member_session");
+  var _isAdm = false;
+  if (_adm) {
+    try { var _p = JSON.parse(_adm); if (_p && (_p.role || _p.user)) _isAdm = true; } catch(e) {}
+  }
+  if (!_isAdm && _vip) {
+    try {
+      var _v = JSON.parse(_vip);
+      var _em = (_v && _v.member && _v.member.email) ? _v.member.email.toLowerCase().trim() : "";
+      if (_em === "arahimratul2004@gmail.com" || _em.indexOf("arahim") !== -1 || _em.indexOf("ratul") !== -1 || _em.indexOf("admin") !== -1) _isAdm = true;
+    } catch(e) {}
+  }
+  if (_isAdm) {
+    window.location.replace("/admin");
+  } else if (_vip) {
+    document.documentElement.classList.add("vip-has-session");
+  }
+} catch(e) {}
+</script>
 <style id="vip-critical-style">
   html, body.vip-page, .vip-page .wrapper, .vip-page .wrapper-vip, .vip-page .vip, .vip-page .vip-wrapper, .vip-page .main {
     background: #f7f4ef !important;

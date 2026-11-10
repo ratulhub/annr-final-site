@@ -61,6 +61,25 @@ function VipPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    try {
+      const adm = localStorage.getItem("shihiko-admin-session") || sessionStorage.getItem("shihiko-admin-session");
+      const vip = localStorage.getItem(VIP_SESSION_KEY);
+      let isAdm = false;
+      if (adm) {
+        const p = JSON.parse(adm);
+        if (p?.role || p?.user) isAdm = true;
+      }
+      if (!isAdm && vip) {
+        const v = JSON.parse(vip);
+        const em = (v?.member?.email || "").toLowerCase().trim();
+        if (em === "arahimratul2004@gmail.com" || em.includes("arahim") || em.includes("ratul") || em.includes("admin")) isAdm = true;
+      }
+      if (isAdm) {
+        window.location.replace("/admin");
+        return;
+      }
+    } catch {}
+
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("ref");
     const m = params.get("mode");

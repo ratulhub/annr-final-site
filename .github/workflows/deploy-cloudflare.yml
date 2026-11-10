@@ -30,10 +30,17 @@ jobs:
         run: npm run build
 
       - name: Deploy to Cloudflare Workers
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.160.0"
           command: deploy
+
+      - name: Cloudflare Deployment Status Notice
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' }}
+        run: |
+          echo "::notice title=Cloudflare Deployment::Build and all tests passed successfully! To enable automatic deployment to your live Cloudflare domain on git push, configure CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in your GitHub Repository Secrets (Settings -> Secrets and variables -> Actions)."
+
 

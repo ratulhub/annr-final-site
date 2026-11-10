@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { setState, uid, useAdmin, type Product } from "../admin/store";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { publish, setState, uid, useAdmin, type Product } from "../admin/store";
 import { BackBtn } from "../admin/ui";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/products")({ component: Products });
 
@@ -15,6 +16,90 @@ function Products() {
   const [category, setCategory] = useState("all");
   const [campaign, setCampaign] = useState("all");
   const [page, setPage] = useState(1);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+
+  const syncFromSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured()) return;
+    setSyncing(true);
+    setSyncMsg("");
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.warn("Could not sync products from Supabase:", error);
+        setSyncMsg("Sync failed: " + error.message);
+        return;
+      }
+
+      if (Array.isArray(data) && data.length > 0) {
+        setState((current) => {
+          const map = new Map<string, Product>();
+          // Add local ones first
+          for (const lp of current.products) {
+            map.set(lp.handle, lp);
+          }
+          // Merge or add from Supabase
+          for (const sp of data) {
+            const existing = map.get(sp.handle);
+            const merged: Product = {
+              handle: sp.handle,
+              code: sp.code || existing?.code || "ANNR-U001",
+              title: sp.title || existing?.title || "1-of-1 Piece",
+              description: sp.description || existing?.description || "",
+              price: sp.price != null ? String(sp.price) : existing?.price || "0.00",
+              compareAt: sp.compare_at_price != null ? String(sp.compare_at_price) : existing?.compareAt || "",
+              currency: sp.currency || existing?.currency || "BDT",
+              status: sp.status || existing?.status || "active",
+              vendor: sp.vendor || existing?.vendor || "AnnR",
+              type: sp.product_type || existing?.type || "Hoodie",
+              category: existing?.category || "hoodies",
+              campaign: existing?.campaign || "unique-campaign",
+              tags: Array.isArray(sp.tags) ? sp.tags.join(", ") : existing?.tags || "1-of-1, archival",
+              images: Array.isArray(sp.images) && sp.images.length > 0 ? sp.images : existing?.images || [],
+              variants: existing?.variants || [{ id: uid(), option: sp.size || "M", sku: sp.code || "ANNR-U", price: String(sp.price || "0.00"), stock: sp.stock ?? 1 }],
+              collections: existing?.collections || ["unique-campaign", "hoodies"],
+              seoTitle: sp.seo_title || existing?.seoTitle || "",
+              seoDescription: sp.seo_description || existing?.seoDescription || "",
+              weight: existing?.weight || "0.6",
+              badge: existing?.badge || "1 OF 1",
+              featured: existing?.featured || false,
+              trackStock: true,
+              allowBackorder: false,
+              sizeChart: existing?.sizeChart || "",
+              isOneOfOne: true,
+              size: sp.size || existing?.size || "M",
+              measurements: sp.measurements || existing?.measurements || { chest: 60, length: 72, shoulder: 50, sleeve: 62 },
+              fabric: sp.fabric || existing?.fabric || "480 GSM French Terry",
+              condition: sp.condition || existing?.condition || "10/10 Deadstock Archival",
+              careInstructions: sp.care_instructions || existing?.careInstructions || "Cold Hand Wash Only",
+              stock: sp.stock ?? 1,
+            };
+            map.set(sp.handle, merged);
+          }
+          return { ...current, products: Array.from(map.values()) };
+        });
+        setSyncMsg(`✓ Synced ${data.length} products from Supabase`);
+        setTimeout(() => setSyncMsg(""), 3000);
+        try { publish(); } catch {}
+      } else {
+        setSyncMsg("✓ Connected to Supabase (0 products in remote DB)");
+        setTimeout(() => setSyncMsg(""), 3000);
+      }
+    } catch (err) {
+      console.warn("Supabase products sync error:", err);
+      setSyncMsg("Sync error");
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void syncFromSupabase();
+  }, [syncFromSupabase]);
 
   const categories = s.categories || [
     { slug: "hoodies", name: "Hoodies" },
@@ -132,7 +217,19 @@ function Products() {
             </p>
           </div>
         </div>
-        <div className="adm-row">
+        <div className="adm-row" style={{ gap: 8 }}>
+          {syncMsg && (
+            <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>{syncMsg}</span>
+          )}
+          <button
+            type="button"
+            className="adm-btn ghost"
+            disabled={syncing}
+            onClick={() => void syncFromSupabase()}
+            title="Fetch latest products directly from Supabase database"
+          >
+            {syncing ? "Syncing..." : "⚡ Sync with Database"}
+          </button>
           <button className="adm-btn primary" onClick={add}>
             + Add 1-of-1 Product
           </button>

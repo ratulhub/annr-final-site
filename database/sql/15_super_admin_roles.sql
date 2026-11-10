@@ -267,6 +267,21 @@ create policy "user_roles_super_admin_manage" on public.user_roles
   using (public.is_super_admin())
   with check (public.is_super_admin());
 
+-- Step 12: Catalog Permissions & 1-of-1 Columns Update
+alter table public.products add column if not exists care_instructions text;
+alter table public.products add column if not exists is_one_of_one boolean default true;
+
+drop policy if exists products_select_public on public.products;
+create policy products_select_public on public.products
+  for select to anon, authenticated
+  using (status in ('active', 'reserved', 'sold') or public.has_permission('catalog.read') or public.is_super_admin());
+
+drop policy if exists products_write_staff on public.products;
+create policy products_write_staff on public.products
+  for all to authenticated
+  using (public.has_permission('catalog.write') or public.is_super_admin())
+  with check (public.has_permission('catalog.write') or public.is_super_admin());
+
 -- Verification output
 select
   u.email,
@@ -274,3 +289,5 @@ select
   ur.granted_at
 from public.user_roles ur
 join auth.users u on u.id = ur.user_id;
+
+

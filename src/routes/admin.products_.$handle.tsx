@@ -4,6 +4,7 @@ import { setState, publish, useAdmin, type Product, type Variant } from "../admi
 import { Area, BackBtn, Card, RowList, Select, Text, Toggle } from "../admin/ui";
 import { storeFile } from "../admin/services/media";
 import { safeImageUrl } from "../admin/security/sanitize";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/products_/$handle")({ component: Edit });
 
@@ -134,15 +135,21 @@ function Edit() {
   const nav = useNavigate();
   const p = s.products.find((x) => x.handle === handle);
   const [img, setImg] = useState("");
+  const [bulkImg, setBulkImg] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
   const [imgErr, setImgErr] = useState("");
   const [publishedToast, setPublishedToast] = useState(false);
 
   if (!p) return <p>Product not found. <Link className="link" to="/admin/products">Back</Link></p>;
 
+  const isUuid = (v?: string | null) =>
+    Boolean(v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v));
+
   const up = (patch: Partial<Product>) => {
+    const nextProduct = { ...p, ...patch };
     setState((x) => ({
       ...x,
-      products: x.products.map((y) => (y.handle === handle ? { ...y, ...patch } : y)),
+      products: x.products.map((y) => (y.handle === handle ? nextProduct : y)),
     }));
     // Auto-publish product changes so storefront reflects updates immediately
     setTimeout(() => {
@@ -150,6 +157,46 @@ function Edit() {
         publish();
       } catch {}
     }, 30);
+
+    // Sync directly to Supabase if configured
+    if (isSupabaseConfigured()) {
+      void (async () => {
+        try {
+          const payload: Record<string, unknown> = {
+            handle: nextProduct.handle,
+            title: nextProduct.title,
+            description: nextProduct.description,
+            price: parseFloat(nextProduct.price) || 0,
+            compare_at_price: nextProduct.compareAt ? parseFloat(nextProduct.compareAt) : null,
+            currency: nextProduct.currency || "BDT",
+            images: nextProduct.images || [],
+            status: nextProduct.status || "active",
+            code: nextProduct.code || null,
+            size: nextProduct.size || null,
+            measurements: nextProduct.measurements || {},
+            fabric: nextProduct.fabric || null,
+            condition: nextProduct.condition || null,
+            care_instructions: nextProduct.careInstructions || null,
+            stock: nextProduct.stock ?? 1,
+            updated_at: new Date().toISOString(),
+          };
+
+          if (isUuid(nextProduct.category)) {
+            payload["category_id"] = nextProduct.category;
+          }
+          if (isUuid(nextProduct.campaign)) {
+            payload["campaign_id"] = nextProduct.campaign;
+          }
+
+          const { error } = await supabase.from("products").upsert(payload, { onConflict: "handle" });
+          if (error) {
+            console.warn("Supabase products upsert notice:", error.message);
+          }
+        } catch (err) {
+          console.warn("Could not sync product to Supabase:", err);
+        }
+      })();
+    }
   };
 
   const toggleCol = (h: string) =>
@@ -500,27 +547,283 @@ function Edit() {
         <Select label="Currency" value={p.currency} options={["BDT", "USD", "EUR", "INR"]} onChange={(v) => up({ currency: v })} />
         <Text label="Weight (kg)" value={p.weight} onChange={(v) => up({ weight: v })} />
       </div></Card>
-      <Card title="Images">
-        <div className="adm-thumbs">{p.images.map((src, i) => (
-          <div key={src + i}><img src={src} alt="" /><button onClick={() => up({ images: p.images.filter((_, j) => j !== i) })}>✕</button>
-            {i > 0 && <button style={{ left: 2, right: "auto" }} onClick={() => { const a = [...p.images]; const tmp = a[i - 1]!; a[i - 1] = a[i]!; a[i] = tmp; up({ images: a }); }}>←</button>}
-          </div>))}
+      <Card
+        title={`Product Photography & Gallery (${p.images.length})`}
+        subtitle="Manage 1-of-1 archival piece photos. The primary cover photo is shown on cards and first in the detail page carousel."
+      >
+        {p.images.length === 0 ? (
+          <div style={{ padding: "20px", textAlign: "center", border: "1px dashed #d1d5db", borderRadius: 6, color: "#6b7280" }}>
+            No photos added yet. Paste image URLs below or upload photos.
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            {p.images.map((src, i) => (
+              <div
+                key={src + i}
+                style={{
+                  position: "relative",
+                  borderRadius: 6,
+                  overflow: "hidden",
+                  border: i === 0 ? "2px solid #111" : "1px solid #e5e7eb",
+                  background: "#fafafa",
+                  boxShadow: i === 0 ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
+                }}
+              >
+                <div style={{ aspectRatio: "1/1", width: "100%", overflow: "hidden", position: "relative" }}>
+                  <img
+                    src={src}
+                    alt={`Photo ${i + 1}`}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "/cdn/shop/t/75/assets/image_logo.svg";
+                    }}
+                  />
+                  {i === 0 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 4,
+                        left: 4,
+                        background: "#111",
+                        color: "#fff",
+                        fontFamily: "'FK Grotesk SemiMono', monospace",
+                        fontSize: 9,
+                        fontWeight: 700,
+                        padding: "2px 6px",
+                        borderRadius: 3,
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      ★ COVER
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    title="Remove Photo"
+                    onClick={() => up({ images: p.images.filter((_, j) => j !== i) })}
+                    style={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      width: 22,
+                      height: 22,
+                      borderRadius: 11,
+                      background: "rgba(0,0,0,0.6)",
+                      color: "#fff",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div
+                  style={{
+                    padding: "6px 8px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "#fff",
+                    borderTop: "1px solid #f3f4f6",
+                  }}
+                >
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {i > 0 && (
+                      <button
+                        type="button"
+                        title="Move left"
+                        className="adm-btn ghost sm"
+                        style={{ padding: "2px 6px", fontSize: 11 }}
+                        onClick={() => {
+                          const a = [...p.images];
+                          const tmp = a[i - 1]!;
+                          a[i - 1] = a[i]!;
+                          a[i] = tmp;
+                          up({ images: a });
+                        }}
+                      >
+                        ←
+                      </button>
+                    )}
+                    {i < p.images.length - 1 && (
+                      <button
+                        type="button"
+                        title="Move right"
+                        className="adm-btn ghost sm"
+                        style={{ padding: "2px 6px", fontSize: 11 }}
+                        onClick={() => {
+                          const a = [...p.images];
+                          const tmp = a[i + 1]!;
+                          a[i + 1] = a[i]!;
+                          a[i] = tmp;
+                          up({ images: a });
+                        }}
+                      >
+                        →
+                      </button>
+                    )}
+                  </div>
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      className="adm-btn ghost sm"
+                      style={{ padding: "2px 6px", fontSize: 10, fontWeight: 600, color: "#e05a2b" }}
+                      onClick={() => {
+                        const target = p.images[i]!;
+                        const rest = p.images.filter((_, j) => j !== i);
+                        up({ images: [target, ...rest] });
+                      }}
+                    >
+                      Make Cover
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+          {/* Single URL or Upload */}
+          <div className="adm-row" style={{ flexWrap: "wrap", gap: 8 }}>
+            <input
+              placeholder="Paste Photo URL (e.g. Supabase Storage link or HTTPS URL)"
+              value={img}
+              onChange={(e) => {
+                setImg(e.target.value);
+                setImgErr("");
+              }}
+              style={{ flex: 1, minWidth: 260 }}
+            />
+            <button
+              type="button"
+              className="adm-btn primary sm"
+              onClick={() => {
+                const clean = safeImageUrl(img.trim());
+                if (!clean) {
+                  setImgErr("Enter a valid / or https:// image URL (SVG is not allowed).");
+                  return;
+                }
+                setImgErr("");
+                up({ images: [...p.images, clean] });
+                setImg("");
+              }}
+            >
+              + Add URL
+            </button>
+            <label className="adm-btn ghost sm">
+              Upload File
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  setImgErr("");
+                  try {
+                    const url = await storeFile(f);
+                    up({ images: [...p.images, url] });
+                  } catch (err) {
+                    setImgErr((err as Error).message);
+                  }
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              className="adm-btn ghost sm"
+              onClick={() => setShowBulk(!showBulk)}
+            >
+              {showBulk ? "Hide Bulk Input" : "📂 Bulk Add Photo Links"}
+            </button>
+          </div>
+
+          {/* Bulk Paste Area */}
+          {showBulk && (
+            <div
+              style={{
+                background: "#f9fafb",
+                border: "1px solid #e5e7eb",
+                borderRadius: 6,
+                padding: "14px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: 13 }}>
+                Bulk Photo Link Ingestion (Paste multiple Supabase DB URLs)
+              </div>
+              <p className="adm-hint" style={{ margin: 0 }}>
+                Paste one URL per line or separated by commas. Each valid image link will be added to the gallery.
+              </p>
+              <textarea
+                rows={4}
+                placeholder="https://aooydxydkyjtulhduexa.supabase.co/storage/v1/object/public/...&#10;https://..."
+                value={bulkImg}
+                onChange={(e) => setBulkImg(e.target.value)}
+                style={{
+                  width: "100%",
+                  fontFamily: "monospace",
+                  fontSize: 12,
+                  padding: 8,
+                  borderRadius: 4,
+                  border: "1px solid #d1d5db",
+                }}
+              />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className="adm-btn primary sm"
+                  onClick={() => {
+                    const lines = bulkImg
+                      .split(/[\n,;]+/)
+                      .map((x) => x.trim())
+                      .filter(Boolean);
+                    const validUrls: string[] = [];
+                    for (const l of lines) {
+                      const clean = safeImageUrl(l);
+                      if (clean && !p.images.includes(clean)) {
+                        validUrls.push(clean);
+                      }
+                    }
+                    if (validUrls.length === 0) {
+                      setImgErr("No valid new image URLs found to add.");
+                      return;
+                    }
+                    setImgErr("");
+                    up({ images: [...p.images, ...validUrls] });
+                    setBulkImg("");
+                    setShowBulk(false);
+                  }}
+                >
+                  Add All Photo URLs ({bulkImg.split(/[\n,;]+/).filter((x) => x.trim()).length})
+                </button>
+                <button
+                  type="button"
+                  className="adm-btn ghost sm"
+                  onClick={() => setBulkImg("")}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
+          {imgErr && <div className="adm-err">{imgErr}</div>}
         </div>
-        <div className="adm-row" style={{ marginTop: 12 }}>
-          <input placeholder="Image URL" value={img} onChange={(e) => { setImg(e.target.value); setImgErr(""); }} style={{ maxWidth: 400 }} />
-          <button className="adm-btn ghost" onClick={() => {
-            const clean = safeImageUrl(img);
-            if (!clean) { setImgErr("Enter a valid / or https:// image URL (SVG is not allowed)."); return; }
-            setImgErr(""); up({ images: [...p.images, clean] }); setImg("");
-          }}>Add URL</button>
-          <label className="adm-btn ghost">Upload<input type="file" accept="image/*" hidden onChange={async (e) => {
-            const f = e.target.files?.[0]; if (!f) return;
-            setImgErr("");
-            try { const url = await storeFile(f); up({ images: [...p.images, url] }); }
-            catch (err) { setImgErr((err as Error).message); }
-          }} /></label>
-        </div>
-        {imgErr && <div className="adm-err" style={{ marginTop: 8 }}>{imgErr}</div>}
       </Card>
       <Card title="Variants & inventory">
         <div className="adm-row" style={{ marginBottom: 12 }}>
