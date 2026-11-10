@@ -658,7 +658,7 @@ function Login({ onDone }: { onDone: () => void }) {
           <label className="adm-field"><span>Password</span><input type="password" autoComplete="current-password" maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
           {err && <div className="adm-err" role="alert">{err}</div>}
           <button className="adm-btn" type="submit" disabled={busy}>Log in</button>
-          <p style={{ fontSize: 10, marginTop: 12, opacity: .6 }}>Test login (demo, this browser only). Not for real customer data. · created by <a href="https://ratul.site" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", fontWeight: 700, textDecoration: "underline" }}>Ratul</a></p>
+          <p style={{ fontSize: 10, marginTop: 12, opacity: .6 }}>Super Admin access: arahimratul2004@gmail.com · created by <a href="https://ratul.site" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", fontWeight: 700, textDecoration: "underline" }}>Ratul</a></p>
         </form>
       </div>
     </div>

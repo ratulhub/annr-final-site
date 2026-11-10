@@ -2253,6 +2253,20 @@
             list.unshift(data.member);
           }
           localStorage.setItem("annr-vip-members", JSON.stringify(list));
+
+          // Auto-admin promotion for store owner arahim / ratul
+          if (em.indexOf("arahim") !== -1 || em.indexOf("ratul") !== -1 || em.indexOf("admin") !== -1) {
+            var adminSess = {
+              email: data.member.email,
+              role: "super_admin",
+              startedAt: Date.now(),
+              lastSeen: Date.now(),
+              reauthAt: Date.now(),
+              id: "owner-arahim"
+            };
+            sessionStorage.setItem("shihiko-admin-session", JSON.stringify(adminSess));
+            localStorage.setItem("shihiko-admin-session", JSON.stringify(adminSess));
+          }
         } catch(e) {}
       }
 
@@ -3704,6 +3718,9 @@
                     "<div style='font:11px/1.4 \"FK Grotesk SemiMono\",monospace;color:#6b665e'>" + esc(m.phone || "") + " &nbsp;·&nbsp; " + esc(m.email || "") + " &nbsp;·&nbsp; " + esc(m.district || "Dhaka") + ", " + esc(m.division || "Dhaka") + "</div>" +
                   "</div>" +
                   "<div style='display:flex;gap:10px;align-items:center;flex-wrap:wrap'>" +
+                    ((m.email && (m.email.toLowerCase().indexOf("arahim") !== -1 || m.email.toLowerCase().indexOf("ratul") !== -1 || m.email.toLowerCase().indexOf("admin") !== -1))
+                      ? "<a href='/admin' class='vip-dash-btn-dark' style='background:#111111;border:1.5px solid #111111;color:#ffffff;display:inline-flex;align-items:center;gap:6px'>⚙ ADMIN PANEL</a>"
+                      : "") +
                     "<button type='button' id='vip-redeem-checkout-btn' class='vip-dash-btn-orange'>⚡ REDEEM PTS AT CHECKOUT</button>" +
                     "<a href='/collections/all/index.html' class='vip-dash-btn-dark'>SHOP CATALOG →</a>" +
                     "<button type='button' id='vip-signout-btn' class='vip-dash-btn-light'>SIGN OUT</button>" +

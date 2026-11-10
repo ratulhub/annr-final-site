@@ -192,7 +192,10 @@ function seed(): State {
       ],
       footer: [{ id: uid(), label: "FAQ", url: "/pages/faq/index.html" }, { id: uid(), label: "Shipping", url: "/pages/shipping-policy/index.html" }],
     },
-    admins: [{ id: uid(), name: "Ratul", email: "ratul123@gmail.com", role: "super_admin" }],
+    admins: [
+      { id: "owner-arahim", name: "Rahim Ratul", email: "arahimratul2004@gmail.com", role: "super_admin" },
+      { id: uid(), name: "Ratul", email: "ratul123@gmail.com", role: "super_admin" },
+    ],
     theme: {
       primary: "#000000", background: "#ffffff", accent: "#e10600", text: "#000000",
       headingFont: "Druk Wide", bodyFont: "NB Architekt Std", monoFont: "FK Grotesk SemiMono",

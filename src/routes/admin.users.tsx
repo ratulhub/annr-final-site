@@ -6,6 +6,7 @@ import { canAssignRole, PERMISSIONS, ROLE_PERMISSIONS, ROLES, type Role } from "
 import { BackBtn, Card } from "../admin/ui";
 import { dataSource } from "../admin/services/dataSource";
 import { NAV_GROUPS } from "../admin/config/navigation";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/users")({ component: Users });
 
@@ -44,6 +45,36 @@ function Users() {
   useEffect(() => {
     const p = dataSource.read<Perms>(PERM_KEY);
     if (p) setPerms({ ...defaults(), ...p });
+
+    if (isSupabaseConfigured()) {
+      void (async () => {
+        try {
+          const { data, error } = await supabase.rpc("admin_list_staff");
+          if (!error && Array.isArray(data) && data.length > 0) {
+            setState((prev) => {
+              const merged = [...prev.admins];
+              for (const row of data as any[]) {
+                if (!row.email) continue;
+                const idx = merged.findIndex(
+                  (a) => a.email.toLowerCase() === String(row.email).toLowerCase(),
+                );
+                if (idx >= 0) {
+                  merged[idx] = { ...merged[idx]!, role: row.role as Role };
+                } else {
+                  merged.push({
+                    id: row.user_id || uid(),
+                    name: String(row.email).split("@")[0] || "Staff",
+                    email: row.email,
+                    role: row.role as Role,
+                  });
+                }
+              }
+              return { ...prev, admins: merged };
+            });
+          }
+        } catch {}
+      })();
+    }
   }, []);
   const set = (role: string, area: string, v: Level) => {
     const p = { ...perms, [role]: { ...perms[role], [area]: v } };
@@ -63,6 +94,20 @@ function Users() {
         return;
       }
       if (!(await confirmReauth("change staff role"))) return;
+
+      if (isSupabaseConfigured() && target.email) {
+        try {
+          const { data, error } = await supabase.rpc("admin_assign_role", {
+            _target_email: target.email.trim(),
+            _role: patch.role,
+          });
+          if (error) {
+            console.warn("Could not sync role to Supabase:", error.message);
+          } else if (data && typeof data === "object" && !(data as any).ok) {
+            setMsg((data as any).error || "Could not assign role in Supabase");
+          }
+        } catch {}
+      }
     }
     setState((x) => ({ ...x, admins: x.admins.map((a, j) => (j === i ? { ...a, ...patch } : a)) }));
   };
@@ -86,6 +131,16 @@ function Users() {
       return;
     }
     if (!(await confirmReauth("remove a staff account"))) return;
+
+    if (isSupabaseConfigured() && target.email) {
+      try {
+        await supabase.rpc("admin_revoke_role", {
+          _target_email: target.email.trim(),
+          _role: target.role,
+        });
+      } catch {}
+    }
+
     setState((x) => ({ ...x, admins: x.admins.filter((_, j) => j !== i) }));
   };
 
