@@ -173,6 +173,8 @@ function Edit() {
             status: nextProduct.status || "active",
             code: nextProduct.code || null,
             size: nextProduct.size || null,
+            show_size: nextProduct.showSize !== false,
+            measurement_unit: "in",
             measurements: nextProduct.measurements || {},
             fabric: nextProduct.fabric || null,
             condition: nextProduct.condition || null,
@@ -276,71 +278,147 @@ function Edit() {
             />
           </div>
 
+          {/* Size Tag Selection & Visibility Configuration */}
+          <div style={{ background: "#ffffff", border: "1px solid var(--p-border-subdued)", borderRadius: 6, padding: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+              <div>
+                <span style={{ fontWeight: 700, fontSize: 13.5, color: "#111" }}>Garment Size Selection & Tag Visibility</span>
+                <p className="adm-hint" style={{ margin: "2px 0 0" }}>
+                  Select the size (S, M, L, XL, etc.) and choose whether to display or hide the size badge on the storefront.
+                </p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: p.showSize !== false ? "#16a34a" : "#d97706" }}>
+                  {p.showSize !== false ? "● Size Tag Visible" : "○ Size Tag Hidden (Measurements Only)"}
+                </span>
+              </div>
+            </div>
+
+            <div className="adm-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <label className="adm-field">
+                <span>Display Size Tag (M, L, XL, etc.) on Storefront?</span>
+                <select
+                  value={p.showSize !== false ? "show" : "hide"}
+                  onChange={(e) => up({ showSize: e.target.value === "show" })}
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 4, border: "1px solid var(--p-border-subdued)" }}
+                >
+                  <option value="show">✓ Show Size Tag (e.g. "SIZE {p.size || 'L'}")</option>
+                  <option value="hide">✕ Hide Size Tag (Do not show M/L/XL — show flat measurements only)</option>
+                </select>
+              </label>
+
+              <div>
+                <label className="adm-field">
+                  <span>Selected Size</span>
+                  <input
+                    type="text"
+                    value={p.size || ""}
+                    placeholder="e.g. S, M, L, XL, FREE SIZE"
+                    onChange={(e) => up({ size: e.target.value.toUpperCase() })}
+                    style={{ width: "100%", padding: "8px 10px", borderRadius: 4, border: "1px solid var(--p-border-subdued)" }}
+                  />
+                </label>
+                {/* Quick Size Selection Chips */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                  {["XS", "S", "M", "L", "XL", "XXL", "3XL", "FREE SIZE"].map((sz) => (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => up({ size: sz, showSize: true })}
+                      style={{
+                        padding: "3px 8px",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        borderRadius: 3,
+                        border: p.size === sz ? "1.5px solid #111" : "1px solid #d1d5db",
+                        background: p.size === sz ? "#111" : "#f3f4f6",
+                        color: p.size === sz ? "#fff" : "#374151",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {sz}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="adm-grid">
-            <Text label="Exact Single Size (e.g. S, M, L, XL, Free Size)" value={p.size || "M"} onChange={(v) => up({ size: v.toUpperCase() })} />
             <Text label="Fabric Details (e.g. 480 GSM Heavy French Terry)" value={p.fabric || ""} onChange={(v) => up({ fabric: v })} />
             <Text label="Garment Condition (e.g. 10/10 Deadstock Archival)" value={p.condition || ""} onChange={(v) => up({ condition: v })} />
             <Text label="Care Instructions (e.g. Cold Hand Wash Only)" value={p.careInstructions || ""} onChange={(v) => up({ careInstructions: v })} />
           </div>
 
           <div style={{ background: "#f9fafb", border: "1px solid var(--p-border-subdued)", borderRadius: 6, padding: "14px 16px" }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
-              Garment Exact Flat Measurements (in Centimeters)
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#111" }}>
+                Garment Exact Flat Measurements (in Inches ″)
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 600, background: "#111", color: "#fff", padding: "2px 8px", borderRadius: 3, fontFamily: "monospace" }}>
+                UNIT: INCHES (″)
+              </span>
             </div>
             <p className="adm-hint" style={{ margin: "0 0 12px" }}>
-              Measurements entered here are displayed on the storefront's luxury one-of-one specification table.
+              Measurements entered here are in inches (1″ = 2.54 cm). Displayed on the storefront's luxury one-of-one specification table.
             </p>
             <div className="adm-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
               <label className="adm-field">
-                <span>Chest (cm)</span>
+                <span>Chest (inches)</span>
                 <input
                   type="number"
-                  placeholder="e.g. 60"
+                  step="any"
+                  placeholder="e.g. 24.5"
                   value={p.measurements?.chest ?? ""}
                   onChange={(e) => up({ measurements: { ...p.measurements, chest: e.target.value ? Number(e.target.value) : null } })}
                 />
               </label>
               <label className="adm-field">
-                <span>Length (cm)</span>
+                <span>Length (inches)</span>
                 <input
                   type="number"
-                  placeholder="e.g. 72"
+                  step="any"
+                  placeholder="e.g. 29"
                   value={p.measurements?.length ?? ""}
                   onChange={(e) => up({ measurements: { ...p.measurements, length: e.target.value ? Number(e.target.value) : null } })}
                 />
               </label>
               <label className="adm-field">
-                <span>Shoulder (cm)</span>
+                <span>Shoulder (inches)</span>
                 <input
                   type="number"
-                  placeholder="e.g. 50"
+                  step="any"
+                  placeholder="e.g. 20.5"
                   value={p.measurements?.shoulder ?? ""}
                   onChange={(e) => up({ measurements: { ...p.measurements, shoulder: e.target.value ? Number(e.target.value) : null } })}
                 />
               </label>
               <label className="adm-field">
-                <span>Sleeve (cm)</span>
+                <span>Sleeve (inches)</span>
                 <input
                   type="number"
-                  placeholder="e.g. 62"
+                  step="any"
+                  placeholder="e.g. 25"
                   value={p.measurements?.sleeve ?? ""}
                   onChange={(e) => up({ measurements: { ...p.measurements, sleeve: e.target.value ? Number(e.target.value) : null } })}
                 />
               </label>
               <label className="adm-field">
-                <span>Waist (cm)</span>
+                <span>Waist (inches)</span>
                 <input
                   type="number"
-                  placeholder="e.g. 82"
+                  step="any"
+                  placeholder="e.g. 32"
                   value={p.measurements?.waist ?? ""}
                   onChange={(e) => up({ measurements: { ...p.measurements, waist: e.target.value ? Number(e.target.value) : null } })}
                 />
               </label>
               <label className="adm-field">
-                <span>Inseam (cm)</span>
+                <span>Inseam (inches)</span>
                 <input
                   type="number"
-                  placeholder="e.g. 76"
+                  step="any"
+                  placeholder="e.g. 30"
                   value={p.measurements?.inseam ?? ""}
                   onChange={(e) => up({ measurements: { ...p.measurements, inseam: e.target.value ? Number(e.target.value) : null } })}
                 />

@@ -9,6 +9,7 @@ type SearchProduct = {
   price?: number | undefined;
   code?: string | undefined;
   size?: string | undefined;
+  showSize?: boolean | undefined;
   status?: string | undefined;
   images?: string[] | undefined;
 };
@@ -63,6 +64,7 @@ function SearchPage() {
               price: parseFloat(p.price) || 0,
               code: p.code || "",
               size: p.size || "",
+              showSize: p.showSize !== false,
               status: p.status || "active",
               images: p.images || [],
             }));
@@ -77,6 +79,7 @@ function SearchPage() {
           price: typeof product.price === "number" ? product.price : parseFloat(String(product.price || "0").replace(/,/g, "")) || 0,
           code: product.code || "",
           size: product.size || (product.sizes && product.sizes[0]) || "",
+          showSize: product.showSize !== false,
           status: "active",
         }));
       }
@@ -145,7 +148,11 @@ function SearchPage() {
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className={`inline-block rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${isSold ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"}`}>
-                      {isSold ? "SOLD / ARCHIVE" : `1 OF 1 · SIZE ${product.size || "M"}`}
+                      {isSold
+                        ? "SOLD / ARCHIVE"
+                        : (product.showSize !== false && product.size)
+                          ? `1 OF 1 · SIZE ${product.size}`
+                          : "1 OF 1 · PIECE"}
                     </span>
                     {product.code && (
                       <span className="font-mono text-xs font-semibold text-[#e05a2b]">

@@ -128,6 +128,7 @@
               currency: p.currency || "BDT",
               status: p.status || "active",
               size: p.size || "ONE SIZE",
+              showSize: p.show_size !== false,
               measurements: p.measurements || {},
               fabric: p.fabric || "",
               condition: p.condition || "10/10 Archival",
@@ -282,12 +283,12 @@
 
         var hasMeas = false;
         measKeys.forEach(function (mk) {
-          if (meas[mk.k]) {
+          if (meas[mk.k] != null && meas[mk.k] !== "") {
             hasMeas = true;
             measRows +=
               "<div class='annr-meas-item'>" +
                 "<div class='annr-meas-label'>" + esc(mk.label) + "</div>" +
-                "<div class='annr-meas-val'>" + esc(String(meas[mk.k])) + " cm</div>" +
+                "<div class='annr-meas-val'>" + esc(String(meas[mk.k])) + "″ <span style='font-size:9.5px;font-weight:400;color:#777'>in</span></div>" +
               "</div>";
           }
         });
@@ -295,11 +296,11 @@
         var measHtml = hasMeas ?
           "<div class='annr-measurements-panel'>" +
             "<div class='annr-measurements-head'>" +
-              "<span>GARMENT MEASUREMENTS (EXACT)</span>" +
-              "<span style='color:#777'>MEASURED FLAT</span>" +
+              "<span>GARMENT MEASUREMENTS (FLAT)</span>" +
+              "<span style='color:#777'>INCHES (″)</span>" +
             "</div>" +
             "<div class='annr-measurements-grid'>" + measRows + "</div>" +
-            "<div class='annr-meas-note'>* Each AnnR archival piece is individually hand-measured. Compare against your favorite garment before purchase.</div>" +
+            "<div class='annr-meas-note'>* All measurements taken flat across garment in inches (1″ = 2.54 cm). Compare against your favorite garment before purchase.</div>" +
           "</div>" : "";
 
         var bannerHtml = "";
@@ -315,6 +316,17 @@
             "</div>";
         }
 
+        var showSizeTag = prod.showSize !== false && prod.size && prod.size !== "NONE";
+        var sizeCardPrimary = showSizeTag ?
+          "<div class='annr-size-primary'>" +
+            "<div class='annr-size-tag'>EXACT SIZE</div>" +
+            "<div class='annr-size-value'>" + esc(prod.size) + "</div>" +
+          "</div>" :
+          "<div class='annr-size-primary'>" +
+            "<div class='annr-size-tag'>SIZING</div>" +
+            "<div class='annr-size-value' style='font-size:15px;letter-spacing:1px;font-weight:700'>FLAT MEASUREMENTS ONLY</div>" +
+          "</div>";
+
         sizeBox.innerHTML =
           bannerHtml +
           "<div class='annr-unique-badge-row'>" +
@@ -322,10 +334,7 @@
             "<div class='annr-unique-code'>CODE: " + esc(prod.code) + "</div>" +
           "</div>" +
           "<div class='annr-exact-size-card'>" +
-            "<div class='annr-size-primary'>" +
-              "<div class='annr-size-tag'>EXACT SIZE</div>" +
-              "<div class='annr-size-value'>" + esc(prod.size) + "</div>" +
-            "</div>" +
+            sizeCardPrimary +
             "<div class='annr-size-meta'>" +
               (prod.condition ? "<span>CONDITION: <strong style='color:#111'>" + esc(prod.condition) + "</strong></span>" : "") +
               (prod.fabric ? "<span>FABRIC: <strong style='color:#111'>" + esc(prod.fabric) + "</strong></span>" : "") +
@@ -471,10 +480,12 @@
           var img = (p.images && p.images[0]) || "/cdn/shop/t/75/assets/image_logo.svg";
           var img2 = (p.images && p.images[1]) || img;
 
+          var sizeTag = (p.showSize !== false && p.size && p.size !== "NONE") ? (" · SIZE " + esc(p.size)) : "";
+
           return (
             "<div class='lazy-item product-card' data-handle='" + esc(p.handle) + "'>" +
               "<div class='product-card-image' style='position:relative'>" +
-                "<div class='annr-card-one-badge'>1 OF 1 · SIZE " + esc(p.size) + "</div>" +
+                "<div class='annr-card-one-badge'>1 OF 1" + sizeTag + "</div>" +
                 (isSold ? "<div class='annr-card-sold-overlay'><div class='annr-card-sold-tag'>SOLD / ARCHIVED</div></div>" : "") +
                 "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(p.title) + "'>" +
                   "<img src='" + esc(img) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy' onerror=\"this.src='/cdn/shop/t/75/assets/image_logo.svg'\">" +

@@ -59,6 +59,8 @@ export type Product = {
   sizeChart: string;
   isOneOfOne?: boolean;
   size?: string;
+  showSize?: boolean;
+  measurementUnit?: "in" | "cm";
   measurements?: {
     chest?: number | string | null;
     length?: number | string | null;
@@ -139,7 +141,9 @@ export const TEMPLATE_PRODUCT: Product = {
   sizeChart: "",
   isOneOfOne: true,
   size: "L",
-  measurements: { chest: 62, length: 74, shoulder: 52, sleeve: 64 },
+  showSize: true,
+  measurementUnit: "in",
+  measurements: { chest: 24.5, length: 29, shoulder: 20.5, sleeve: 25 },
   fabric: "480 GSM Custom Heavyweight French Terry",
   condition: "10/10 Archival Deadstock",
   careInstructions: "Dry Clean or Cold Hand Wash Only",

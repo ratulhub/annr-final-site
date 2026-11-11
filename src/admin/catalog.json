@@ -10,7 +10,15 @@
       "image": "/cdn/shop/files/AkaMantoLongsleeveFront_1080x.png",
       "category": "hoodies",
       "type": "Hoodie",
-      "sizes": ["L"]
+      "sizes": ["L"],
+      "showSize": true,
+      "measurementUnit": "in",
+      "measurements": {
+        "chest": 24.5,
+        "length": 29,
+        "shoulder": 20.5,
+        "sleeve": 25
+      }
     }
   ],
   "collections": [

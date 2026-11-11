@@ -21,6 +21,8 @@ describe("AnnR Unique One-of-One Archival Catalog", () => {
     category: string;
     campaign: string;
     size: string;
+    showSize?: boolean;
+    measurementUnit?: "in" | "cm";
     stock: number;
     measurements: {
       chest?: number;
@@ -44,12 +46,14 @@ describe("AnnR Unique One-of-One Archival Catalog", () => {
     category: "hoodies",
     campaign: "unique-campaign",
     size: "L",
+    showSize: true,
+    measurementUnit: "in",
     stock: 1,
     measurements: {
-      chest: 64,
-      length: 74,
-      shoulder: 52,
-      sleeve: 63,
+      chest: 24.5,
+      length: 29,
+      shoulder: 20.5,
+      sleeve: 25,
     },
     fabric: "500 GSM Double-Face Custom French Terry",
     condition: "10/10 Deadstock Archival",
@@ -73,13 +77,27 @@ describe("AnnR Unique One-of-One Archival Catalog", () => {
     expect(samplePiece.code).toMatch(/^ANNR-[A-Za-z0-9_-]{3,20}$/);
   });
 
-  it("contains single exact size badge with hand flat measurements", () => {
-    expect(samplePiece.size).toBe("L");
-    expect(typeof samplePiece.size).toBe("string");
-    expect(samplePiece.measurements.chest).toBe(64);
-    expect(samplePiece.measurements.length).toBe(74);
-    expect(samplePiece.measurements.shoulder).toBe(52);
-    expect(samplePiece.measurements.sleeve).toBe(63);
+  it("contains flat measurements in inches with optional decimal precision", () => {
+    expect(samplePiece.measurementUnit).toBe("in");
+    expect(samplePiece.measurements.chest).toBe(24.5);
+    expect(samplePiece.measurements.length).toBe(29);
+    expect(samplePiece.measurements.shoulder).toBe(20.5);
+    expect(samplePiece.measurements.sleeve).toBe(25);
+  });
+
+  it("supports toggling size badge visibility (show vs hide alpha size)", () => {
+    // When showSize is true, badge displays size L
+    const visibleBadge = samplePiece.showSize !== false && samplePiece.size
+      ? `1 OF 1 · SIZE ${samplePiece.size}`
+      : "1 OF 1 · PIECE";
+    expect(visibleBadge).toBe("1 OF 1 · SIZE L");
+
+    // When showSize is false, badge suppresses alpha size and displays piece info only
+    const hiddenPiece: OneOfOneProduct = { ...samplePiece, showSize: false };
+    const hiddenBadge = hiddenPiece.showSize !== false && hiddenPiece.size
+      ? `1 OF 1 · SIZE ${hiddenPiece.size}`
+      : "1 OF 1 · PIECE";
+    expect(hiddenBadge).toBe("1 OF 1 · PIECE");
   });
 
   it("handles 15-minute checkout reservation hold and release logic", () => {
