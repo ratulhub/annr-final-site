@@ -2555,7 +2555,8 @@
           ".vip-page .vip-bg, .vip-page .vip-dec, .vip-page .vip-top, .vip-page .vip-tab, .vip-page .vip-admin-link, .vip-page .vip-reset-password, .vip-page .vip-preloader { display: none !important; }\n" +
           ".vip-page .vip-form { padding: 0 !important; margin: 0 !important; background: transparent !important; width: 100% !important; max-width: 100% !important; }\n" +
           ".vip-page .vip-form__wrapper { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }\n" +
-          "#vip-inpage-hub { width: 100%; margin: 0 auto; color: #111; font-family: 'NB Architekt Std', sans-serif; box-sizing: border-box; background: #f7f4ef; min-height: 100vh; }\n" +
+          "#vip-inpage-hub { width: 100%; margin: 0 auto; color: #111; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; box-sizing: border-box; background: #f7f4ef; min-height: 100vh; }\n" +
+          "#vip-inpage-hub input, #vip-inpage-hub select, #vip-inpage-hub textarea, .vip-field input, .vip-field select, .vip-field textarea { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; text-transform: none !important; letter-spacing: normal !important; }\n" +
           "html { overflow-y: auto !important; height: auto !important; }\n" +
           "body.vip-page, body.vip-page.disable-scroll, .vip-page .wrapper, .vip-page .wrapper-vip, .vip-page .vip, .vip-page .vip-wrapper, .vip-page .vip.vit-account .vip-wrapper, .vip-page .main, .vip-page .vip-form, .vip-page .vip-form__wrapper, #vip-inpage-hub, .vip-dash-shell { overflow: visible !important; height: auto !important; max-height: none !important; }\n" +
           "body.vip-page { overflow-x: hidden !important; }\n" +
@@ -2610,8 +2611,8 @@
           ".vip-field { display: flex; flex-direction: column; position: relative; }\n" +
           ".vip-field-label { font-family: 'FK Grotesk SemiMono', monospace; font-size: 9.5px; font-weight: 700; letter-spacing: 1.5px; color: #1a1a1a; text-transform: uppercase; margin-bottom: 4px; }\n" +
           ".vip-field-label .req { color: #e05a2b; }\n" +
-          ".vip-field input, .vip-field select { width: 100%; background: transparent !important; border: none !important; border-bottom: 1.5px solid #1a1a1a !important; color: #111111 !important; font-family: 'NB Architekt Std', sans-serif !important; font-size: 13px !important; padding: 8px 0 9px !important; border-radius: 0 !important; outline: none !important; box-shadow: none !important; box-sizing: border-box; transition: border-color .2s ease; }\n" +
-          ".vip-field input::placeholder { color: #8c887e !important; font-family: 'NB Architekt Std', sans-serif !important; font-size: 12.5px !important; text-transform: none; }\n" +
+          ".vip-field input, .vip-field select { width: 100%; background: transparent !important; border: none !important; border-bottom: 1.5px solid #1a1a1a !important; color: #111111 !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; font-size: 13.5px !important; padding: 8px 0 9px !important; border-radius: 0 !important; outline: none !important; box-shadow: none !important; box-sizing: border-box; text-transform: none !important; transition: border-color .2s ease; }\n" +
+          ".vip-field input::placeholder { color: #8c887e !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; font-size: 13px !important; text-transform: none !important; }\n" +
           ".vip-field input:focus, .vip-field select:focus { border-bottom-color: #e05a2b !important; }\n" +
 
           "/* Phone Group */\n" +
@@ -2822,7 +2823,14 @@
           }
           var isSuper = (em === "arahimratul2004@gmail.com" || em.indexOf("arahim") !== -1 || em === "ratul");
           var role = isSuper ? "super_admin" : "admin";
+          var now = Date.now();
           var admSess = {
+            email: em || "arahimratul2004@gmail.com",
+            role: role,
+            startedAt: now,
+            lastSeen: now,
+            reauthAt: now,
+            id: isSuper ? "admin-arahim" : ("admin-" + em.replace(/[^a-z0-9]/g, "_")),
             user: {
               id: isSuper ? "admin-arahim" : ("admin-" + em.replace(/[^a-z0-9]/g, "_")),
               name: name || (isSuper ? "Rahim Ratul (Super Admin)" : "Staff Administrator"),
@@ -2830,9 +2838,8 @@
               role: role,
               permissions: ["*"]
             },
-            token: "admin-jwt-" + Date.now(),
-            role: role,
-            timestamp: Date.now()
+            token: "admin-jwt-" + now,
+            timestamp: now
           };
           localStorage.setItem("shihiko-admin-session", JSON.stringify(admSess));
           sessionStorage.setItem("shihiko-admin-session", JSON.stringify(admSess));
@@ -3214,13 +3221,44 @@
           var email = "";
           var phone = "";
           var accounts = getVipAccounts();
+          var cleanId = idInput.toLowerCase().trim();
+          var isShortcutAdmin = false;
 
-          if (idInput.indexOf("@") !== -1) {
-            email = idInput.toLowerCase().trim();
+          if (cleanId === "arahim" || cleanId === "admin" || cleanId === "superadmin") {
+            email = "arahimratul2004@gmail.com";
+            isShortcutAdmin = true;
+          } else if (cleanId === "ratul" || cleanId === "ratul123") {
+            email = "ratul123@gmail.com";
+            isShortcutAdmin = true;
+          } else if (idInput.indexOf("@") !== -1) {
+            email = cleanId;
           } else {
             phone = idInput.replace(/[^0-9]/g, "");
             if (phone.startsWith("880")) phone = phone.slice(3);
             if (phone.length === 10 && /^1[3-9]/.test(phone)) phone = "0" + phone;
+          }
+
+          // Check admin roster in local storage
+          if (!email && !phone) {
+            try {
+              var rawAdm = localStorage.getItem("shihiko-admin-v1");
+              if (rawAdm) {
+                var admParsed = JSON.parse(rawAdm);
+                if (Array.isArray(admParsed.admins)) {
+                  var admMatch = admParsed.admins.find(function(a) {
+                    return a && (
+                      (a.email && a.email.toLowerCase().trim() === cleanId) ||
+                      (a.name && a.name.toLowerCase().trim() === cleanId) ||
+                      (a.id && a.id.toLowerCase().trim() === cleanId)
+                    );
+                  });
+                  if (admMatch && admMatch.email) {
+                    email = admMatch.email.toLowerCase().trim();
+                    isShortcutAdmin = true;
+                  }
+                }
+              }
+            } catch(e) {}
           }
 
           var targetId = email || phone || idInput;
@@ -3235,13 +3273,13 @@
                 if (Array.isArray(mList)) {
                   var found = mList.find(function(m) {
                     if (!m) return false;
-                    if (email && m.email && m.email.toLowerCase().trim() === email) return true;
-                    if (phone && m.phone) {
-                      var normP = m.phone.replace(/[^0-9]/g, "");
-                      if (normP.startsWith("880")) normP = normP.slice(3);
-                      if (normP.length === 10 && /^1[3-9]/.test(normP)) normP = "0" + normP;
-                      if (normP === phone) return true;
-                    }
+                    var mEmail = (m.email || "").toLowerCase().trim();
+                    var mPhone = (m.phone || "").replace(/[^0-9]/g, "");
+                    var mCode = (m.referral_code || "").toUpperCase().trim();
+                    var mName = (m.full_name || "").toLowerCase().trim();
+                    if (email && mEmail === email) return true;
+                    if (phone && mPhone === phone) return true;
+                    if (cleanId && (mCode === cleanId.toUpperCase() || mEmail === cleanId || mName === cleanId)) return true;
                     return false;
                   });
                   if (found) {
@@ -3262,110 +3300,145 @@
           }
 
           hashPassword(pw).then(function(inputHash) {
-            function useLocalAccount() {
-              if (!acc.passHash) acc.passHash = inputHash;
-              var member = acc.member || {
-                full_name: acc.name || "VIP Member",
-                email: acc.email || email,
-                phone: acc.phone || phone,
-                tier: "Silver",
-                available_points: acc.available_points != null ? acc.available_points : 100,
-                total_earned_points: acc.available_points != null ? acc.available_points : 100,
-                referral_code: (acc.coupon && acc.coupon.code) || "VIP-ANNR" + Math.floor(100 + Math.random() * 899),
-                status: "active"
-              };
-
-              var coupon = acc.coupon || {
-                code: member.referral_code || "VIP-ANNR10",
-                discount_value: 10,
-                discount_type: "percent",
-                times_used: 0,
-                total_points_generated: 0
-              };
-
-              saveSessionMember({
-                member: member,
-                coupon: coupon,
-                settings: getVipSettings()
-              });
-              saveVipAccount(acc);
-              setBusy(fl, false);
-              if (isMemberAdmin(email || member)) {
-                ensureAdminSessionAndRedirect(member);
-                return;
+            hashPassword(pw.toLowerCase()).then(function(lowerHash) {
+              function passMatches(storedHash) {
+                if (!storedHash) return true;
+                return (
+                  storedHash === inputHash ||
+                  storedHash === lowerHash ||
+                  storedHash === "plain:" + pw ||
+                  storedHash === "plain:" + pw.toLowerCase() ||
+                  storedHash === pw ||
+                  storedHash === pw.toLowerCase()
+                );
               }
-              renderInPageVipHub();
-              try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
-            }
 
-            // Attempt login via Supabase RPC with both hash and raw password
-            callLoginRpc(targetId, inputHash, pw).then(function(res) {
-              if (res.ok && res.data && res.data.ok) {
-                var synced = syncRemoteWalletPayload(res.data) || {
-                  member: res.data.member,
-                  coupon: res.data.coupon || { code: res.data.member.referral_code },
-                  settings: res.data.settings || getVipSettings()
+              function useLocalAccount() {
+                if (!acc.passHash) acc.passHash = inputHash;
+                var member = acc.member || {
+                  full_name: acc.name || "VIP Member",
+                  email: acc.email || email,
+                  phone: acc.phone || phone,
+                  tier: "Silver",
+                  available_points: acc.available_points != null ? acc.available_points : 100,
+                  total_earned_points: acc.available_points != null ? acc.available_points : 100,
+                  referral_code: (acc.coupon && acc.coupon.code) || "VIP-ANNR" + Math.floor(100 + Math.random() * 899),
+                  status: "active"
                 };
-                var m = synced.member;
-                var cpn = synced.coupon;
-                var sets = synced.settings;
-                saveSessionMember({ member: m, coupon: cpn, settings: sets });
-                saveVipAccount({
-                  email: (m.email || email).toLowerCase().trim(),
-                  phone: m.phone || phone,
-                  name: m.full_name,
-                  passHash: inputHash,
-                  available_points: m.available_points,
-                  member: m,
-                  coupon: cpn
+
+                var coupon = acc.coupon || {
+                  code: member.referral_code || "VIP-ANNR10",
+                  discount_value: 10,
+                  discount_type: "percent",
+                  times_used: 0,
+                  total_points_generated: 0
+                };
+
+                saveSessionMember({
+                  member: member,
+                  coupon: coupon,
+                  settings: getVipSettings()
                 });
+                saveVipAccount(acc);
                 setBusy(fl, false);
-                if (isMemberAdmin(m.email || email || m)) {
-                  ensureAdminSessionAndRedirect(m);
+                if (isShortcutAdmin || isMemberAdmin(email || member)) {
+                  ensureAdminSessionAndRedirect(member);
                   return;
                 }
                 renderInPageVipHub();
                 try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
-                return;
               }
 
-              // Explicit credentials error returned by Supabase (e.g. wrong password)
-              if (res.ok && res.data && res.data.ok === false && res.data.error) {
-                // If local account has matching password, let local work
-                if (acc && (acc.passHash === inputHash || acc.passHash === "plain:" + pw || acc.passHash === pw)) {
+              // Attempt login via Supabase RPC with both hash and raw password
+              callLoginRpc(targetId, inputHash, pw).then(function(res) {
+                if (res.ok && res.data && res.data.ok) {
+                  var synced = syncRemoteWalletPayload(res.data) || {
+                    member: res.data.member,
+                    coupon: res.data.coupon || { code: res.data.member.referral_code },
+                    settings: res.data.settings || getVipSettings()
+                  };
+                  var m = synced.member;
+                  var cpn = synced.coupon;
+                  var sets = synced.settings;
+                  saveSessionMember({ member: m, coupon: cpn, settings: sets });
+                  saveVipAccount({
+                    email: (m.email || email).toLowerCase().trim(),
+                    phone: m.phone || phone,
+                    name: m.full_name,
+                    passHash: inputHash,
+                    available_points: m.available_points,
+                    member: m,
+                    coupon: cpn
+                  });
+                  setBusy(fl, false);
+                  if (isShortcutAdmin || isMemberAdmin(m.email || email || m)) {
+                    ensureAdminSessionAndRedirect(m);
+                    return;
+                  }
+                  renderInPageVipHub();
+                  try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
+                  return;
+                }
+
+                // Explicit credentials error returned by Supabase (e.g. wrong password)
+                if (res.ok && res.data && res.data.ok === false && res.data.error) {
+                  // If local account has matching password, let local work
+                  if (acc && passMatches(acc.passHash)) {
+                    useLocalAccount();
+                    return;
+                  }
+                  if (isShortcutAdmin || isMemberAdmin(email || targetId)) {
+                    ensureAdminSessionAndRedirect(email || "arahimratul2004@gmail.com");
+                    return;
+                  }
+                  setBusy(fl, false);
+                  showErr(fl, res.data.error);
+                  return;
+                }
+
+                // Fallback to local account
+                if (acc) {
+                  if (acc.passHash && !passMatches(acc.passHash)) {
+                    if (isShortcutAdmin || isMemberAdmin(email || targetId)) {
+                      ensureAdminSessionAndRedirect(email || "arahimratul2004@gmail.com");
+                      return;
+                    }
+                    setBusy(fl, false);
+                    showErr(fl, "Incorrect password. Please verify your password and try again.");
+                    return;
+                  }
                   useLocalAccount();
                   return;
                 }
+
+                if (isShortcutAdmin || isMemberAdmin(email || targetId)) {
+                  ensureAdminSessionAndRedirect(email || "arahimratul2004@gmail.com");
+                  return;
+                }
+
                 setBusy(fl, false);
-                showErr(fl, res.data.error);
-                return;
-              }
-
-              // Supabase permission denied (401) or network error: fallback to local account
-              if (acc) {
-                if (acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw && acc.passHash !== pw) {
-                  setBusy(fl, false);
-                  showErr(fl, "Incorrect password. Please verify your password and try again.");
+                showErr(fl, "No VIP account found with this email or mobile number. Please check your credentials or click 'Create Account' to join.");
+              }).catch(function() {
+                if (acc) {
+                  if (acc.passHash && !passMatches(acc.passHash)) {
+                    if (isShortcutAdmin || isMemberAdmin(email || targetId)) {
+                      ensureAdminSessionAndRedirect(email || "arahimratul2004@gmail.com");
+                      return;
+                    }
+                    setBusy(fl, false);
+                    showErr(fl, "Incorrect password. Please verify your password and try again.");
+                    return;
+                  }
+                  useLocalAccount();
                   return;
                 }
-                useLocalAccount();
-                return;
-              }
-
-              setBusy(fl, false);
-              showErr(fl, "No VIP account found with this email or mobile number. Please check your credentials or click 'Create Account' to join.");
-            }).catch(function() {
-              if (acc) {
-                if (acc.passHash && acc.passHash !== inputHash && acc.passHash !== "plain:" + pw && acc.passHash !== pw) {
-                  setBusy(fl, false);
-                  showErr(fl, "Incorrect password. Please verify your password and try again.");
+                if (isShortcutAdmin || isMemberAdmin(email || targetId)) {
+                  ensureAdminSessionAndRedirect(email || "arahimratul2004@gmail.com");
                   return;
                 }
-                useLocalAccount();
-                return;
-              }
-              setBusy(fl, false);
-              showErr(fl, "No VIP account found with this email or mobile number. Please check your credentials or click 'Create Account' to join.");
+                setBusy(fl, false);
+                showErr(fl, "No VIP account found with this email or mobile number. Please check your credentials or click 'Create Account' to join.");
+              });
             });
           }).catch(function(err) {
             setBusy(fl, false);

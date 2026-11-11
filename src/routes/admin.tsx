@@ -382,7 +382,21 @@ function AdminLayout() {
 
   useEffect(() => {
     setMobile(false);
+    try {
+      document.documentElement.classList.remove("disable-scroll");
+      document.body.classList.remove("disable-scroll");
+      document.documentElement.style.overflow = "auto";
+      document.body.style.overflow = "auto";
+    } catch {}
   }, [path]);
+
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth > 800) setMobile(false);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   // Idle / absolute session expiry: re-check every 30s and on activity.
   useEffect(() => {
@@ -654,8 +668,32 @@ function Login({ onDone }: { onDone: () => void }) {
       <div className="adm-login">
         <form onSubmit={async (e) => { e.preventDefault(); setBusy(true); const r = await login(email, password); setBusy(false); setPassword(""); if (r.ok) onDone(); else setErr(r.error); }}>
           <div className="adm-logo" style={{ padding: 0, color: "#000" }}>AnnR<small>Admin Login</small></div>
-          <label className="adm-field"><span>Email</span><input type="email" autoComplete="username" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-          <label className="adm-field"><span>Password</span><input type="password" autoComplete="current-password" maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+          <label className="adm-field">
+            <span>Email or Username</span>
+            <input
+              type="text"
+              autoComplete="username"
+              maxLength={254}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="arahim, admin, or email"
+              style={{ textTransform: "none", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
+              required
+            />
+          </label>
+          <label className="adm-field">
+            <span>Password</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              maxLength={200}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              style={{ textTransform: "none", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
+              required
+            />
+          </label>
           {err && <div className="adm-err" role="alert">{err}</div>}
           <button className="adm-btn" type="submit" disabled={busy}>Log in</button>
           <p style={{ fontSize: 10, marginTop: 12, opacity: .6 }}>Super Admin access: arahimratul2004@gmail.com · created by <a href="https://ratul.site" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", fontWeight: 700, textDecoration: "underline" }}>Ratul</a></p>

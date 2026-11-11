@@ -27,17 +27,57 @@ try {
   var _adm = localStorage.getItem("shihiko-admin-session") || sessionStorage.getItem("shihiko-admin-session");
   var _vip = localStorage.getItem("annr_vip_member_session");
   var _isAdm = false;
+  var _admEmail = "arahimratul2004@gmail.com";
+  var _admRole = "super_admin";
+  var _admId = "admin-arahim";
+
   if (_adm) {
-    try { var _p = JSON.parse(_adm); if (_p && (_p.role || _p.user)) _isAdm = true; } catch(e) {}
+    try {
+      var _p = JSON.parse(_adm);
+      if (_p && (_p.role || _p.user || _p.email)) {
+        _isAdm = true;
+        if (_p.email) _admEmail = _p.email;
+        else if (_p.user && _p.user.email) _admEmail = _p.user.email;
+        if (_p.role) _admRole = _p.role;
+        else if (_p.user && _p.user.role) _admRole = _p.user.role;
+        if (_p.id) _admId = _p.id;
+        else if (_p.user && _p.user.id) _admId = _p.user.id;
+      }
+    } catch(e) {}
   }
   if (!_isAdm && _vip) {
     try {
       var _v = JSON.parse(_vip);
       var _em = (_v && _v.member && _v.member.email) ? _v.member.email.toLowerCase().trim() : "";
-      if (_em === "arahimratul2004@gmail.com" || _em.indexOf("arahim") !== -1 || _em.indexOf("ratul") !== -1 || _em.indexOf("admin") !== -1) _isAdm = true;
+      if (_em === "arahimratul2004@gmail.com" || _em.indexOf("arahim") !== -1 || _em.indexOf("ratul") !== -1 || _em.indexOf("admin") !== -1) {
+        _isAdm = true;
+        _admEmail = _em;
+        _admRole = "super_admin";
+      }
     } catch(e) {}
   }
   if (_isAdm) {
+    try {
+      var _now = Date.now();
+      var _freshSess = {
+        email: _admEmail,
+        role: _admRole,
+        startedAt: _now,
+        lastSeen: _now,
+        reauthAt: _now,
+        id: _admId,
+        user: {
+          id: _admId,
+          email: _admEmail,
+          role: _admRole,
+          permissions: ["*"]
+        },
+        token: "admin-jwt-" + _now,
+        timestamp: _now
+      };
+      sessionStorage.setItem("shihiko-admin-session", JSON.stringify(_freshSess));
+      localStorage.setItem("shihiko-admin-session", JSON.stringify(_freshSess));
+    } catch(e) {}
     window.location.replace("/admin");
   } else if (_vip) {
     document.documentElement.classList.add("vip-has-session");
@@ -52,6 +92,10 @@ try {
     margin: 0 !important;
     padding: 0 !important;
   }
+  input, select, textarea, .vip-field input, .vip-field select {
+    text-transform: none !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  }
   html.vip-has-session .vip-vault-page-container {
     display: none !important;
   }
@@ -60,7 +104,7 @@ try {
   }
   .vip-page .vip-form { padding: 0 !important; margin: 0 !important; background: transparent !important; width: 100% !important; max-width: 100% !important; }
   .vip-page .vip-form__wrapper { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
-  #vip-inpage-hub { width: 100%; margin: 0 auto; color: #111; font-family: 'NB Architekt Std', sans-serif; box-sizing: border-box; background: #f7f4ef; min-height: 100vh; }
+  #vip-inpage-hub { width: 100%; margin: 0 auto; color: #111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important; box-sizing: border-box; background: #f7f4ef; min-height: 100vh; }
   .vip-page .header.header-new {
     background: #f7f4ef !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;

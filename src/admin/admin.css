@@ -32,16 +32,36 @@
   --red: #d72c0d;
 }
 
+/* Ensure the entire admin viewport scrolls naturally without trapped wheel/touch events */
+html, body {
+  height: auto !important;
+  min-height: 100% !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: clip !important;
+  position: static !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+body.disable-scroll, html.disable-scroll {
+  overflow-y: auto !important;
+  height: auto !important;
+}
+
 .adm {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: var(--p-text);
   background: var(--p-background);
   min-height: 100vh;
+  width: 100%;
   display: flex;
   font-size: 14px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+  overflow-y: visible;
+  position: relative;
 }
 
 .adm * {
@@ -178,18 +198,24 @@
 
 /* Main Layout Area */
 .adm-body {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .adm-main {
-  flex: 1;
+  flex: 1 1 auto;
   padding: 24px 32px 48px;
   min-width: 0;
   max-width: 1400px;
   width: 100%;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 /* Header: Clean Shopify Top Bar */
@@ -330,7 +356,7 @@
 }
 
 .adm input, .adm textarea, .adm select {
-  font: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
   border: 1px solid var(--p-border);
   border-radius: 6px;
   padding: 8px 12px;
@@ -338,6 +364,7 @@
   color: var(--p-text);
   font-size: 13.5px;
   width: 100%;
+  text-transform: none !important;
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
@@ -943,7 +970,8 @@
 @media (max-width: 800px) {
   .adm {
     flex-direction: column;
-    overflow-x: hidden;
+    overflow-x: clip;
+    overflow-y: visible;
     width: 100%;
   }
 
@@ -1073,14 +1101,16 @@
   .adm-body {
     width: 100%;
     max-width: 100vw;
-    overflow-x: hidden;
+    overflow-x: clip !important;
+    overflow-y: visible !important;
   }
 
   .adm-main {
     padding: 12px 10px 60px !important;
     width: 100%;
     max-width: 100vw;
-    overflow-x: hidden;
+    overflow-x: clip !important;
+    overflow-y: visible !important;
     box-sizing: border-box;
   }
 
