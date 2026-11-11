@@ -25,6 +25,38 @@ export function safeImageUrl(u: unknown): string {
   return r.startsWith("#") || /^(mailto|tel):/i.test(r) ? "" : r;
 }
 
+// Normalizes an image URL for PostgreSQL products_validate_row() check:
+// requires https:// or same-site / path, no whitespace/quotes/angle-brackets, max 1000 chars.
+export function normalizeDbImageUrl(u: unknown): string | null {
+  const s = String(u ?? "").trim().replace(/\s+/g, "%20");
+  if (!s || s.length > 1000) return null;
+  if (/^data:image\//i.test(s)) return null;
+  if (/^(https:\/\/|\/(?!\/))[^\s"'<>]{1,1000}$/i.test(s)) return s;
+  return null;
+}
+
+// Normalizes SKU/code to match PostgreSQL products_code_format: ^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$
+export function normalizeProductCode(code: unknown): string | null {
+  const cleaned = String(code ?? "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^A-Za-z0-9_-]/g, "")
+    .replace(/^[^A-Za-z0-9]+/, "")
+    .slice(0, 40);
+  return /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(cleaned) ? cleaned : null;
+}
+
+// Normalizes product handle to lowercase slug: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+export function normalizeProductHandle(handle: unknown): string {
+  const slug = String(handle ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) ? slug : `annr-${Date.now()}`;
+}
+
 // A single CSS value (colour, length, font name). Rejects anything that could close the rule or load resources.
 export function safeCssValue(v: unknown): string {
   const s = String(v ?? "").trim();

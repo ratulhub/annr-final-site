@@ -12,7 +12,7 @@ import {
 } from "../admin/store";
 import { Area, BackBtn, Card, RowList, Select, Text, Toggle } from "../admin/ui";
 import { storeFile } from "../admin/services/media";
-import { safeImageUrl } from "../admin/security/sanitize";
+import { normalizeDbImageUrl, safeImageUrl } from "../admin/security/sanitize";
 import { isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/products_/$handle")({ component: Edit });
@@ -165,6 +165,13 @@ function Edit() {
 
   useEffect(() => {
     setHandleDraft(p?.handle || handle);
+    try {
+      const prevErr = sessionStorage.getItem("annr_last_product_sync_err");
+      if (prevErr && prevErr.startsWith(`${handle}:`)) {
+        sessionStorage.removeItem("annr_last_product_sync_err");
+        setDbStatus(`⚠ Saved locally (DB sync failed: ${prevErr.slice(handle.length + 1)})`);
+      }
+    } catch {}
   }, [p?.handle, handle]);
 
   useEffect(() => {
@@ -184,8 +191,15 @@ function Edit() {
     setDbStatus("Saving to live DB...");
     const res = await syncProductToSupabase(product);
     if (res.ok) {
+      const notes: string[] = [];
       if (res.skippedLocalImages && res.skippedLocalImages > 0) {
-        setDbStatus(`✓ Live in DB (⚠ ${res.skippedLocalImages} uploaded file(s) need https:// link for live storefront)`);
+        notes.push(`${res.skippedLocalImages} local upload(s) need an https:// link for live storefront`);
+      }
+      if (res.rejectedHttpImages && res.rejectedHttpImages > 0) {
+        notes.push(`${res.rejectedHttpImages} image link(s) skipped (live DB requires https:// or / path)`);
+      }
+      if (notes.length > 0) {
+        setDbStatus(`✓ Live in DB (⚠ ${notes.join("; ")})`);
       } else {
         setDbStatus("✓ Live in DB & Storefront");
       }
@@ -909,9 +923,15 @@ function Edit() {
               type="button"
               className="adm-btn primary sm"
               onClick={() => {
-                const clean = safeImageUrl(img.trim());
+                const raw = img.trim();
+                const dbReady = normalizeDbImageUrl(raw);
+                const clean = dbReady || safeImageUrl(raw);
                 if (!clean) {
-                  setImgErr("Enter a valid / or https:// image URL (SVG is not allowed).");
+                  setImgErr("Enter a valid https:// or / image URL (SVG is not allowed).");
+                  return;
+                }
+                if (!dbReady && /^http:\/\//i.test(clean)) {
+                  setImgErr("Use https:// instead of http:// so the photo URL syncs cleanly to Supabase.");
                   return;
                 }
                 setImgErr("");
@@ -995,17 +1015,31 @@ function Edit() {
                       .map((x) => x.trim())
                       .filter(Boolean);
                     const validUrls: string[] = [];
+                    let httpBlocked = 0;
                     for (const l of lines) {
-                      const clean = safeImageUrl(l);
-                      if (clean && !p.images.includes(clean)) {
-                        validUrls.push(clean);
+                      const dbReady = normalizeDbImageUrl(l);
+                      if (dbReady) {
+                        if (!p.images.includes(dbReady) && !validUrls.includes(dbReady)) {
+                          validUrls.push(dbReady);
+                        }
+                        continue;
                       }
+                      const fallback = safeImageUrl(l);
+                      if (fallback && /^http:\/\//i.test(fallback)) httpBlocked++;
                     }
                     if (validUrls.length === 0) {
-                      setImgErr("No valid new image URLs found to add.");
+                      setImgErr(
+                        httpBlocked > 0
+                          ? "Photo URLs must start with https:// (not http://) to sync with the live Supabase database."
+                          : "No valid new image URLs found to add.",
+                      );
                       return;
                     }
-                    setImgErr("");
+                    setImgErr(
+                      httpBlocked > 0
+                        ? `Added ${validUrls.length} URL(s); skipped ${httpBlocked} http:// link(s) (must use https://).`
+                        : "",
+                    );
                     up({ images: [...p.images, ...validUrls] });
                     setBulkImg("");
                     setShowBulk(false);

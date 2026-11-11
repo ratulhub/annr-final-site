@@ -4,6 +4,7 @@ import { dataSource } from "./services/dataSource";
 import { siteDefaults } from "./site/defaults";
 import type { SiteConfig } from "./site/types";
 import { getSession as getSessionSafe } from "./security/auth";
+import { normalizeDbImageUrl, normalizeProductCode, normalizeProductHandle } from "./security/sanitize";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 // Demo-only admin data layer. Everything lives in the browser (localStorage) until a
@@ -256,12 +257,12 @@ function get(): State {
         let prods = rawProds
           .filter((p: any) => p && p.handle && !LEGACY_PRODUCT_HANDLES.has(p.handle))
           .map((p: Product) => {
-            if (Array.isArray(p.images) && p.images.some((u) => /AkaManto|Bakeneko|BAKENEKO2|DiscordBanner|DivineSanctum|SANCTUMTEE|HoundOfHades|hades_back|BlueMoon|RuinAndRebirth|backhoodie_white|RUINMODEL|shihiko\.com/i.test(u))) {
+            if (Array.isArray(p.images) && p.images.some((u) => /AkaManto|Bakeneko|BAKENEKO2|DiscordBanner|DivineSanctum|SANCTUMTEE|HoundOfHades|hades_back|BlueMoon|RuinAndRebirth|backhoodie_white|RUINMODEL|Shihiko_2nd_Logo|Shihiko Logo White|SHIHIKOSOCKS|shihiko\.com/i.test(u))) {
               dirty = true;
               return {
                 ...p,
                 images: p.images.map((u) =>
-                  /AkaManto|Bakeneko|BAKENEKO2|DiscordBanner|DivineSanctum|SANCTUMTEE|HoundOfHades|hades_back|BlueMoon|RuinAndRebirth|backhoodie_white|RUINMODEL|shihiko\.com/i.test(u)
+                  /AkaManto|Bakeneko|BAKENEKO2|DiscordBanner|DivineSanctum|SANCTUMTEE|HoundOfHades|hades_back|BlueMoon|RuinAndRebirth|backhoodie_white|RUINMODEL|Shihiko_2nd_Logo|Shihiko Logo White|SHIHIKOSOCKS|shihiko\.com/i.test(u)
                     ? "/_ext/annr-template-001.png"
                     : u,
                 ),
@@ -603,9 +604,17 @@ const parseNumPrice = (v?: string | number | null) =>
 
 export async function syncProductToSupabase(
   product: Product,
-): Promise<{ ok: boolean; error?: string; skippedLocalImages?: number }> {
+): Promise<{ ok: boolean; error?: string; skippedLocalImages?: number; rejectedHttpImages?: number }> {
   if (!isSupabaseConfigured()) return { ok: false, error: "Supabase not configured" };
   try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      return {
+        ok: false,
+        error: "No live Supabase Auth session active — sign out and sign in with your Supabase admin email/password to sync products to live DB.",
+      };
+    }
+
     const cleanMeas: Record<string, number> = {};
     const mObj = product.measurements || {};
     (["chest", "length", "shoulder", "sleeve", "waist", "inseam"] as const).forEach((k) => {
@@ -639,26 +648,46 @@ export async function syncProductToSupabase(
     }
 
     const rawImages = Array.isArray(product.images) ? product.images : [];
-    const localDataCount = rawImages.filter((u) => /^data:image\//i.test(u)).length;
-    const remoteImages = rawImages
-      .filter((u) => /^(https?:\/\/|\/)/i.test(u))
-      .slice(0, 12);
+    let localDataCount = 0;
+    let rejectedHttpImages = 0;
+    const remoteImages: string[] = [];
+    for (const rawUrl of rawImages) {
+      const s = String(rawUrl ?? "").trim();
+      if (!s) continue;
+      if (/^data:image\//i.test(s)) {
+        localDataCount++;
+        continue;
+      }
+      const cleanUrl = normalizeDbImageUrl(s);
+      if (cleanUrl) {
+        if (!remoteImages.includes(cleanUrl) && remoteImages.length < 12) {
+          remoteImages.push(cleanUrl);
+        }
+      } else {
+        rejectedHttpImages++;
+      }
+    }
+
+    const cleanHandle = normalizeProductHandle(product.handle);
+    const cleanCode = normalizeProductCode(product.code);
+    const numPrice = Math.max(0, Math.round(parseNumPrice(product.price) * 100) / 100);
+    const numCompareAt = parseNumPrice(product.compareAt);
 
     const payload: Record<string, unknown> = {
-      handle: product.handle,
+      handle: cleanHandle,
       title: product.title || "Untitled Piece",
       description: product.description || "",
       product_type: catSlug || product.type || "hoodies",
       vendor: product.vendor || "AnnR",
       tags: Array.from(new Set(baseTags)),
-      price: parseNumPrice(product.price),
-      compare_at_price: product.compareAt ? parseNumPrice(product.compareAt) : null,
+      price: numPrice,
+      compare_at_price: numCompareAt > 0 ? Math.round(numCompareAt * 100) / 100 : null,
       currency: (product.currency || "BDT").slice(0, 3),
       images: remoteImages,
       seo_title: product.seoTitle || "",
       seo_description: product.seoDescription || "",
       status: product.status || "active",
-      code: product.code || null,
+      code: cleanCode,
       size: product.size || "L",
       show_size: product.showSize !== false,
       measurement_unit: "in",
@@ -683,8 +712,8 @@ export async function syncProductToSupabase(
       error = retry.error;
     }
 
-    if (error) return { ok: false, error: error.message, skippedLocalImages: localDataCount };
-    return { ok: true, skippedLocalImages: localDataCount };
+    if (error) return { ok: false, error: error.message, skippedLocalImages: localDataCount, rejectedHttpImages };
+    return { ok: true, skippedLocalImages: localDataCount, rejectedHttpImages };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Sync failed" };
   }

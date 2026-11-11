@@ -207,7 +207,7 @@ function Products() {
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, currentPage]);
 
-  const add = () => {
+  const add = async () => {
     const handle = "annr-unique-" + uid();
     const code = "ANNR-U" + Math.floor(100 + Math.random() * 900);
     const p: Product = {
@@ -247,9 +247,12 @@ function Products() {
     };
     setState((x) => ({ ...x, products: [p, ...x.products] }));
     setTimeout(() => { try { publish(); } catch {} }, 30);
-    void syncProductToSupabase(p).then((r) => {
-      if (!r.ok && r.error) setSyncMsg(`Error: ${r.error}`);
-    });
+    const syncRes = await syncProductToSupabase(p);
+    if (!syncRes.ok && syncRes.error) {
+      try {
+        sessionStorage.setItem("annr_last_product_sync_err", `${handle}:${syncRes.error}`);
+      } catch {}
+    }
     nav({ to: "/admin/products/$handle", params: { handle } });
   };
 

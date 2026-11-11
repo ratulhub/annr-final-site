@@ -74,8 +74,12 @@
     if (s.charAt(0) === "/") return s.charAt(1) === "/" ? "#" : s;
     return /^(https?:\/\/|mailto:|tel:)/i.test(s) ? s : "#";
   }
+  function isLegacyShihikoAsset(u) {
+    return /Shihiko_2nd_Logo|DiscordBanner|Shihiko Logo White|SHIHIKOSOCKS|shihiko\.com/i.test(String(u == null ? "" : u));
+  }
   function safeImg(u) {
     var s = String(u == null ? "" : u).trim();
+    if (!s || isLegacyShihikoAsset(s)) return "";
     if (/^data:image\/(png|jpe?g|webp|gif|avif);base64,[a-z0-9+\/=]+$/i.test(s)) return s;
     var r = safeUrl(s); return r.charAt(0) === "#" || /^(mailto|tel):/i.test(r) ? "" : r;
   }
@@ -1429,10 +1433,14 @@
           cd.textContent = o.description; tbLeft.appendChild(cd);
         }
       }
-      if (o && o.image && safeImg(o.image)) {
-        var cHero = document.querySelector('[id$="__collection_hero"]');
-        if (cHero && !cHero.querySelector(".adm-col-hero")) {
-          cHero.innerHTML = "<img class='adm-col-hero' src='" + esc(safeImg(o.image)) + "' alt='" + esc(o.title || "") + "' style='width:100%;max-height:360px;object-fit:cover;display:block'>";
+      var cHero = document.querySelector('[id$="__collection_hero"]');
+      if (cHero) {
+        cHero.querySelectorAll("img").forEach(function (im) {
+          if (isLegacyShihikoAsset(im.getAttribute("src") || im.getAttribute("data-src") || "")) im.remove();
+        });
+        var cleanHeroUrl = o && o.image ? safeImg(o.image) : "";
+        if (cleanHeroUrl && !cHero.querySelector(".adm-col-hero")) {
+          cHero.innerHTML = "<img class='adm-col-hero' src='" + esc(cleanHeroUrl) + "' alt='" + esc(o.title || "") + "' style='width:100%;max-height:360px;object-fit:cover;display:block'>";
         }
       }
       var grid = document.querySelector(".collection-product-grid");
@@ -5068,7 +5076,7 @@
     if (!document.getElementById("annr-unique-catalog-script")) {
       var ucScript = document.createElement("script");
       ucScript.id = "annr-unique-catalog-script";
-      ucScript.src = "/_ext/unique-catalog.js?v=20261112-v1";
+      ucScript.src = "/_ext/unique-catalog.js?v=20261112-v2";
       ucScript.defer = true;
       document.body.appendChild(ucScript);
     }

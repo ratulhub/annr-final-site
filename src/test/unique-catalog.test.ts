@@ -162,5 +162,49 @@ describe("AnnR Unique One-of-One Archival Catalog", () => {
     expect(bySize.length).toBe(1);
     expect(bySize[0]!.handle).toBe("bespoke-cargo-trouser-002");
   });
+
+  it("normalizes product codes, handles, and Supabase DB image URLs strictly", async () => {
+    const { normalizeDbImageUrl, normalizeProductCode, normalizeProductHandle } = await import(
+      "../admin/security/sanitize"
+    );
+
+    expect(normalizeProductCode(" ANNR U001! ")).toBe("ANNR-U001");
+    expect(normalizeProductCode("---")).toBeNull();
+
+    expect(normalizeProductHandle("  AnnR Archival Hoodie 001  ")).toBe("annr-archival-hoodie-001");
+
+    expect(normalizeDbImageUrl(" https://cdn.annr.site/img one.jpg ")).toBe(
+      "https://cdn.annr.site/img%20one.jpg",
+    );
+    expect(normalizeDbImageUrl("/_ext/annr-template-001.png")).toBe("/_ext/annr-template-001.png");
+    expect(normalizeDbImageUrl("http://insecure.example.com/a.jpg")).toBeNull();
+    expect(normalizeDbImageUrl("data:image/png;base64,AAAA")).toBeNull();
+    expect(normalizeDbImageUrl("//evil.example.com/a.png")).toBeNull();
+  });
+
+  it("keeps single-image collection cards visible, handles SPA nav, and blocks legacy Shihiko banners", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+
+    const themeCss = fs.readFileSync(path.resolve("public/cdn/shop/t/75/assets/theme.css"), "utf8");
+    expect(themeCss).toContain(".collection-product-grid .product-card-image-wrapper img:only-child");
+    expect(themeCss).toContain(".product-card-image:hover .product-card-image-wrapper img:only-child");
+
+    const uniqueCatalogJs = fs.readFileSync(path.resolve("public/_ext/unique-catalog.js"), "utf8");
+    expect(uniqueCatalogJs).toContain("shihiko:collection:loaded");
+    expect(uniqueCatalogJs).toContain('"created-descending": "newest"');
+    expect(uniqueCatalogJs).toContain("purgeLegacyHeroLogo");
+    expect(uniqueCatalogJs).toContain('name="filter.v.option.size"');
+    expect(uniqueCatalogJs).toContain("pf.updateContent = function (url)");
+
+    const siteConfigJs = fs.readFileSync(path.resolve("public/_ext/site-config.js"), "utf8");
+    expect(siteConfigJs).toContain("isLegacyShihikoAsset");
+    expect(siteConfigJs).toContain("Shihiko_2nd_Logo");
+    expect(siteConfigJs).toContain("unique-catalog.js?v=20261112-v2");
+
+    const deployWorkflow = fs.readFileSync(path.resolve(".github/workflows/deploy-cloudflare.yml"), "utf8");
+    expect(deployWorkflow).not.toMatch(/if:\s*\$\{\{\s*secrets\./);
+    expect(deployWorkflow).toContain("if: env.CLOUDFLARE_API_TOKEN != ''");
+  });
 });
 
