@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { registerVipMember, requestVipWithdrawal, type VipMember } from "../lib/loyalty";
 import { BD_DISTRICTS_BY_DIVISION, BD_DIVISIONS, isValidBdPhone } from "../lib/bangladesh-geo";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
+import { getSession as getAdminSession } from "../admin/security/auth";
 
 type AuthMode = "login" | "signup";
 const PENDING_SIGNUP_KEY = "annr-vip-pending-signup";
@@ -62,17 +63,14 @@ function VipPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const adm = localStorage.getItem("shihiko-admin-session") || sessionStorage.getItem("shihiko-admin-session");
-      const vip = localStorage.getItem(VIP_SESSION_KEY);
-      let isAdm = false;
-      if (adm) {
-        const p = JSON.parse(adm);
-        if (p?.role || p?.user) isAdm = true;
-      }
-      if (!isAdm && vip) {
-        const v = JSON.parse(vip);
-        const em = (v?.member?.email || "").toLowerCase().trim();
-        if (em === "arahimratul2004@gmail.com" || em.includes("arahim") || em.includes("ratul") || em.includes("admin")) isAdm = true;
+      let isAdm = Boolean(getAdminSession());
+      if (!isAdm) {
+        const vip = localStorage.getItem(VIP_SESSION_KEY);
+        if (vip) {
+          const v = JSON.parse(vip);
+          const em = (v?.member?.email || "").toLowerCase().trim();
+          if (em === "arahimratul2004@gmail.com") isAdm = true;
+        }
       }
       if (isAdm) {
         window.location.replace("/admin");

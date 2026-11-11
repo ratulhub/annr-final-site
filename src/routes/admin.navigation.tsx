@@ -7,7 +7,18 @@ import type { FooterColumn, HeaderItem, Link } from "../admin/site/types";
 
 export const Route = createFileRoute("/admin/navigation")({ component: Navigation });
 
-const NAVBAR_HANDLES = ["bonsai", "golden-goal", "samurai", "clocked-out", "divine", "classics", "archived"];
+const NAVBAR_HANDLES = [
+  "unique-campaign",
+  "hoodies",
+  "sweatshirts",
+  "trousers",
+  "sweaters",
+  "t-shirts",
+  "jackets",
+  "knitwear",
+  "accessories",
+  "all",
+];
 
 function Navigation() {
   const site = useSite();
@@ -37,7 +48,7 @@ function Navigation() {
       </div>
       <Card title="Header menu" action={<button className="adm-btn" onClick={() => setItems([...h.items, { id: uid(), label: "New link", url: "/collections/all/index.html", newTab: false, visible: true, original: null, device: "all" }])}>+ Add link</button>}>
         <p className="adm-hint">“Shop” and “Collections” keep their original drop-down menus; you can rename, hide or move them.</p>
-        <table><thead><tr><th /><th>Label</th><th>Link</th><th>New tab</th><th>Show on</th><th>Visible</th><th /></tr></thead><tbody>
+        <div className="adm-table-wrap"><table><thead><tr><th /><th>Label</th><th>Link</th><th>New tab</th><th>Show on</th><th>Visible</th><th /></tr></thead><tbody>
           {h.items.map((it, i) => { const up = (p: Partial<HeaderItem>) => setItems(h.items.map((x) => (x.id === it.id ? { ...x, ...p } : x))); return <tr key={it.id}>
             <td><OrderBtns i={i} n={h.items.length} onMove={(to) => setItems(move(h.items, i, to))} /></td>
             <td><input value={it.label} onChange={(e) => up({ label: e.target.value })} /></td>
@@ -46,12 +57,13 @@ function Navigation() {
             <td><select value={it.device} onChange={(e) => up({ device: e.target.value as HeaderItem["device"] })}>{["all", "desktop", "mobile"].map((o) => <option key={o}>{o}</option>)}</select></td>
             <td><input type="checkbox" checked={it.visible} onChange={(e) => up({ visible: e.target.checked })} /></td>
             <td><button className="adm-btn danger sm" onClick={() => confirm(`Remove “${it.label}”?`) && setItems(h.items.filter((x) => x.id !== it.id))}>✕</button></td></tr>; })}
-        </tbody></table>
+        </tbody></table></div>
       </Card>
       <Card title="Collections Dropdown Menu (Navbar References)">
         <p className="adm-hint">
           These items appear directly under the “Collections” mega-menu and mobile navigation dropdown, as well as the collection category bar. They are live references to your collections in <strong>Collections</strong>. When you edit titles or visibility here or in Collections, changes sync everywhere immediately.
         </p>
+        <div className="adm-table-wrap">
         <table>
           <thead>
             <tr>
@@ -94,6 +106,7 @@ function Navigation() {
             ))}
           </tbody>
         </table>
+        </div>
       </Card>
       <Card title="Header options"><Obj k="header">{(v, set) => <div className="adm-grid">
         <Chk label="Show VIP button" value={v.showVip} onChange={(showVip) => set({ showVip })} />
@@ -112,13 +125,13 @@ function Navigation() {
               <span className="adm-row"><Chk label="Visible" value={c.visible} onChange={(visible) => upC({ visible })} /><OrderBtns i={ci} n={f.columns.length} onMove={(to) => setCols(move(f.columns, ci, to))} />
                 <button className="adm-btn danger sm" onClick={() => confirm(`Delete column “${c.title}”?`) && setCols(f.columns.filter((x) => x.id !== c.id))}>Delete</button></span>
             </div>
-            <table style={{ marginTop: 10 }}><tbody>{c.links.map((l, i) => { const up = (p: Partial<Link>) => setL(c.links.map((x) => (x.id === l.id ? { ...x, ...p } : x))); return <tr key={l.id}>
+            <div className="adm-table-wrap" style={{ marginTop: 10 }}><table><tbody>{c.links.map((l, i) => { const up = (p: Partial<Link>) => setL(c.links.map((x) => (x.id === l.id ? { ...x, ...p } : x))); return <tr key={l.id}>
               <td><OrderBtns i={i} n={c.links.length} onMove={(to) => setL(move(c.links, i, to))} /></td>
               <td><input value={l.label} onChange={(e) => up({ label: e.target.value })} /></td>
               <td><input value={l.url} aria-invalid={!isUrl(l.url)} onChange={(e) => up({ url: e.target.value })} />{!isUrl(l.url) && <small className="adm-err">Invalid link</small>}</td>
               <td><label className="adm-check"><input type="checkbox" checked={l.newTab} onChange={(e) => up({ newTab: e.target.checked })} />new tab</label></td>
               <td><label className="adm-check"><input type="checkbox" checked={l.visible} onChange={(e) => up({ visible: e.target.checked })} />visible</label></td>
-              <td><button className="adm-btn danger sm" onClick={() => setL(c.links.filter((x) => x.id !== l.id))}>✕</button></td></tr>; })}</tbody></table>
+              <td><button className="adm-btn danger sm" onClick={() => setL(c.links.filter((x) => x.id !== l.id))}>✕</button></td></tr>; })}</tbody></table></div>
             <button className="adm-btn ghost sm" style={{ marginTop: 8 }} onClick={() => setL([...c.links, { id: uid(), label: "Link", url: "/home.html", newTab: false, visible: true }])}>+ Add link</button>
           </div>;
         })}

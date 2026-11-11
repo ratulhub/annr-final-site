@@ -245,6 +245,7 @@ function WebsitePagesManager() {
       </div>
 
       <Card title={`Page Directory (${filteredPages.length})`}>
+        <div className="adm-table-wrap">
         <table>
           <thead>
             <tr>
@@ -317,6 +318,7 @@ function WebsitePagesManager() {
             )}
           </tbody>
         </table>
+        </div>
         <p className="adm-hint" style={{ marginTop: 12 }}>
           Pages toggled to "Hidden" immediately become inaccessible on the storefront and display AnnR's custom unavailable screen.
         </p>
@@ -325,6 +327,7 @@ function WebsitePagesManager() {
       {/* Custom Pages Table */}
       {cps.length > 0 && (
         <Card title={`Custom Block-Based Pages (${cps.length})`}>
+          <div className="adm-table-wrap">
           <table>
             <thead>
               <tr>
@@ -411,6 +414,7 @@ function WebsitePagesManager() {
               })}
             </tbody>
           </table>
+          </div>
           <p className="adm-hint" style={{ marginTop: 12 }}>
             Custom pages support full modular block layouts (headings, rich text, images, FAQ accordions, buttons, product showcases, and galleries).
           </p>

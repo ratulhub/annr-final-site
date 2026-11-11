@@ -14,3 +14,4 @@ exception when duplicate_object then null; end $$;
 
 comment on column public.products.show_size is 'Controls whether the standard S/M/L alpha size badge is shown or hidden (measurements only) on the storefront';
 comment on column public.products.measurement_unit is 'Unit of flat garment measurements: in (inches) or cm';
+

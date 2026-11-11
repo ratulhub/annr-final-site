@@ -104,6 +104,34 @@ export type Activity = { id: string; at: string; section: string; action: "added
 const KEY = "shihiko-admin-v1";
 export const uid = () => Math.random().toString(36).slice(2, 9);
 
+export const LEGACY_PRODUCT_HANDLES = new Set([
+  "aka-manto-longsleeve",
+  "divine-sanctum-tee",
+  "ruin-and-rebirth-varsity-jacket",
+  "blue-moon-long-sleeve",
+  "hound-of-hades-tee",
+  "ruin-and-rebirth-reversible-hoodie",
+]);
+
+export const LEGACY_COLLECTION_HANDLES = new Set([
+  "archived",
+  "bonsai",
+  "bottoms",
+  "classics",
+  "clocked-out",
+  "divine",
+  "flight-tags-keychains",
+  "golden-goal",
+  "hats",
+  "jeans",
+  "joggers",
+  "longsleeves",
+  "outwear",
+  "samurai",
+  "socks",
+  "vault",
+]);
+
 export const TEMPLATE_PRODUCT: Product = {
   handle: "annr-archival-001",
   code: "ANNR-001",
@@ -118,17 +146,15 @@ export const TEMPLATE_PRODUCT: Product = {
   category: "hoodies",
   campaign: "unique-campaign",
   tags: "unique, 1-of-1, archival, heavyweight",
-  images: [
-    "/cdn/shop/files/AkaMantoLongsleeveFront_1080x.png"
-  ],
+  images: ["/_ext/annr-template-001.png"],
   variants: [
     {
       id: "var-001",
       option: "L",
-      sku: "ANNR-001-L",
+      sku: "ANNR-001",
       price: "9,800.00",
       stock: 1,
-    }
+    },
   ],
   collections: ["unique-campaign", "all", "hoodies"],
   seoTitle: "Archival Heavyweight Hoodie 001 — AnnR 1-of-1",
@@ -198,7 +224,6 @@ function seed(): State {
     },
     admins: [
       { id: "owner-arahim", name: "Rahim Ratul", email: "arahimratul2004@gmail.com", role: "super_admin" },
-      { id: uid(), name: "Ratul", email: "ratul123@gmail.com", role: "super_admin" },
     ],
     theme: {
       primary: "#000000", background: "#ffffff", accent: "#e10600", text: "#000000",
@@ -226,36 +251,119 @@ function get(): State {
       const raw = dataSource.read<State>(KEY);
       const base = seed();
       if (raw) {
-        let prods = Array.isArray(raw.products) ? raw.products : [];
-        const hasLegacyDemo = prods.some((p: any) => p && (p.handle === "aka-manto-longsleeve" || p.handle === "divine-sanctum-tee"));
-        const hasLegacyOrders = Array.isArray(raw.orders) && raw.orders.some((o: any) => o && (o.customer === "Arif Hasan" || o.customer === "Nadia Islam" || (typeof o.items === "string" && o.items.includes("Aka Manto"))));
-        const hasLegacyCusts = Array.isArray(raw.customers) && raw.customers.some((c: any) => c && (c.name === "Arif Hasan" || c.name === "Nadia Islam"));
-
-        if (hasLegacyDemo || prods.length === 0) {
+        let dirty = false;
+        const rawProds = Array.isArray(raw.products) ? raw.products : [];
+        let prods = rawProds
+          .filter((p: any) => p && p.handle && !LEGACY_PRODUCT_HANDLES.has(p.handle))
+          .map((p: Product) => {
+            if (Array.isArray(p.images) && p.images.some((u) => /AkaManto|Bakeneko|BAKENEKO2|DiscordBanner|DivineSanctum|SANCTUMTEE|HoundOfHades|hades_back|BlueMoon|RuinAndRebirth|backhoodie_white|RUINMODEL|shihiko\.com/i.test(u))) {
+              dirty = true;
+              return {
+                ...p,
+                images: p.images.map((u) =>
+                  /AkaManto|Bakeneko|BAKENEKO2|DiscordBanner|DivineSanctum|SANCTUMTEE|HoundOfHades|hades_back|BlueMoon|RuinAndRebirth|backhoodie_white|RUINMODEL|shihiko\.com/i.test(u)
+                    ? "/_ext/annr-template-001.png"
+                    : u,
+                ),
+              };
+            }
+            return p;
+          });
+        if (prods.length !== rawProds.length) dirty = true;
+        if (prods.length === 0) {
           prods = [TEMPLATE_PRODUCT];
+          dirty = true;
         }
-        let ords = Array.isArray(raw.orders) ? raw.orders : [];
-        if (hasLegacyOrders) {
-          ords = [];
+
+        const rawCols = Array.isArray(raw.collections) ? raw.collections : [];
+        const hasLegacyCols = rawCols.some((c: any) => c && LEGACY_COLLECTION_HANDLES.has(c.handle));
+        let cols = rawCols.filter((c: any) => c && c.handle && !LEGACY_COLLECTION_HANDLES.has(c.handle));
+        if (hasLegacyCols || cols.length === 0) {
+          cols = base.collections;
+          dirty = true;
+        }
+
+        const rawOrders = Array.isArray(raw.orders) ? raw.orders : [];
+        const ords = rawOrders.filter(
+          (o: any) =>
+            o &&
+            o.customer !== "Arif Hasan" &&
+            o.customer !== "Nadia Islam" &&
+            !(typeof o.items === "string" && /Aka Manto|Divine Sanctum/i.test(o.items)),
+        );
+        if (ords.length !== rawOrders.length) {
+          dirty = true;
           try { localStorage.removeItem("annr-orders"); } catch {}
         }
-        let custs = Array.isArray(raw.customers) ? raw.customers : [];
-        if (hasLegacyCusts) {
-          custs = [];
+
+        const rawCusts = Array.isArray(raw.customers) ? raw.customers : [];
+        const custs = rawCusts.filter(
+          (c: any) =>
+            c &&
+            c.name !== "Arif Hasan" &&
+            c.name !== "Nadia Islam" &&
+            c.email !== "nadia@example.com" &&
+            c.email !== "arif@example.com",
+        );
+        if (custs.length !== rawCusts.length) dirty = true;
+
+        const rawAdmins = Array.isArray(raw.admins) ? raw.admins : [];
+        const admins = rawAdmins.filter((a: any) => a && a.email?.toLowerCase() !== "ratul123@gmail.com");
+        if (!admins.some((a: any) => a.email?.toLowerCase() === "arahimratul2004@gmail.com")) {
+          admins.unshift(base.admins[0]!);
+          dirty = true;
+        }
+        if (admins.length !== rawAdmins.length) dirty = true;
+
+        const mergedSite = { ...base.site, ...(raw.site || {}) };
+        if (Array.isArray(mergedSite.events)) {
+          const cleanEvents = mergedSite.events.filter(
+            (ev: any) => ev && ev.id !== "gwp-launch" && ev.id !== "event-capsule-drop" && !/UWUSOCKS1|Midnight Vault/i.test(JSON.stringify(ev)),
+          );
+          if (cleanEvents.length !== mergedSite.events.length) {
+            mergedSite.events = cleanEvents;
+            dirty = true;
+          }
+        }
+        if (Array.isArray(mergedSite.header?.items) && mergedSite.header.items.some((it: any) => it.label === "New In" && String(it.url).includes("all/index.html?sort_by"))) {
+          mergedSite.header = base.site.header;
+          dirty = true;
         }
 
-        state = {
+        const rawCats = Array.isArray(raw.categories) ? raw.categories : [];
+        const LEGACY_CATEGORY_SLUGS = new Set(["tees", "bottoms", "longsleeves", "outwear", "outerwear", "jeans", "joggers", "hats", "socks", "flight-tags-keychains"]);
+        const hasLegacyCats = rawCats.some((c: any) => c && (LEGACY_CATEGORY_SLUGS.has(c.slug) || LEGACY_COLLECTION_HANDLES.has(c.slug)));
+        const cats = hasLegacyCats || !rawCats.length ? base.categories : rawCats;
+        if (hasLegacyCats) dirty = true;
+
+        const mainMenu: MenuItem[] =
+          hasLegacyCols || hasLegacyCats
+            ? (base.menus["main"] ?? [])
+            : (raw.menus?.["main"] ?? base.menus["main"] ?? []);
+        const cleanMenus: Record<string, MenuItem[]> = {
+          ...base.menus,
+          ...(raw.menus ?? {}),
+          main: mainMenu,
+        };
+
+        const nextState: State = {
           ...base,
           ...raw,
           products: prods,
+          categories: cats,
+          campaigns: Array.isArray(raw.campaigns) && raw.campaigns.length ? raw.campaigns : base.campaigns,
+          collections: cols,
           orders: ords,
           customers: custs,
-          activity: (hasLegacyOrders || hasLegacyDemo) ? [] : (raw.activity || []),
-          site: { ...base.site, ...(raw.site || {}) },
+          admins,
+          menus: cleanMenus,
+          activity: dirty && rawOrders.length !== ords.length ? [] : raw.activity || [],
+          site: mergedSite,
         };
+        state = nextState;
 
-        if (hasLegacyDemo || hasLegacyOrders || hasLegacyCusts) {
-          persist(state);
+        if (dirty) {
+          persist(nextState);
         }
       } else {
         state = base;
@@ -269,15 +377,34 @@ function get(): State {
 }
 
 export function wipeAllDemoData() {
+  const base = seed();
   setState((prev) => ({
     ...prev,
     products: [TEMPLATE_PRODUCT],
+    categories: base.categories,
+    campaigns: base.campaigns,
+    collections: base.collections,
+    menus: base.menus,
     orders: [],
     customers: [],
     discounts: [],
     activity: [],
+    site: {
+      ...prev.site,
+      events: [],
+      texts: [],
+      images: [],
+      media: [],
+      header: base.site.header,
+    },
   }));
-  try { localStorage.removeItem("annr-orders"); } catch {}
+  try {
+    localStorage.removeItem("annr-orders");
+    localStorage.removeItem("annr_live_products");
+    localStorage.removeItem("annr-cart");
+    localStorage.removeItem("shihiko-cart");
+    localStorage.removeItem("annr_reservation");
+  } catch {}
   publish();
 }
 // Compare two states and describe every change (section, item, fields).
@@ -334,7 +461,36 @@ export function resetState() { dataSource.clear(KEY); dataSource.clear(DRAFT_KEY
 const PUB_KEY = "shihiko-site-config", DRAFT_KEY = "shihiko-site-draft", HIST_KEY = "shihiko-site-history";
 let seedCache: State | null = null;
 const PUBLIC_FIELDS = {
-  products: ["title", "price", "compareAt", "status", "seoTitle", "seoDescription", "description", "badge", "images", "sizeChart", "variants", "trackStock", "allowBackorder", "collections"],
+  products: [
+    "code",
+    "title",
+    "price",
+    "compareAt",
+    "currency",
+    "status",
+    "seoTitle",
+    "seoDescription",
+    "description",
+    "badge",
+    "images",
+    "size",
+    "showSize",
+    "measurementUnit",
+    "measurements",
+    "category",
+    "campaign",
+    "fabric",
+    "condition",
+    "careInstructions",
+    "stock",
+    "isOneOfOne",
+    "tags",
+    "sizeChart",
+    "variants",
+    "trackStock",
+    "allowBackorder",
+    "collections",
+  ],
   collections: ["title", "description", "image", "seoTitle", "seoDescription", "visible", "sort", "products"],
   pages: ["title", "seoTitle", "seoDescription", "visible", "body"],
 } as const;
@@ -391,15 +547,34 @@ export function siteConfig(s: State) {
     site: s.site,
     defaults: base.site,
     catalog: s.products.map((p) => ({
+      id: p.id || "",
       handle: p.handle,
+      code: p.code || "",
       title: p.title,
       price: p.price,
       compareAt: p.compareAt || "",
+      currency: p.currency || "BDT",
       image: p.images[0] || "",
       image2: p.images[1] || "",
+      images: p.images || [],
       description: p.description || "",
-      badge: p.badge || "",
+      badge: p.badge || "1 OF 1",
+      category: p.category || "hoodies",
+      campaign: p.campaign || "unique-campaign",
       collections: p.collections || [],
+      size: p.size || "L",
+      showSize: p.showSize !== false,
+      measurementUnit: "in" as const,
+      measurements: p.measurements || {},
+      fabric: p.fabric || "",
+      condition: p.condition || "",
+      careInstructions: p.careInstructions || "",
+      stock: p.status === "sold" ? 0 : (p.stock ?? 1),
+      isOneOfOne: p.isOneOfOne !== false,
+      tags: p.tags || "",
+      seoTitle: p.seoTitle || "",
+      seoDescription: p.seoDescription || "",
+      sizeChart: p.sizeChart || "",
       status: p.status,
     })),
     deletedProducts,
@@ -414,6 +589,117 @@ function persist(s: State) {
   const cfg = siteConfig(s);
   dataSource.write(DRAFT_KEY, cfg);
   dataSource.write(PUB_KEY, cfg);
+  try {
+    if (typeof localStorage !== "undefined") localStorage.removeItem("annr_live_products");
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("annr:products:updated"));
+  } catch {}
+}
+
+const isUuidStr = (v?: string | null) =>
+  Boolean(v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v));
+
+const parseNumPrice = (v?: string | number | null) =>
+  parseFloat(String(v ?? "0").replace(/[^0-9.-]/g, "")) || 0;
+
+export async function syncProductToSupabase(
+  product: Product,
+): Promise<{ ok: boolean; error?: string; skippedLocalImages?: number }> {
+  if (!isSupabaseConfigured()) return { ok: false, error: "Supabase not configured" };
+  try {
+    const cleanMeas: Record<string, number> = {};
+    const mObj = product.measurements || {};
+    (["chest", "length", "shoulder", "sleeve", "waist", "inseam"] as const).forEach((k) => {
+      const val = Number(mObj[k]);
+      if (Number.isFinite(val) && val > 0 && val <= 500) {
+        cleanMeas[k] = val;
+      }
+    });
+
+    const catSlug = product.category || "hoodies";
+    const campSlug = product.campaign || "unique-campaign";
+    const baseTags = String(product.tags || "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t && !t.startsWith("cat:") && !t.startsWith("camp:") && t !== "__hide_size" && !t.startsWith("__unit:"));
+    if (catSlug) baseTags.push(`cat:${catSlug}`);
+    if (campSlug && campSlug !== "none") baseTags.push(`camp:${campSlug}`);
+    if (product.showSize === false) baseTags.push("__hide_size");
+    baseTags.push("__unit:in");
+
+    let categoryId: string | null = isUuidStr(product.category) ? product.category! : null;
+    let campaignId: string | null = campSlug === "none" ? null : isUuidStr(product.campaign) ? product.campaign! : null;
+
+    if (!categoryId && catSlug) {
+      const { data: catRow } = await supabase.from("categories").select("id").eq("slug", catSlug).maybeSingle();
+      if (catRow?.id) categoryId = catRow.id;
+    }
+    if (!campaignId && campSlug && campSlug !== "none") {
+      const { data: campRow } = await supabase.from("campaigns").select("id").eq("slug", campSlug).maybeSingle();
+      if (campRow?.id) campaignId = campRow.id;
+    }
+
+    const rawImages = Array.isArray(product.images) ? product.images : [];
+    const localDataCount = rawImages.filter((u) => /^data:image\//i.test(u)).length;
+    const remoteImages = rawImages
+      .filter((u) => /^(https?:\/\/|\/)/i.test(u))
+      .slice(0, 12);
+
+    const payload: Record<string, unknown> = {
+      handle: product.handle,
+      title: product.title || "Untitled Piece",
+      description: product.description || "",
+      product_type: catSlug || product.type || "hoodies",
+      vendor: product.vendor || "AnnR",
+      tags: Array.from(new Set(baseTags)),
+      price: parseNumPrice(product.price),
+      compare_at_price: product.compareAt ? parseNumPrice(product.compareAt) : null,
+      currency: (product.currency || "BDT").slice(0, 3),
+      images: remoteImages,
+      seo_title: product.seoTitle || "",
+      seo_description: product.seoDescription || "",
+      status: product.status || "active",
+      code: product.code || null,
+      size: product.size || "L",
+      show_size: product.showSize !== false,
+      measurement_unit: "in",
+      measurements: cleanMeas,
+      fabric: product.fabric || null,
+      condition: product.condition || null,
+      care_instructions: product.careInstructions || null,
+      stock: product.status === "sold" ? 0 : (product.stock ?? 1),
+      campaign_id: campSlug === "none" ? null : campaignId,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (categoryId) payload["category_id"] = categoryId;
+
+    let { error } = await supabase.from("products").upsert(payload, { onConflict: "handle" });
+    if (error && /show_size|measurement_unit|care_instructions|column/i.test(error.message)) {
+      const fallbackPayload = { ...payload };
+      delete fallbackPayload["show_size"];
+      delete fallbackPayload["measurement_unit"];
+      delete fallbackPayload["care_instructions"];
+      const retry = await supabase.from("products").upsert(fallbackPayload, { onConflict: "handle" });
+      error = retry.error;
+    }
+
+    if (error) return { ok: false, error: error.message, skippedLocalImages: localDataCount };
+    return { ok: true, skippedLocalImages: localDataCount };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Sync failed" };
+  }
+}
+
+export async function deleteProductFromSupabase(handle: string): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured()) return { ok: true };
+  if (!handle) return { ok: false, error: "Missing product handle" };
+  try {
+    const { error } = await supabase.from("products").delete().eq("handle", handle);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Delete failed" };
+  }
 }
 export const getPublished = () => dataSource.read<Published>(PUB_KEY);
 export const getHistory = () => dataSource.read<{ at: string; state: State }[]>(HIST_KEY) || [];
@@ -427,6 +713,12 @@ export function publish() {
   const act = { id: uid(), at: new Date().toISOString(), by: getSessionSafe()?.email || "unknown", section: "publish", action: "updated" as const, item: "Website", fields: "published draft" };
   state = { ...s, activity: [act, ...s.activity].slice(0, 1000), publishedAt: act.at } as State;
   dataSource.write(KEY, state); subs.forEach((f) => f());
+  try {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("annr:products:updated"));
+      window.dispatchEvent(new CustomEvent("annr:categories:updated"));
+    }
+  } catch {}
 
   // Also publish to Supabase if configured
   if (isSupabaseConfigured()) {

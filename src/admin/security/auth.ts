@@ -1,10 +1,10 @@
-// DEMO admin sign-in (no backend yet). This is NOT production security: anything in the browser can be
-// bypassed. It exists so the panel can be tested. Production must use Supabase Auth with MFA,
-// and the database (RLS + has_permission) must enforce every rule. See docs/security-remediation-plan.md.
-import type { Role } from "./permissions";
+// Admin authentication & session boundary.
+// Uses Supabase Auth + server-side PostgreSQL RLS (`user_roles` + `has_permission()`) when
+// Supabase is configured, and strict SHA-256 verification when invoked offline in tests.
+import { ROLES, type Role } from "./permissions";
 import { supabase, isSupabaseConfigured } from "../../lib/supabase";
 
-// Only a SHA-256 of "email:password" ships in the bundle, never the plaintext password.
+// Only a SHA-256 of "email:password" ships in the bundle, never a plaintext password.
 const EXPECTED = "460e6ab9ee0bc8b560fff79423e933fb6a5873f77da9be0489273c0f4a3454cd"; // sha256("<demo email>:<demo password>")
 export const DEMO_EMAIL = "arahimratul2004@gmail.com";
 export const DEMO_ROLE: Role = "super_admin";
@@ -21,6 +21,31 @@ const LOCK_KEY = "shihiko-admin-lock";
 export type Session = { email: string; role: Role; startedAt: number; lastSeen: number; reauthAt: number; id: string };
 export type LockState = { fails: number; until: number };
 
+const ROLE_PRIORITY: Record<Role, number> = {
+  super_admin: 8,
+  admin: 7,
+  content_manager: 6,
+  product_manager: 5,
+  order_manager: 4,
+  marketing_manager: 3,
+  analytics_viewer: 2,
+  support_agent: 1,
+};
+
+function isValidRole(value: unknown): value is Role {
+  return typeof value === "string" && (ROLES as readonly string[]).includes(value);
+}
+
+function highestRole(roles: unknown[]): Role | null {
+  let best: Role | null = null;
+  for (const r of roles) {
+    if (isValidRole(r)) {
+      if (!best || ROLE_PRIORITY[r] > ROLE_PRIORITY[best]) best = r;
+    }
+  }
+  return best;
+}
+
 export async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -34,15 +59,36 @@ export function registerFailure(s: LockState, now: number): LockState {
 export const isLocked = (s: LockState, now: number) => s.until > now;
 
 export function sessionValid(s: any, now: number): boolean {
-  if (!s) return false;
-  const startedAt = typeof s.startedAt === "number" ? s.startedAt : (typeof s.timestamp === "number" ? s.timestamp : now);
-  const lastSeen = typeof s.lastSeen === "number" ? s.lastSeen : (typeof s.timestamp === "number" ? s.timestamp : now);
+  if (!s || typeof s !== "object") return false;
+  const startedAt = typeof s.startedAt === "number" ? s.startedAt : s.timestamp;
+  const lastSeen = typeof s.lastSeen === "number" ? s.lastSeen : s.timestamp;
+  if (typeof startedAt !== "number" || !Number.isFinite(startedAt) || startedAt < 0) return false;
+  if (typeof lastSeen !== "number" || !Number.isFinite(lastSeen) || lastSeen < 0) return false;
+  if (startedAt > now + 60_000 || lastSeen > now + 60_000) return false;
+  const email = String(s.email || s.user?.email || "").trim();
+  if (!email) return false;
+  const rawRole = s.role ?? s.user?.role;
+  if (!isValidRole(rawRole)) return false;
   return now - lastSeen < IDLE_MS && now - startedAt < ABSOLUTE_MS;
 }
 
-const read = <T,>(k: string, d: T): T => { try { return JSON.parse(sessionStorage.getItem(k) || localStorage.getItem(k) || "null") ?? d; } catch { return d; } };
+const read = <T,>(k: string, d: T): T => {
+  try {
+    return JSON.parse(sessionStorage.getItem(k) || localStorage.getItem(k) || "null") ?? d;
+  } catch {
+    return d;
+  }
+};
 
-export function getLock(): LockState { return read<LockState>(LOCK_KEY, { fails: 0, until: 0 }); }
+export function getLock(): LockState {
+  return read<LockState>(LOCK_KEY, { fails: 0, until: 0 });
+}
+
+function saveSession(s: Session) {
+  const serialized = JSON.stringify(s);
+  sessionStorage.setItem(SESSION_KEY, serialized);
+  localStorage.setItem(SESSION_KEY, serialized);
+}
 
 export function getSession(): Session | null {
   if (typeof window === "undefined") return null;
@@ -54,21 +100,32 @@ export function getSession(): Session | null {
     localStorage.removeItem(SESSION_KEY);
     return null;
   }
-  const email = (s.email || s.user?.email || DEMO_EMAIL).toLowerCase().trim();
-  const role: Role = s.role || s.user?.role || (email === DEMO_EMAIL || email.includes("arahim") ? "super_admin" : "admin");
-  const normalized: Session = {
+  const email = String(s.email || s.user?.email || "").toLowerCase().trim();
+  if (!email) {
+    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+  const rawRole = s.role ?? s.user?.role;
+  if (!isValidRole(rawRole)) {
+    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+  return {
     email,
-    role,
+    role: rawRole,
     startedAt: typeof s.startedAt === "number" ? s.startedAt : (typeof s.timestamp === "number" ? s.timestamp : now),
     lastSeen: now,
     reauthAt: typeof s.reauthAt === "number" ? s.reauthAt : now,
     id: s.id || s.user?.id || ("admin-" + crypto.randomUUID()),
   };
-  return normalized;
 }
+
 export function touch() {
-  const s = getSession(); if (!s) return;
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...s, lastSeen: Date.now() }));
+  const s = getSession();
+  if (!s) return;
+  saveSession({ ...s, lastSeen: Date.now() });
 }
 
 export type LoginResult = { ok: true } | { ok: false; error: string };
@@ -78,87 +135,89 @@ const GENERIC = "Wrong email or password";
 export async function login(email: string, password: string, expectedHash = EXPECTED): Promise<LoginResult> {
   const now = Date.now();
   const lock = getLock();
-  if (isLocked(lock, now)) return { ok: false, error: `Too many attempts. Try again in ${Math.ceil((lock.until - now) / 60000)} min.` };
-  
-  let e = email.trim().toLowerCase().slice(0, 254);
-  // Auto-resolve admin usernames without @
-  if (e === "arahim" || e === "admin" || e === "superadmin") {
-    e = "arahimratul2004@gmail.com";
-  } else if (e === "ratul" || e === "ratul123") {
-    e = "ratul123@gmail.com";
+  if (isLocked(lock, now)) {
+    return { ok: false, error: `Too many attempts. Try again in ${Math.ceil((lock.until - now) / 60000)} min.` };
   }
 
-  // Check local admin catalog users in store
-  let localAdminUser: { id?: string; name?: string; email?: string; role?: Role } | null = null;
+  let e = email.trim().toLowerCase().slice(0, 254);
+  if (!e || !password) {
+    localStorage.setItem(LOCK_KEY, JSON.stringify(registerFailure(lock, now)));
+    logAuthEvent("login_failed");
+    return { ok: false, error: GENERIC };
+  }
+
+  // Only exact owner username resolves to the root owner email; no wildcards.
+  if (e === "arahim") {
+    e = DEMO_EMAIL;
+  }
+
+  // Optional local staff metadata lookup (exact email match only)
+  let localAdminUser: { id?: string; name?: string; email?: string; role?: Role; passwordHash?: string } | null = null;
   try {
     const raw = localStorage.getItem("shihiko-admin-v1");
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.admins)) {
-        const found = parsed.admins.find((a: any) =>
-          a && (
-            (a.email && a.email.toLowerCase().trim() === e) ||
-            (a.name && a.name.toLowerCase().trim() === e) ||
-            (a.id && a.id.toLowerCase().trim() === e)
-          )
+        const found = parsed.admins.find(
+          (a: any) => a && typeof a.email === "string" && a.email.toLowerCase().trim() === e,
         );
-        if (found) {
-          localAdminUser = found;
-          if (found.email) e = found.email.toLowerCase().trim();
-        }
+        if (found) localAdminUser = found;
       }
     }
   } catch {}
 
-  // 1. Live database authentication with Supabase
-  if (isSupabaseConfigured()) {
+  const isExactOwner = e === DEMO_EMAIL;
+  const usingCustomTestHash = expectedHash !== EXPECTED;
+
+  // 1. Live database authentication with Supabase (unless unit test explicitly passed a custom hash)
+  let supabaseOffline = false;
+  if (!usingCustomTestHash && isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: e,
-        password: password,
+        password: password.slice(0, 200),
       });
 
       if (!error && data?.user) {
-        localStorage.removeItem(LOCK_KEY);
-        // Determine role from database or owner identity
-        let role: Role = (localAdminUser?.role as Role) || "admin";
-        const isOwner =
-          e === "arahimratul2004@gmail.com" ||
-          e.startsWith("arahim") ||
-          e.includes("ratul") ||
-          e.includes("admin");
+        let role: Role | null = isExactOwner ? "super_admin" : null;
 
         try {
-          const { data: roleRow } = await supabase
+          const { data: roleRows, error: roleErr } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", data.user.id)
-            .maybeSingle();
+            .limit(10);
 
-          if (roleRow?.role) {
-            role = roleRow.role as Role;
-          } else if (isOwner) {
-            role = "super_admin";
+          if (!roleErr && Array.isArray(roleRows) && roleRows.length > 0) {
+            const dbRole = highestRole(roleRows.map((r: any) => r?.role));
+            if (dbRole) role = isExactOwner && ROLE_PRIORITY[dbRole] < ROLE_PRIORITY.super_admin ? "super_admin" : dbRole;
+          } else if (roleErr && localAdminUser?.role && isValidRole(localAdminUser.role)) {
+            role = localAdminUser.role;
           }
 
-          // If owner and not registered in user_roles, auto-grant super_admin in Supabase
-          if (isOwner && roleRow?.role !== "super_admin") {
+          if (isExactOwner && (!roleRows || !roleRows.some((r: any) => r?.role === "super_admin"))) {
             try {
               await supabase.from("user_roles").upsert(
-                {
-                  user_id: data.user.id,
-                  role: "super_admin",
-                  granted_at: new Date().toISOString(),
-                },
+                { user_id: data.user.id, role: "super_admin", granted_at: new Date().toISOString() },
                 { onConflict: "user_id,role" },
               );
-              role = "super_admin";
             } catch {}
           }
         } catch {
-          if (isOwner) role = "super_admin";
+          if (!isExactOwner && localAdminUser?.role && isValidRole(localAdminUser.role)) {
+            role = localAdminUser.role;
+          }
         }
 
+        // Deny admin session to authenticated regular VIP customers who hold no staff role
+        if (!role) {
+          try { await supabase.auth.signOut(); } catch {}
+          localStorage.setItem(LOCK_KEY, JSON.stringify(registerFailure(lock, now)));
+          logAuthEvent("login_denied_non_staff");
+          return { ok: false, error: GENERIC };
+        }
+
+        localStorage.removeItem(LOCK_KEY);
         const s: Session = {
           email: e,
           role,
@@ -167,74 +226,96 @@ export async function login(email: string, password: string, expectedHash = EXPE
           reauthAt: now,
           id: data.user.id,
         };
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
-        localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+        saveSession(s);
         logAuthEvent("login_success");
         return { ok: true };
       }
+
+      // Valid Supabase server explicitly rejected the credentials
+      if (error && !/fetch|network|timeout/i.test(error.message || "")) {
+        localStorage.setItem(LOCK_KEY, JSON.stringify(registerFailure(lock, now)));
+        logAuthEvent("login_failed");
+        return { ok: false, error: GENERIC };
+      }
+      supabaseOffline = true;
     } catch {
-      // Fall through to fallback
+      supabaseOffline = true;
+    }
+  } else {
+    supabaseOffline = true;
+  }
+
+  // 2. Cryptographic SHA-256 verification fallback (only when Supabase is offline/unconfigured or test hash provided)
+  if (supabaseOffline || usingCustomTestHash) {
+    const candidateHash = await sha256(`${e}:${password.slice(0, 200)}`);
+    const matchesExpected = candidateHash === expectedHash && (isExactOwner || usingCustomTestHash);
+    const matchesStaffHash = Boolean(localAdminUser?.passwordHash && candidateHash === localAdminUser.passwordHash);
+
+    if (matchesExpected || matchesStaffHash) {
+      const role: Role | null =
+        localAdminUser?.role && isValidRole(localAdminUser.role)
+          ? localAdminUser.role
+          : isExactOwner || usingCustomTestHash
+            ? "super_admin"
+            : null;
+      if (role) {
+        localStorage.removeItem(LOCK_KEY);
+        const s: Session = {
+          email: e,
+          role,
+          startedAt: now,
+          lastSeen: now,
+          reauthAt: now,
+          id: localAdminUser?.id || crypto.randomUUID(),
+        };
+        saveSession(s);
+        logAuthEvent("login_success");
+        return { ok: true };
+      }
     }
   }
 
-  // 2. Offline / Emergency Store Owner Verification Fallback
-  const isOwnerEmail =
-    e === "arahimratul2004@gmail.com" ||
-    e.startsWith("arahim") ||
-    e === DEMO_EMAIL ||
-    e.includes("ratul") ||
-    e.includes("admin");
-  const isKnownAdmin = isOwnerEmail || !!localAdminUser;
-
-  const ok = (await sha256(`${e}:${password.slice(0, 200)}`)) === expectedHash;
-  if (!ok && !isKnownAdmin) {
-    localStorage.setItem(LOCK_KEY, JSON.stringify(registerFailure(lock, now)));
-    logAuthEvent("login_failed");
-    return { ok: false, error: GENERIC };
-  }
-  localStorage.removeItem(LOCK_KEY);
-  const s: Session = {
-    email: e,
-    role: (localAdminUser?.role as Role) || (isOwnerEmail ? "super_admin" : "admin"),
-    startedAt: now,
-    lastSeen: now,
-    reauthAt: now,
-    id: localAdminUser?.id || crypto.randomUUID(),
-  };
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
-  localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-  logAuthEvent("login_success");
-  return { ok: true };
+  localStorage.setItem(LOCK_KEY, JSON.stringify(registerFailure(lock, now)));
+  logAuthEvent("login_failed");
+  return { ok: false, error: GENERIC };
 }
 
 // Confirms the password again before sensitive actions (publish all, reset, import, role changes).
 export async function reauthenticate(password: string, expectedHash = EXPECTED): Promise<boolean> {
-  const s = getSession(); if (!s) return false;
-  if (isSupabaseConfigured()) {
+  const s = getSession();
+  if (!s || !password) return false;
+  const usingCustomTestHash = expectedHash !== EXPECTED;
+
+  if (!usingCustomTestHash && isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: s.email,
-        password: password,
+        password: password.slice(0, 200),
       });
       if (!error && data?.user) {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...s, reauthAt: Date.now() }));
+        saveSession({ ...s, reauthAt: Date.now() });
         logAuthEvent("reauth_success");
         return true;
       }
-    } catch {}
+      if (error && !/fetch|network|timeout/i.test(error.message || "")) {
+        logAuthEvent("reauth_failed");
+        return false;
+      }
+    } catch {
+      // Network unreachable — fall through to SHA-256 check below
+    }
   }
-  const isOwner =
-    s.email === "arahimratul2004@gmail.com" ||
-    s.email.startsWith("arahim") ||
-    s.email.includes("ratul") ||
-    s.email.includes("admin") ||
-    s.role === "super_admin";
-  const ok = (await sha256(`${s.email}:${password}`)) === expectedHash || isOwner;
-  if (ok) sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...s, reauthAt: Date.now() }));
+
+  const ok = (await sha256(`${s.email}:${password.slice(0, 200)}`)) === expectedHash;
+  if (ok) saveSession({ ...s, reauthAt: Date.now() });
   logAuthEvent(ok ? "reauth_success" : "reauth_failed");
   return ok;
 }
-export const recentlyReauthed = () => { const s = getSession(); return !!s && Date.now() - s.reauthAt < REAUTH_MS; };
+
+export const recentlyReauthed = () => {
+  const s = getSession();
+  return !!s && Date.now() - s.reauthAt < REAUTH_MS;
+};
 
 export async function confirmReauth(action = "continue"): Promise<boolean> {
   if (recentlyReauthed()) return true;
@@ -252,7 +333,8 @@ export function logout() {
       supabase.auth.signOut().catch(() => {});
     } catch {}
   }
-  sessionStorage.removeItem(SESSION_KEY);
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+  try { localStorage.removeItem(SESSION_KEY); } catch {}
   logAuthEvent("logout");
 }
 
@@ -260,7 +342,18 @@ export function logout() {
 const AUTH_LOG = "shihiko-auth-events";
 export type AuthEvent = { at: string; event: string };
 export function logAuthEvent(event: string) {
-  try { const l: AuthEvent[] = JSON.parse(localStorage.getItem(AUTH_LOG) || "[]"); l.push({ at: new Date().toISOString(), event }); localStorage.setItem(AUTH_LOG, JSON.stringify(l.slice(-200))); } catch { /* ignore */ }
+  try {
+    const l: AuthEvent[] = JSON.parse(localStorage.getItem(AUTH_LOG) || "[]");
+    l.push({ at: new Date().toISOString(), event });
+    localStorage.setItem(AUTH_LOG, JSON.stringify(l.slice(-200)));
+  } catch {
+    /* ignore */
+  }
 }
-export function authEvents(): AuthEvent[] { try { return JSON.parse(localStorage.getItem(AUTH_LOG) || "[]"); } catch { return []; } }
-
+export function authEvents(): AuthEvent[] {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_LOG) || "[]");
+  } catch {
+    return [];
+  }
+}

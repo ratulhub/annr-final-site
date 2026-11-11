@@ -23,7 +23,7 @@ function Row({ name, s, why }: { name: string; s: St; why: ReactNode }) {
   return <tr><td style={{ width: "30%" }}>{name}</td><td style={{ width: 170 }}><Badge s={s} /></td><td>{why}</td></tr>;
 }
 function Table({ children }: { children: ReactNode }) {
-  return <div style={{ overflowX: "auto" }}><table><thead><tr><th>Check</th><th>Status</th><th>Evidence / what is needed</th></tr></thead><tbody>{children}</tbody></table></div>;
+  return <div className="adm-table-wrap"><table><thead><tr><th>Check</th><th>Status</th><th>Evidence / what is needed</th></tr></thead><tbody>{children}</tbody></table></div>;
 }
 
 const HEADERS = [
@@ -121,7 +121,7 @@ function SecurityCenter() {
 
       <Card title="3. User roles & permissions matrix (read-only reference)">
         <p className="adm-hint">Mirrors <code>public.role_permissions</code> in <code>database/sql/03_rbac.sql</code> (8 roles × 23 permissions). Only a <code>super_admin</code> can grant roles, and self-promotion is blocked in both UI and SQL RPC.</p>
-        <div style={{ overflowX: "auto" }}><table><thead><tr><th>Permission</th>{ROLES.map((r) => <th key={r} style={{ fontSize: 9 }}>{r.replace("_", " ")}</th>)}</tr></thead>
+        <div className="adm-table-wrap"><table><thead><tr><th>Permission</th>{ROLES.map((r) => <th key={r} style={{ fontSize: 9 }}>{r.replace("_", " ")}</th>)}</tr></thead>
           <tbody>{PERMISSIONS.map((p) => <tr key={p}><td>{p}</td>{ROLES.map((r) => <td key={r} style={{ textAlign: "center" }}>{ROLE_PERMISSIONS[r].includes(p) ? "●" : ""}</td>)}</tr>)}</tbody></table></div>
       </Card>
 
@@ -134,7 +134,7 @@ function SecurityCenter() {
       </Card>
 
       <Card title="5. Administrative audit history (this browser)">
-        {events.length ? <table><thead><tr><th>Timestamp</th><th>Event</th></tr></thead><tbody>{events.map((e, i) => <tr key={i}><td>{new Date(e.at).toLocaleString()}</td><td><code>{e.event}</code></td></tr>)}</tbody></table> : <p className="adm-hint">No events yet.</p>}
+        {events.length ? <div className="adm-table-wrap"><table><thead><tr><th>Timestamp</th><th>Event</th></tr></thead><tbody>{events.map((e, i) => <tr key={i}><td>{new Date(e.at).toLocaleString()}</td><td><code>{e.event}</code></td></tr>)}</tbody></table></div> : <p className="adm-hint">No events yet.</p>}
         <p className="adm-hint" style={{ marginTop: 8 }}><Badge s="demo" /> Stored in browser localStorage and can be cleared by the user. Production uses the append-only <code>security.audit_log</code> table (triggers block UPDATE and DELETE).</p>
       </Card>
 
@@ -161,14 +161,14 @@ function SecurityCenter() {
 
       <Card title="11. Dependencies & security scanner suite">
         <p className="adm-hint">Live audit of dependencies and installed security/skill scanners.</p>
-        <table><thead><tr><th>Component / Scanner</th><th>Status</th><th>Assessment & verification</th></tr></thead><tbody>{DEP_SCAN.map(([p, st, note]) => <tr key={p}><td>{p}</td><td><Badge s={st} /></td><td>{note}</td></tr>)}</tbody></table>
+        <div className="adm-table-wrap"><table><thead><tr><th>Component / Scanner</th><th>Status</th><th>Assessment & verification</th></tr></thead><tbody>{DEP_SCAN.map(([p, st, note]) => <tr key={p}><td>{p}</td><td><Badge s={st} /></td><td>{note}</td></tr>)}</tbody></table></div>
       </Card>
 
       <Card title="12. Error, incident monitoring & payment boundary">
         <Table>
           <Row name="Error sanitization" s="pass" why="src/server.ts catches unhandled SSR exceptions and returns a generic 500 message with no stack trace or internal path disclosure." />
           <Row name="External error monitoring" s="disconnected" why="Store errors are counted locally (Analytics → Errors). Connect Sentry/Logflare on backend deployment for real-time alerting." />
-          <Row name="Payment & checkout boundary" s="pass" why="Card details never touch this application; checkout is delegated to Shopify / verified server-side webhooks + public.create_validated_order RPC." />
+          <Row name="Payment & checkout boundary" s="pass" why="Card details never touch this application; checkout runs natively via verified server-side validation + public.create_validated_order RPC." />
         </Table>
       </Card>
     </>

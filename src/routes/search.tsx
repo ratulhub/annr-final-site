@@ -16,6 +16,24 @@ type SearchProduct = {
 
 export const Route = createFileRoute("/search")({ component: SearchPage });
 
+const LEGACY_PRODUCT_HANDLES = new Set([
+  "aka-manto-longsleeve",
+  "divine-sanctum-tee",
+  "ruin-and-rebirth-varsity-jacket",
+  "blue-moon-long-sleeve",
+  "hound-of-hades-tee",
+  "ruin-and-rebirth-reversible-hoodie",
+]);
+
+function safeImgSrc(url?: string): string {
+  const s = String(url || "").trim();
+  if (!s) return "";
+  if (/^data:image\/(png|jpe?g|webp|gif|avif);base64,[a-z0-9+/=]+$/i.test(s)) return s;
+  if (s.startsWith("/") && !s.startsWith("//")) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  return "";
+}
+
 function SearchPage() {
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<SearchProduct[]>([]);
@@ -31,68 +49,92 @@ function SearchPage() {
     setLoading(true);
     const q = term.trim().toLowerCase();
     try {
-      if (isSupabaseConfigured()) {
-        const { data, error } = await supabase
-          .from("products")
-          .select("handle,title,price,code,size,status,images")
-          .in("status", ["active", "reserved", "sold"])
-          .order("updated_at", { ascending: false });
-        if (!error && Array.isArray(data) && data.length > 0) {
-          setProducts(
-            ((data || []) as SearchProduct[]).filter(
-              (product) =>
-                !q ||
-                `${product.title} ${product.handle} ${product.code || ""} ${product.size || ""}`
-                  .toLowerCase()
-                  .includes(q),
-            ),
-          );
-          return;
-        }
-      }
+      const mapRow = (row: any): SearchProduct => {
+        const tags: string[] = Array.isArray(row.tags)
+          ? row.tags
+          : String(row.tags || "").split(",").map((t) => t.trim()).filter(Boolean);
+        return {
+          handle: String(row.handle || ""),
+          title: String(row.title || ""),
+          price: typeof row.price === "number" ? row.price : parseFloat(String(row.price || "0").replace(/,/g, "")) || 0,
+          code: row.code || "",
+          size: row.size || "",
+          showSize: row.show_size !== undefined ? row.show_size !== false : (row.showSize !== false && !tags.includes("__hide_size")),
+          status: row.status || "active",
+          images: Array.isArray(row.images) ? row.images : (row.image ? [row.image] : []),
+        };
+      };
 
-      // Local fallback from admin store or catalog
-      let localProducts: SearchProduct[] = [];
+      const filterList = (list: SearchProduct[]) =>
+        list.filter((product) => {
+          if (!product.handle || LEGACY_PRODUCT_HANDLES.has(product.handle)) return false;
+          if (product.status && !["active", "reserved", "sold"].includes(product.status)) return false;
+          if (!q) return true;
+          const searchableSize = product.showSize !== false ? (product.size || "") : "";
+          return `${product.title} ${product.handle} ${product.code || ""} ${searchableSize}`
+            .toLowerCase()
+            .includes(q);
+        });
+
+      const mergedMap = new Map<string, SearchProduct>();
+
+      // Base catalog fallback
+      ((catalog.products || []) as any[]).forEach((raw) => {
+        const item = mapRow(raw);
+        if (item.handle && !LEGACY_PRODUCT_HANDLES.has(item.handle)) mergedMap.set(item.handle, item);
+      });
+
+      // Cached live remote products
       try {
-        const rawAdm = localStorage.getItem("shihiko-admin-v1");
-        if (rawAdm) {
-          const parsed = JSON.parse(rawAdm);
-          if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) {
-            localProducts = parsed.products.map((p: any) => ({
-              handle: p.handle || "",
-              title: p.title || "",
-              price: parseFloat(p.price) || 0,
-              code: p.code || "",
-              size: p.size || "",
-              showSize: p.showSize !== false,
-              status: p.status || "active",
-              images: p.images || [],
-            }));
+        const rawLive = localStorage.getItem("annr_live_products");
+        if (rawLive) {
+          const parsed = JSON.parse(rawLive);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((raw: any) => {
+              const item = mapRow(raw);
+              if (item.handle && !LEGACY_PRODUCT_HANDLES.has(item.handle)) mergedMap.set(item.handle, item);
+            });
           }
         }
       } catch {}
 
-      if (!localProducts.length) {
-        localProducts = ((catalog.products || []) as any[]).map((product: any) => ({
-          handle: product.handle || "",
-          title: product.title || "",
-          price: typeof product.price === "number" ? product.price : parseFloat(String(product.price || "0").replace(/,/g, "")) || 0,
-          code: product.code || "",
-          size: product.size || (product.sizes && product.sizes[0]) || "",
-          showSize: product.showSize !== false,
-          status: "active",
-        }));
+      // Supabase live query (retry without show_size if migration 16 not yet run)
+      if (isSupabaseConfigured()) {
+        let res = await supabase
+          .from("products")
+          .select("handle,title,price,code,size,show_size,status,images,tags")
+          .in("status", ["active", "reserved", "sold"])
+          .order("updated_at", { ascending: false });
+        if (res.error && /show_size|column/i.test(res.error.message || "")) {
+          res = await supabase
+            .from("products")
+            .select("handle,title,price,code,size,status,images,tags")
+            .in("status", ["active", "reserved", "sold"])
+            .order("updated_at", { ascending: false }) as typeof res;
+        }
+        if (!res.error && Array.isArray(res.data)) {
+          res.data.forEach((raw: any) => {
+            const item = mapRow(raw);
+            if (item.handle && !LEGACY_PRODUCT_HANDLES.has(item.handle)) mergedMap.set(item.handle, item);
+          });
+        }
       }
 
-      setProducts(
-        localProducts.filter(
-          (product) =>
-            !q ||
-            `${product.title} ${product.handle} ${product.code || ""} ${product.size || ""}`
-              .toLowerCase()
-              .includes(q),
-        ),
-      );
+      // Local admin edits override in this browser
+      try {
+        const rawAdm = localStorage.getItem("shihiko-admin-v1");
+        if (rawAdm) {
+          const parsed = JSON.parse(rawAdm);
+          if (parsed && Array.isArray(parsed.products)) {
+            parsed.products.forEach((raw: any) => {
+              const item = mapRow(raw);
+              if (item.handle && !LEGACY_PRODUCT_HANDLES.has(item.handle)) mergedMap.set(item.handle, item);
+            });
+          }
+        }
+      } catch {}
+
+      setProducts(filterList(Array.from(mergedMap.values())));
     } finally {
       setLoading(false);
     }
@@ -105,9 +147,9 @@ function SearchPage() {
           <Link to="/" className="text-sm text-muted-foreground">
             ← AnnR store
           </Link>
-          <Link to="/vip" className="text-sm">
+          <a href="/account/login/index.html" className="text-sm">
             VIP
-          </Link>
+          </a>
         </div>
         <h1 className="text-3xl font-bold">Search AnnR</h1>
         <form
@@ -139,6 +181,7 @@ function SearchPage() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => {
             const isSold = product.status === "sold";
+            const imgSrc = safeImgSrc(product.images?.[0]);
             return (
               <a
                 key={product.handle}
@@ -146,6 +189,11 @@ function SearchPage() {
                 className="group relative flex flex-col justify-between rounded-lg border bg-card p-5 transition-all hover:border-foreground"
               >
                 <div>
+                  {imgSrc && (
+                    <div className="mb-3 aspect-square w-full overflow-hidden rounded bg-muted">
+                      <img src={imgSrc} alt={product.title} className="h-full w-full object-cover" loading="lazy" />
+                    </div>
+                  )}
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className={`inline-block rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${isSold ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"}`}>
                       {isSold

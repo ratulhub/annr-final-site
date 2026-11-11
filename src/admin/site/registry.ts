@@ -15,7 +15,7 @@ export const TEMPLATES: Record<string, { label: string; sample: string; sections
     sec("parallax_Jdmgiy", "Parallax banner 4", "banner"),
     sec("main-footer", "Footer", "footer"),
   ] },
-  product: { label: "Product pages (all 93)", sample: "/products/aka-manto-longsleeve/index.html", sections: [
+  product: { label: "Product pages (1-of-1)", sample: "/products/annr-archival-001/index.html", sections: [
     sec("main-header", "Header", "header"),
     sec("template-product", "Product details", "product"),
     sec("175338351149468287", "Size / info block", "text"),
@@ -25,7 +25,7 @@ export const TEMPLATES: Record<string, { label: string; sample: string; sections
     sec("product-recently-viewed", "Recently viewed", "products"),
     sec("main-footer", "Footer", "footer"),
   ] },
-  collection: { label: "Collection pages (all 22)", sample: "/collections/all/index.html", sections: [
+  collection: { label: "Collection pages (all 10)", sample: "/collections/unique-campaign/index.html", sections: [
     sec("main-header", "Header", "header"),
     sec("collection_hero", "Collection hero", "hero"),
     sec("collection_story_cta_bTzknC", "Story / call to action", "cta"),

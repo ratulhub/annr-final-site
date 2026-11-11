@@ -1,10 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { setState, publish, useAdmin, type Product, type Variant } from "../admin/store";
+import { useEffect, useRef, useState } from "react";
+import {
+  deleteProductFromSupabase,
+  publish,
+  setState,
+  syncProductToSupabase,
+  uid,
+  useAdmin,
+  type Product,
+  type Variant,
+} from "../admin/store";
 import { Area, BackBtn, Card, RowList, Select, Text, Toggle } from "../admin/ui";
 import { storeFile } from "../admin/services/media";
 import { safeImageUrl } from "../admin/security/sanitize";
-import { isSupabaseConfigured, supabase } from "../lib/supabase";
+import { isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/products_/$handle")({ component: Edit });
 
@@ -16,6 +25,7 @@ interface SizeGuideRow {
 }
 
 interface StructuredSizeGuide {
+  unit: "in";
   fitType: string;
   headers: [string, string, string, string];
   rows: SizeGuideRow[];
@@ -24,76 +34,82 @@ interface StructuredSizeGuide {
 
 const SIZE_GUIDE_PRESETS: Record<string, StructuredSizeGuide> = {
   tee: {
+    unit: "in",
     fitType: "oversized fit",
     headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
     rows: [
-      { size: "S", col1: "57", col2: "70", col3: "21" },
-      { size: "M", col1: "60", col2: "72", col3: "22" },
-      { size: "L", col1: "63", col2: "75", col3: "23" },
-      { size: "XL", col1: "66", col2: "77", col3: "24" },
-      { size: "XXL", col1: "69", col2: "79", col3: "25" },
+      { size: "S", col1: "22.5", col2: "27.5", col3: "8.5" },
+      { size: "M", col1: "23.5", col2: "28.5", col3: "9.0" },
+      { size: "L", col1: "24.5", col2: "29.5", col3: "9.5" },
+      { size: "XL", col1: "26.0", col2: "30.5", col3: "10.0" },
+      { size: "XXL", col1: "27.0", col2: "31.0", col3: "10.5" },
     ],
-    notes: "Heavyweight 280 GSM combed cotton. Drop-shoulder oversized streetwear silhouette.",
+    notes: "Heavyweight 280 GSM combed cotton. Drop-shoulder oversized silhouette (flat inches ″).",
   },
   hoodie: {
+    unit: "in",
     fitType: "oversized fit",
     headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
     rows: [
-      { size: "S", col1: "62", col2: "68", col3: "59" },
-      { size: "M", col1: "65", col2: "71", col3: "61" },
-      { size: "L", col1: "68", col2: "74", col3: "62" },
-      { size: "XL", col1: "71", col2: "76", col3: "63" },
-      { size: "XXL", col1: "74", col2: "79", col3: "64" },
+      { size: "S", col1: "24.0", col2: "26.5", col3: "23.0" },
+      { size: "M", col1: "25.5", col2: "28.0", col3: "24.0" },
+      { size: "L", col1: "26.5", col2: "29.0", col3: "24.5" },
+      { size: "XL", col1: "28.0", col2: "30.0", col3: "25.0" },
+      { size: "XXL", col1: "29.0", col2: "31.0", col3: "25.5" },
     ],
-    notes: "480 GSM heavyweight French terry fleece. Boxy drop-shoulder fit.",
+    notes: "480 GSM heavyweight French terry fleece. Boxy drop-shoulder fit (flat inches ″).",
   },
   longsleeve: {
+    unit: "in",
     fitType: "relaxed fit",
     headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
     rows: [
-      { size: "S", col1: "58", col2: "69", col3: "60" },
-      { size: "M", col1: "61", col2: "72", col3: "62" },
-      { size: "L", col1: "64", col2: "74", col3: "63" },
-      { size: "XL", col1: "67", col2: "77", col3: "65" },
-      { size: "XXL", col1: "70", col2: "79", col3: "66" },
+      { size: "S", col1: "22.5", col2: "27.0", col3: "23.5" },
+      { size: "M", col1: "24.0", col2: "28.0", col3: "24.5" },
+      { size: "L", col1: "25.0", col2: "29.0", col3: "25.0" },
+      { size: "XL", col1: "26.5", col2: "30.0", col3: "25.5" },
+      { size: "XXL", col1: "27.5", col2: "31.0", col3: "26.0" },
     ],
-    notes: "Relaxed silhouette with ribbed cuffs.",
+    notes: "Relaxed silhouette with ribbed cuffs (flat inches ″).",
   },
   jacket: {
+    unit: "in",
     fitType: "boxy fit",
     headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
     rows: [
-      { size: "S", col1: "63", col2: "66", col3: "61" },
-      { size: "M", col1: "66", col2: "68", col3: "62" },
-      { size: "L", col1: "69", col2: "71", col3: "64" },
-      { size: "XL", col1: "72", col2: "73", col3: "65" },
-      { size: "XXL", col1: "75", col2: "75", col3: "67" },
+      { size: "S", col1: "24.5", col2: "26.0", col3: "24.0" },
+      { size: "M", col1: "26.0", col2: "27.0", col3: "24.5" },
+      { size: "L", col1: "27.0", col2: "28.0", col3: "25.0" },
+      { size: "XL", col1: "28.5", col2: "29.0", col3: "25.5" },
+      { size: "XXL", col1: "29.5", col2: "29.5", col3: "26.0" },
     ],
-    notes: "Cropped boxy outerwear cut. Size up for extra layering room.",
+    notes: "Cropped boxy outerwear cut. Measured flat in inches (″).",
   },
   pants: {
+    unit: "in",
     fitType: "relaxed fit",
     headers: ["SIZE", "WAIST", "LENGTH", "INSEAM"],
     rows: [
-      { size: "S (30)", col1: "76", col2: "104", col3: "74" },
-      { size: "M (32)", col1: "81", col2: "106", col3: "75" },
-      { size: "L (34)", col1: "86", col2: "108", col3: "77" },
-      { size: "XL (36)", col1: "91", col2: "110", col3: "78" },
-      { size: "XXL (38)", col1: "96", col2: "112", col3: "79" },
+      { size: "S (30)", col1: "30.0", col2: "41.0", col3: "29.0" },
+      { size: "M (32)", col1: "32.0", col2: "41.5", col3: "29.5" },
+      { size: "L (34)", col1: "34.0", col2: "42.5", col3: "30.0" },
+      { size: "XL (36)", col1: "36.0", col2: "43.5", col3: "31.0" },
+      { size: "XXL (38)", col1: "38.0", col2: "44.0", col3: "31.5" },
     ],
-    notes: "Wide-leg architectural cut. Waist measured flat × 2.",
+    notes: "Wide-leg architectural cut. All measurements in inches (″).",
   },
   shorts: {
+    unit: "in",
     fitType: "relaxed fit",
     headers: ["SIZE", "WAIST", "LENGTH", "OPENING"],
     rows: [
-      { size: "S", col1: "74", col2: "48", col3: "31" },
-      { size: "M", col1: "79", col2: "50", col3: "32" },
-      { size: "L", col1: "84", col2: "52", col3: "34" },
-      { size: "XL", col1: "89", col2: "54", col3: "35" },
-      { size: "XXL", col1: "94", col2: "56", col3: "36" },
+      { size: "S", col1: "29.0", col2: "19.0", col3: "12.0" },
+      { size: "M", col1: "31.0", col2: "19.5", col3: "12.5" },
+      { size: "L", col1: "33.0", col2: "20.5", col3: "13.5" },
+      { size: "XL", col1: "35.0", col2: "21.5", col3: "14.0" },
+      { size: "XXL", col1: "37.0", col2: "22.0", col3: "14.5" },
     ],
-    notes: "Elasticated drawstring waist with relaxed knee-length cut.",
+    notes: "Elasticated drawstring waist with relaxed knee-length cut (inches ″).",
   },
 };
 
@@ -113,6 +129,7 @@ function parseSizeChart(raw: string | undefined, handle: string, title: string):
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.rows)) {
         return {
+          unit: "in",
           fitType: parsed.fitType || "oversized fit",
           headers: parsed.headers || ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
           rows: parsed.rows,
@@ -139,74 +156,141 @@ function Edit() {
   const [showBulk, setShowBulk] = useState(false);
   const [imgErr, setImgErr] = useState("");
   const [publishedToast, setPublishedToast] = useState(false);
+  const [dbStatus, setDbStatus] = useState<string>("Auto-saved & Published");
+  const [handleDraft, setHandleDraft] = useState<string>(p?.handle || handle);
+  const latestProductRef = useRef<Product | null>(p || null);
+  latestProductRef.current = p || null;
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pubTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setHandleDraft(p?.handle || handle);
+  }, [p?.handle, handle]);
+
+  useEffect(() => {
+    return () => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      if (pubTimerRef.current) clearTimeout(pubTimerRef.current);
+    };
+  }, []);
 
   if (!p) return <p>Product not found. <Link className="link" to="/admin/products">Back</Link></p>;
 
-  const isUuid = (v?: string | null) =>
-    Boolean(v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v));
+  const runDbSync = async (product: Product) => {
+    if (!isSupabaseConfigured()) {
+      setDbStatus("✓ Saved locally");
+      return;
+    }
+    setDbStatus("Saving to live DB...");
+    const res = await syncProductToSupabase(product);
+    if (res.ok) {
+      if (res.skippedLocalImages && res.skippedLocalImages > 0) {
+        setDbStatus(`✓ Live in DB (⚠ ${res.skippedLocalImages} uploaded file(s) need https:// link for live storefront)`);
+      } else {
+        setDbStatus("✓ Live in DB & Storefront");
+      }
+    } else {
+      console.warn("Supabase products upsert notice:", res.error);
+      setDbStatus(`⚠ Saved locally (DB sync failed: ${res.error || "check auth/RLS"})`);
+    }
+  };
 
-  const up = (patch: Partial<Product>) => {
-    const nextProduct = { ...p, ...patch };
-    setState((x) => ({
-      ...x,
-      products: x.products.map((y) => (y.handle === handle ? nextProduct : y)),
-    }));
-    // Auto-publish product changes so storefront reflects updates immediately
-    setTimeout(() => {
-      try {
-        publish();
-      } catch {}
-    }, 30);
+  const up = (patchOrFn: Partial<Product> | ((cur: Product) => Partial<Product>)) => {
+    const campaignSlugs = new Set((s.campaigns || []).map((c) => c.slug));
+    setState((x) => {
+      const cur = x.products.find((y) => y.handle === handle);
+      if (!cur) return x;
+      const patch = typeof patchOrFn === "function" ? patchOrFn(cur) : patchOrFn;
+      const nextProduct: Product = { ...cur, ...patch, measurementUnit: "in", isOneOfOne: true };
 
-    // Sync directly to Supabase if configured
+      if (patch.category !== undefined || patch.campaign !== undefined) {
+        const nextCat = patch.category ?? cur.category ?? "hoodies";
+        const nextCamp = patch.campaign ?? cur.campaign ?? "unique-campaign";
+        const cols = (nextProduct.collections || []).filter(
+          (c) => c !== cur.category && !campaignSlugs.has(c) && c !== "unique-campaign",
+        );
+        if (nextCamp && nextCamp !== "none" && !cols.includes(nextCamp)) cols.unshift(nextCamp);
+        if (nextCat && !cols.includes(nextCat)) cols.push(nextCat);
+        if (!cols.includes("all")) cols.push("all");
+        nextProduct.collections = Array.from(new Set(cols));
+      }
+
+      if (!patch.variants && (patch.size !== undefined || patch.price !== undefined || patch.code !== undefined || patch.status !== undefined)) {
+        const first = nextProduct.variants?.[0] || { id: uid(), option: "L", sku: "ANNR-U001", price: "0.00", stock: 1 };
+        const nextStock = nextProduct.status === "sold" ? 0 : (nextProduct.stock ?? 1);
+        nextProduct.variants = [
+          {
+            ...first,
+            option: nextProduct.size || first.option || "L",
+            sku: nextProduct.code || first.sku || "ANNR-U001",
+            price: nextProduct.price || first.price || "0.00",
+            stock: nextStock,
+          },
+          ...(nextProduct.variants?.slice(1) || []),
+        ];
+      }
+
+      latestProductRef.current = nextProduct;
+      return {
+        ...x,
+        products: x.products.map((y) => (y.handle === handle ? nextProduct : y)),
+      };
+    });
+
+    if (pubTimerRef.current) clearTimeout(pubTimerRef.current);
+    pubTimerRef.current = setTimeout(() => {
+      try { publish(); } catch {}
+    }, 60);
+
     if (isSupabaseConfigured()) {
-      void (async () => {
-        try {
-          const payload: Record<string, unknown> = {
-            handle: nextProduct.handle,
-            title: nextProduct.title,
-            description: nextProduct.description,
-            price: parseFloat(nextProduct.price) || 0,
-            compare_at_price: nextProduct.compareAt ? parseFloat(nextProduct.compareAt) : null,
-            currency: nextProduct.currency || "BDT",
-            images: nextProduct.images || [],
-            status: nextProduct.status || "active",
-            code: nextProduct.code || null,
-            size: nextProduct.size || null,
-            show_size: nextProduct.showSize !== false,
-            measurement_unit: "in",
-            measurements: nextProduct.measurements || {},
-            fabric: nextProduct.fabric || null,
-            condition: nextProduct.condition || null,
-            care_instructions: nextProduct.careInstructions || null,
-            stock: nextProduct.stock ?? 1,
-            updated_at: new Date().toISOString(),
-          };
-
-          if (isUuid(nextProduct.category)) {
-            payload["category_id"] = nextProduct.category;
-          }
-          if (isUuid(nextProduct.campaign)) {
-            payload["campaign_id"] = nextProduct.campaign;
-          }
-
-          const { error } = await supabase.from("products").upsert(payload, { onConflict: "handle" });
-          if (error) {
-            console.warn("Supabase products upsert notice:", error.message);
-          }
-        } catch (err) {
-          console.warn("Could not sync product to Supabase:", err);
+      setDbStatus("Pending save...");
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => {
+        if (latestProductRef.current) {
+          void runDbSync(latestProductRef.current);
         }
-      })();
+      }, 350);
     }
   };
 
   const toggleCol = (h: string) =>
-    up({ collections: p.collections.includes(h) ? p.collections.filter((c) => c !== h) : [...p.collections, h] });
+    up((cur) => ({
+      collections: cur.collections.includes(h) ? cur.collections.filter((c) => c !== h) : [...cur.collections, h],
+    }));
+
+  const applyHandleRename = async () => {
+    const clean = handleDraft
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (!clean || clean === p.handle) {
+      setHandleDraft(p.handle);
+      return;
+    }
+    if (s.products.some((other) => other.handle === clean)) {
+      setImgErr(`Another product already uses handle "${clean}".`);
+      setHandleDraft(p.handle);
+      return;
+    }
+    const oldHandle = p.handle;
+    const renamed: Product = { ...p, handle: clean };
+    latestProductRef.current = renamed;
+    setState((x) => ({
+      ...x,
+      products: x.products.map((y) => (y.handle === oldHandle ? renamed : y)),
+    }));
+    try { publish(); } catch {}
+    if (isSupabaseConfigured()) {
+      await deleteProductFromSupabase(oldHandle);
+      await runDbSync(renamed);
+    }
+    nav({ to: "/admin/products/$handle", params: { handle: clean }, replace: true });
+  };
 
   const sg = parseSizeChart(p.sizeChart, p.handle, p.title);
   const saveSg = (next: StructuredSizeGuide) => {
-    up({ sizeChart: JSON.stringify(next) });
+    up({ sizeChart: JSON.stringify({ ...next, unit: "in" }) });
   };
 
   return (
@@ -217,12 +301,14 @@ function Edit() {
           <h1>{p.title}</h1>
         </div>
         <div className="adm-row">
-          <span className="adm-saved">{publishedToast ? "✓ Published Live" : "Auto-saved & Synced"}</span>
+          <span className="adm-saved">{publishedToast ? "✓ Published to Storefront" : dbStatus}</span>
           <button
             type="button"
             className="adm-btn primary"
             onClick={() => {
+              if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
               publish();
+              void runDbSync(p);
               setPublishedToast(true);
               setTimeout(() => setPublishedToast(false), 2500);
             }}
@@ -230,8 +316,36 @@ function Edit() {
             Publish to Storefront
           </button>
           <a className="adm-btn ghost" href={`/products/${p.handle}/index.html`} target="_blank" rel="noreferrer">View</a>
-          <button className="adm-btn ghost" onClick={() => { const h = p.handle + "-copy"; setState((x) => ({ ...x, products: [{ ...p, handle: h, title: p.title + " (copy)", status: "draft" }, ...x.products] })); nav({ to: "/admin/products/$handle", params: { handle: h } }); }}>Duplicate</button>
-          <button className="adm-btn danger" onClick={() => { if (confirm("Delete this product?")) { setState((x) => ({ ...x, products: x.products.filter((y) => y.handle !== handle) })); nav({ to: "/admin/products" }); } }}>Delete</button>
+          <button
+            type="button"
+            className="adm-btn ghost"
+            onClick={() => {
+              const h = `${p.handle}-piece-${uid()}`;
+              const code = "ANNR-U" + Math.floor(100 + Math.random() * 900);
+              const { id: _dropId, ...restP } = p;
+              const copy: Product = { ...restP, handle: h, code, title: `${p.title} (New 1-of-1)`, status: "draft", stock: 1 };
+              setState((x) => ({ ...x, products: [copy, ...x.products] }));
+              setTimeout(() => { try { publish(); } catch {} }, 30);
+              void syncProductToSupabase(copy);
+              nav({ to: "/admin/products/$handle", params: { handle: h } });
+            }}
+          >
+            Duplicate
+          </button>
+          <button
+            type="button"
+            className="adm-btn danger"
+            onClick={() => {
+              if (confirm("Delete this product?")) {
+                setState((x) => ({ ...x, products: x.products.filter((y) => y.handle !== handle) }));
+                setTimeout(() => { try { publish(); } catch {} }, 30);
+                void deleteProductFromSupabase(handle);
+                nav({ to: "/admin/products" });
+              }
+            }}
+          >
+            Delete
+          </button>
         </div>
       </div>
       <Card title="One-of-One Archival Garment Configuration" subtitle="Configure unique piece code, exact size, hand measurements, campaign and collector status.">
@@ -266,7 +380,12 @@ function Edit() {
                 onChange={(e) => up({ campaign: e.target.value })}
                 style={{ width: "100%", padding: "8px 10px", borderRadius: 4, border: "1px solid var(--p-border-subdued)" }}
               >
-                <option value="unique-campaign">Unique Campaign (1-of-1 Drop)</option>
+                {(s.campaigns && s.campaigns.length
+                  ? s.campaigns
+                  : [{ slug: "unique-campaign", name: "Unique Campaign (1-of-1 Drop)" }]
+                ).map((c) => (
+                  <option key={c.slug} value={c.slug}>{c.name}</option>
+                ))}
                 <option value="none">Standard Category Only</option>
               </select>
             </label>
@@ -294,7 +413,7 @@ function Edit() {
               </div>
             </div>
 
-            <div className="adm-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="adm-grid" style={{ gap: 14 }}>
               <label className="adm-field">
                 <span>Display Size Tag (M, L, XL, etc.) on Storefront?</span>
                 <select
@@ -324,7 +443,7 @@ function Edit() {
                     <button
                       key={sz}
                       type="button"
-                      onClick={() => up({ size: sz, showSize: true })}
+                      onClick={() => up({ size: sz })}
                       style={{
                         padding: "3px 8px",
                         fontSize: 11,
@@ -430,28 +549,27 @@ function Edit() {
 
       <Card title="Details"><div className="adm-grid">
         <Text label="Title" value={p.title} onChange={(v) => up({ title: v })} />
-        <Select label="Status" value={p.status} options={["active", "reserved", "sold", "draft", "archived"]} onChange={(v) => up({ status: v as Product["status"] })} />
         <Text label="Vendor" value={p.vendor} onChange={(v) => up({ vendor: v })} />
         <Text label="Product type" value={p.type} onChange={(v) => up({ type: v })} />
         <Text label="Tags (comma separated)" value={p.tags} onChange={(v) => up({ tags: v })} />
-        <Text label="Badge (e.g. NEW, SOLD OUT)" value={p.badge} onChange={(v) => up({ badge: v })} />
+        <Text label="Badge (e.g. 1 OF 1, SOLD)" value={p.badge} onChange={(v) => up({ badge: v })} />
         <Area label="Description" value={p.description} onChange={(v) => up({ description: v })} />
       </div></Card>
 
       <Card
-        title="Size Guide & Fit Table (Interactive Storefront Popup)"
-        subtitle="Customize the Size Guide modal (#sizes-popup) for this product. Enter measurements in CM — INCHES are calculated automatically on the storefront."
+        title="Size Guide & Fit Table (Interactive Storefront Popup · Inches ″)"
+        subtitle="Customize the Size Guide modal (#sizes-popup) for this product in INCHES (″). CM equivalents calculate automatically on the storefront."
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* 1-Click Presets */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--p-text-subdued)" }}>Load Garment Preset:</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--p-text-subdued)" }}>Load Garment Preset (Inches):</span>
             {[
               { key: "tee", label: "T-Shirt / Tee" },
-              { key: "hoodie", label: "Hoodie / Zip" },
-              { key: "longsleeve", label: "Longsleeve / Knit" },
+              { key: "hoodie", label: "Hoodie / Sweatshirt" },
+              { key: "longsleeve", label: "Sweater / Knitwear" },
               { key: "jacket", label: "Jacket / Outerwear" },
-              { key: "pants", label: "Jeans / Pants" },
+              { key: "pants", label: "Trousers / Pants" },
               { key: "shorts", label: "Shorts" },
             ].map((item) => (
               <button
@@ -460,7 +578,7 @@ function Edit() {
                 className="adm-btn ghost sm"
                 onClick={() => {
                   const preset = SIZE_GUIDE_PRESETS[item.key];
-                  if (preset) saveSg({ ...preset, rows: preset.rows.map((r) => ({ ...r })) });
+                  if (preset) saveSg({ ...preset, unit: "in", rows: preset.rows.map((r) => ({ ...r })) });
                 }}
               >
                 {item.label}
@@ -511,24 +629,24 @@ function Edit() {
             </label>
           </div>
 
-          {/* Measurement Table Editor (CM + Live IN preview) */}
-          <div style={{ overflowX: "auto", border: "1px solid var(--p-border-subdued)", borderRadius: 6 }}>
+          {/* Measurement Table Editor (IN + Live CM preview) */}
+          <div className="adm-table-wrap">
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f9fafb", borderBottom: "1px solid var(--p-border-subdued)", textAlign: "left" }}>
                   <th style={{ padding: "8px 10px" }}>{sg.headers[0]}</th>
-                  <th style={{ padding: "8px 10px" }}>{sg.headers[1]} (CM)</th>
-                  <th style={{ padding: "8px 10px" }}>{sg.headers[2]} (CM)</th>
-                  <th style={{ padding: "8px 10px" }}>{sg.headers[3]} (CM)</th>
-                  <th style={{ padding: "8px 10px", color: "var(--p-text-subdued)", fontSize: 11 }}>Auto Inches Preview</th>
+                  <th style={{ padding: "8px 10px" }}>{sg.headers[1]} (IN ″)</th>
+                  <th style={{ padding: "8px 10px" }}>{sg.headers[2]} (IN ″)</th>
+                  <th style={{ padding: "8px 10px" }}>{sg.headers[3]} (IN ″)</th>
+                  <th style={{ padding: "8px 10px", color: "var(--p-text-subdued)", fontSize: 11 }}>Auto CM Preview</th>
                   <th style={{ padding: "8px 10px", width: 50 }}></th>
                 </tr>
               </thead>
               <tbody>
                 {sg.rows.map((row, idx) => {
-                  const toIn = (v: string) => {
+                  const toCm = (v: string) => {
                     const n = parseFloat(v);
-                    return Number.isFinite(n) ? (n / 2.54).toFixed(1) + '"' : "-";
+                    return Number.isFinite(n) ? (n * 2.54).toFixed(1) + " cm" : "-";
                   };
                   return (
                     <tr key={idx} style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
@@ -577,7 +695,7 @@ function Edit() {
                         />
                       </td>
                       <td style={{ padding: "6px 10px", fontFamily: "monospace", fontSize: 11, color: "var(--p-text-subdued)" }}>
-                        {toIn(row.col1)} / {toIn(row.col2)} / {toIn(row.col3)}
+                        {toCm(row.col1)} / {toCm(row.col2)} / {toCm(row.col3)}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right" }}>
                         {sg.rows.length > 1 && (
@@ -604,7 +722,7 @@ function Edit() {
               onClick={() =>
                 saveSg({
                   ...sg,
-                  rows: [...sg.rows, { size: "3XL", col1: "72", col2: "81", col3: "26" }],
+                  rows: [...sg.rows, { size: "3XL", col1: "29.5", col2: "31.5", col3: "26.0" }],
                 })
               }
             >
@@ -637,7 +755,7 @@ function Edit() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 140px), 1fr))",
               gap: 12,
               marginBottom: 16,
             }}
@@ -660,7 +778,7 @@ function Edit() {
                     alt={`Photo ${i + 1}`}
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/cdn/shop/t/75/assets/image_logo.svg";
+                      (e.target as HTMLImageElement).src = "/_ext/annr-template-001.png";
                     }}
                   />
                   {i === 0 && (
@@ -778,11 +896,14 @@ function Edit() {
             <input
               placeholder="Paste Photo URL (e.g. Supabase Storage link or HTTPS URL)"
               value={img}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               onChange={(e) => {
                 setImg(e.target.value);
                 setImgErr("");
               }}
-              style={{ flex: 1, minWidth: 260 }}
+              style={{ flex: 1, minWidth: 220 }}
             />
             <button
               type="button"
@@ -807,14 +928,17 @@ function Edit() {
                 accept="image/*"
                 hidden
                 onChange={async (e) => {
-                  const f = e.target.files?.[0];
+                  const input = e.currentTarget;
+                  const f = input.files?.[0];
                   if (!f) return;
                   setImgErr("");
                   try {
                     const url = await storeFile(f);
-                    up({ images: [...p.images, url] });
+                    up((cur) => ({ images: [...cur.images, url] }));
                   } catch (err) {
                     setImgErr((err as Error).message);
+                  } finally {
+                    input.value = "";
                   }
                 }}
               />
@@ -916,7 +1040,22 @@ function Edit() {
         {s.collections.map((c) => <Toggle key={c.handle} label={c.title} value={p.collections.includes(c.handle)} onChange={() => toggleCol(c.handle)} />)}
       </div></Card>
       <Card title="Search engine listing"><div className="adm-grid">
-        <Text label="URL handle" value={p.handle} onChange={(v) => { up({ handle: v }); nav({ to: "/admin/products/$handle", params: { handle: v }, replace: true }); }} />
+        <div className="adm-field">
+          <span>URL handle</span>
+          <div className="adm-row" style={{ gap: 6 }}>
+            <input
+              value={handleDraft}
+              onChange={(e) => setHandleDraft(e.target.value)}
+              onBlur={() => void applyHandleRename()}
+              style={{ flex: 1, minWidth: 0 }}
+            />
+            {handleDraft.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") !== p.handle && (
+              <button type="button" className="adm-btn ghost sm" onClick={() => void applyHandleRename()}>
+                Apply
+              </button>
+            )}
+          </div>
+        </div>
         <Text label="SEO title" value={p.seoTitle} onChange={(v) => up({ seoTitle: v })} />
         <Area label="SEO description" value={p.seoDescription} onChange={(v) => up({ seoDescription: v })} />
       </div></Card>

@@ -38,7 +38,7 @@ const defaults = (): Perms =>
 function Users() {
   const s = useAdmin();
   const session = getSession();
-  const actorRole: Role = session?.role ?? "super_admin";
+  const actorRole: Role | null = session?.role ?? null;
   const actorEmail = (session?.email ?? "").toLowerCase();
   const [perms, setPerms] = useState<Perms>(defaults);
   const [msg, setMsg] = useState("");
@@ -89,8 +89,8 @@ function Users() {
     setMsg("");
     if (patch.role && patch.role !== target.role) {
       const isSelf = !!target.email && target.email.toLowerCase() === actorEmail;
-      if (!canAssignRole(actorRole, actorEmail || "self", isSelf ? actorEmail || "self" : target.id)) {
-        setMsg("Only a super_admin can assign roles, and nobody can change their own role.");
+      if (!actorRole || !canAssignRole(actorRole, actorEmail || "self", isSelf ? actorEmail || "self" : target.id)) {
+        setMsg("Only an authenticated super_admin can assign roles, and nobody can change their own role.");
         return;
       }
       if (!(await confirmReauth("change staff role"))) return;
@@ -102,11 +102,16 @@ function Users() {
             _role: patch.role,
           });
           if (error) {
-            console.warn("Could not sync role to Supabase:", error.message);
+            setMsg(`Could not sync role to Supabase: ${error.message}`);
+            return;
           } else if (data && typeof data === "object" && !(data as any).ok) {
             setMsg((data as any).error || "Could not assign role in Supabase");
+            return;
           }
-        } catch {}
+        } catch (err) {
+          setMsg(err instanceof Error ? err.message : "Role update failed");
+          return;
+        }
       }
     }
     setState((x) => ({ ...x, admins: x.admins.map((a, j) => (j === i ? { ...a, ...patch } : a)) }));
@@ -115,7 +120,7 @@ function Users() {
   const addAdmin = async () => {
     setMsg("");
     if (actorRole !== "super_admin") {
-      setMsg("Only a super_admin can add staff accounts.");
+      setMsg("Only an authenticated super_admin can add staff accounts.");
       return;
     }
     if (!(await confirmReauth("add a staff account"))) return;
@@ -126,6 +131,10 @@ function Users() {
     const target = s.admins[i];
     if (!target) return;
     setMsg("");
+    if (actorRole !== "super_admin") {
+      setMsg("Only an authenticated super_admin can remove staff accounts.");
+      return;
+    }
     if (target.email && target.email.toLowerCase() === actorEmail) {
       setMsg("You cannot remove your own account.");
       return;
@@ -134,11 +143,21 @@ function Users() {
 
     if (isSupabaseConfigured() && target.email) {
       try {
-        await supabase.rpc("admin_revoke_role", {
+        const { data, error } = await supabase.rpc("admin_revoke_role", {
           _target_email: target.email.trim(),
           _role: target.role,
         });
-      } catch {}
+        if (error) {
+          setMsg(`Could not revoke role in Supabase: ${error.message}`);
+          return;
+        } else if (data && typeof data === "object" && !(data as any).ok) {
+          setMsg((data as any).error || "Could not revoke role in Supabase");
+          return;
+        }
+      } catch (err) {
+        setMsg(err instanceof Error ? err.message : "Role revoke failed");
+        return;
+      }
     }
 
     setState((x) => ({ ...x, admins: x.admins.filter((_, j) => j !== i) }));
@@ -152,9 +171,9 @@ function Users() {
           <h1>Users & permissions</h1>
         </div>
       </div>
-      <p className="adm-hint">Plan who can do what. Saved in this browser only — database enforcement lives in <code>database/sql/03_rbac.sql</code> once a backend is connected.</p>
+      <p className="adm-hint">Manage staff roles &amp; access rights. <code>super_admin</code> (arahimratul2004@gmail.com) can invite, assign, or revoke roles synced directly with <code>public.user_roles</code> in Supabase (<code>database/sql/03_rbac.sql</code> &amp; <code>17_security_and_category_hardening.sql</code>).</p>
       <Card title="Staff & admins">
-        <div style={{ overflowX: "auto" }}>
+        <div className="adm-table-wrap">
           <table>
             <thead><tr><th>Name</th><th>Email</th><th>Role</th><th /></tr></thead>
             <tbody>
@@ -186,7 +205,7 @@ function Users() {
         {msg && <div className="adm-err" style={{ marginTop: 8 }}>{msg}</div>}
       </Card>
       <Card title="Role permissions" action={<button className="adm-btn ghost sm" onClick={() => confirm("Reset permissions to defaults?") && (setPerms(defaults()), dataSource.clear(PERM_KEY))}>Reset</button>}>
-        <div style={{ overflowX: "auto" }}><table><thead><tr><th>Area</th>{ROLES.map((r) => <th key={r} style={{ fontSize: 9 }}>{r.replace("_", " ")}</th>)}</tr></thead><tbody>
+        <div className="adm-table-wrap"><table><thead><tr><th>Area</th>{ROLES.map((r) => <th key={r} style={{ fontSize: 9 }}>{r.replace("_", " ")}</th>)}</tr></thead><tbody>
           {AREAS.map((a) => <tr key={a}><td>{a}</td>{ROLES.map((r) => <td key={r}>
             <select value={perms[r]?.[a] || "none"} disabled={r === "super_admin"} onChange={(e) => set(r, a, e.target.value as Level)} aria-label={`${r} ${a}`}>
               <option value="none">No access</option><option value="view">View</option><option value="edit">Edit</option></select></td>)}</tr>)}

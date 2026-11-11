@@ -83,77 +83,297 @@
     document.head.appendChild(st);
   }
 
+  var LEGACY_HANDLES = {
+    "aka-manto-longsleeve": 1,
+    "divine-sanctum-tee": 1,
+    "ruin-and-rebirth-varsity-jacket": 1,
+    "blue-moon-long-sleeve": 1,
+    "hound-of-hades-tee": 1,
+    "ruin-and-rebirth-reversible-hoodie": 1
+  };
+
+  var LEGACY_COLLECTION_MAP = {
+    longsleeves: "sweatshirts",
+    jeans: "trousers",
+    bottoms: "trousers",
+    joggers: "trousers",
+    outwear: "jackets",
+    hats: "accessories",
+    socks: "accessories",
+    "flight-tags-keychains": "accessories"
+  };
+
+  function safeImg(u) {
+    var s = String(u == null ? "" : u).trim();
+    if (!s || /[\u0000-\u001f\u007f-\u009f\\]/.test(s)) return "/_ext/annr-template-001.png";
+    if (/^data:image\/(png|jpe?g|webp|gif|avif);base64,[a-z0-9+/=]+$/i.test(s)) return s;
+    if (s.charAt(0) === "/" && s.charAt(1) !== "/") return s;
+    if (/^https?:\/\//i.test(s)) return s;
+    return "/_ext/annr-template-001.png";
+  }
+
+  function extractTagPref(tags, prefix) {
+    if (!Array.isArray(tags)) return "";
+    for (var i = 0; i < tags.length; i++) {
+      var t = String(tags[i] || "").trim();
+      if (t.indexOf(prefix) === 0) return t.slice(prefix.length).toLowerCase();
+    }
+    return "";
+  }
+
+  function hasTag(tags, target) {
+    if (!Array.isArray(tags)) return false;
+    for (var i = 0; i < tags.length; i++) {
+      if (String(tags[i] || "").trim() === target) return true;
+    }
+    return false;
+  }
+
+  function normalizeProduct(p) {
+    if (!p || !p.handle || LEGACY_HANDLES[p.handle]) return null;
+    var st = String(p.status || "active").toLowerCase();
+    if (p.deleted || st === "deleted" || st === "draft" || st === "archived") return null;
+
+    var tags = Array.isArray(p.tags)
+      ? p.tags
+      : String(p.tags || "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+
+    var relCat = p.categories && p.categories.slug ? String(p.categories.slug).toLowerCase() : "";
+    var relCamp = p.campaigns && p.campaigns.slug ? String(p.campaigns.slug).toLowerCase() : "";
+    var rawCat = String(p.categorySlug || p.category || relCat || extractTagPref(tags, "cat:") || p.type || p.product_type || "").toLowerCase();
+    var mappedCat = LEGACY_COLLECTION_MAP[rawCat] || rawCat;
+    var rawCamp = String(p.campaignSlug || p.campaign || relCamp || extractTagPref(tags, "camp:") || "unique-campaign").toLowerCase();
+    var imgs = Array.isArray(p.images) && p.images.length
+      ? p.images.map(safeImg)
+      : (p.image ? [safeImg(p.image)] : ["/_ext/annr-template-001.png"]);
+
+    var cols = Array.isArray(p.collections) ? p.collections.slice() : [];
+    if (mappedCat && cols.indexOf(mappedCat) === -1) cols.push(mappedCat);
+    if (rawCamp && rawCamp !== "none" && cols.indexOf(rawCamp) === -1) cols.push(rawCamp);
+    if (cols.indexOf("unique-campaign") === -1 && rawCamp !== "none") cols.push("unique-campaign");
+    if (cols.indexOf("all") === -1) cols.push("all");
+
+    var showSz = p.show_size !== undefined ? p.show_size !== false : (p.showSize !== undefined ? p.showSize !== false : !hasTag(tags, "__hide_size"));
+    if (hasTag(tags, "__hide_size")) showSz = false;
+
+    return {
+      id: p.id || p.handle,
+      handle: p.handle,
+      code: p.code || ("ANNR-" + String(p.handle || "U").toUpperCase().slice(0, 12)),
+      title: p.title || "Untitled Archival Piece",
+      description: p.description || "",
+      price: String(p.price != null ? p.price : "0").replace(/\.00$/, ""),
+      compareAt: p.compareAt || (p.compare_at_price ? String(p.compare_at_price).replace(/\.00$/, "") : ""),
+      currency: p.currency || "BDT",
+      status: st,
+      size: p.size || "ONE SIZE",
+      showSize: showSz,
+      measurements: p.measurements || {},
+      fabric: p.fabric || "",
+      condition: p.condition || "10/10 Archival",
+      careInstructions: p.care_instructions || p.careInstructions || "",
+      categoryId: p.category_id || p.categoryId || null,
+      categorySlug: mappedCat,
+      category: mappedCat,
+      campaignId: p.campaign_id || p.campaignId || null,
+      campaignSlug: rawCamp,
+      campaign: rawCamp,
+      collections: cols,
+      images: imgs,
+      stock: st === "sold" ? 0 : (typeof p.stock === "number" ? p.stock : 1),
+      reservedUntil: p.reserved_until || p.reservedUntil || null,
+      isOneOfOne: true
+    };
+  }
+
+  function mergeProductLists(lists) {
+    var byHandle = {};
+    var order = [];
+    lists.forEach(function (arr) {
+      if (!Array.isArray(arr)) return;
+      arr.forEach(function (raw) {
+        var norm = normalizeProduct(raw);
+        if (!norm) return;
+        if (!byHandle[norm.handle]) order.push(norm.handle);
+        byHandle[norm.handle] = norm;
+      });
+    });
+    return order.map(function (h) { return byHandle[h]; });
+  }
+
   // Live Products Cache
   var liveProducts = [];
 
   function fetchLiveProducts(callback) {
-    // 1. Try local storage first for instant rendering
-    var localAdm = null;
+    var baseList = [];
+    var remoteCacheList = [];
+    var siteCfgList = [];
+    var localAdmList = [];
+
+    try {
+      var rawRemote = localStorage.getItem("annr_live_products");
+      if (rawRemote) remoteCacheList = JSON.parse(rawRemote) || [];
+    } catch (e) {}
+
+    try {
+      var rawSiteCfg = localStorage.getItem("shihiko-site-config");
+      if (rawSiteCfg) {
+        var sc = JSON.parse(rawSiteCfg);
+        if (sc && Array.isArray(sc.catalog)) siteCfgList = sc.catalog;
+      }
+    } catch (e) {}
+
     try {
       var rawAdm = localStorage.getItem("shihiko-admin-v1");
       if (rawAdm) {
         var parsed = JSON.parse(rawAdm);
-        if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) {
-          localAdm = parsed.products;
-        }
+        if (parsed && Array.isArray(parsed.products)) localAdmList = parsed.products;
       }
     } catch (e) {}
 
-    if (localAdm && localAdm.length) {
-      liveProducts = localAdm;
-      if (callback) callback(liveProducts);
+    liveProducts = mergeProductLists([remoteCacheList, siteCfgList, localAdmList]);
+    if (liveProducts.length > 0 && callback) {
+      callback(liveProducts);
     }
 
-    // 2. Fetch live products from Supabase
-    var endpoint = SUPABASE_URL + "/rest/v1/products?select=id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,stock,reserved_until,images,category_id,campaign_id,created_at&order=created_at.desc";
+    // Fallback seed from static /_ext/catalog.json for clean/incognito browsers before Supabase responds
+    fetch("/_ext/catalog.json")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (catData) {
+        var seedArr = Array.isArray(catData) ? catData : (catData && Array.isArray(catData.products) ? catData.products : []);
+        if (Array.isArray(seedArr) && seedArr.length > 0 && liveProducts.length === 0) {
+          baseList = seedArr;
+          liveProducts = mergeProductLists([baseList, remoteCacheList, siteCfgList, localAdmList]);
+          if (liveProducts.length > 0 && callback) callback(liveProducts);
+        }
+      })
+      .catch(function () {});
 
-    fetch(endpoint, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: "Bearer " + SUPABASE_ANON_KEY
-      }
-    })
+    // 2. Fetch live products from Supabase (resilient across schema migrations 14 vs 16)
+    var colsFull = "id,handle,code,title,description,price,compare_at_price,currency,status,size,show_size,measurement_unit,measurements,fabric,condition,care_instructions,images,tags,category_id,campaign_id,stock,reserved_until,created_at,categories(slug,name),campaigns(slug,name)";
+    var colsMid = "id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,images,tags,category_id,campaign_id,stock,reserved_until,created_at,categories(slug,name),campaigns(slug,name)";
+    var colsMin = "id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,images,tags,category_id,campaign_id,stock,reserved_until,created_at";
+
+    function querySb(selectCols) {
+      var endpoint = SUPABASE_URL + "/rest/v1/products?select=" + selectCols + "&order=created_at.desc";
+      return fetch(endpoint, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: "Bearer " + SUPABASE_ANON_KEY
+        }
+      });
+    }
+
+    querySb(colsFull)
+      .then(function (r) {
+        if (r.status === 400) return querySb(colsMid);
+        return r;
+      })
+      .then(function (r) {
+        if (r.status === 400) return querySb(colsMin);
+        return r;
+      })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (Array.isArray(data) && data.length > 0) {
-          liveProducts = data.map(function (p) {
-            return {
-              id: p.id,
-              handle: p.handle,
-              code: p.code || ("ANNR-" + (p.handle ? p.handle.toUpperCase() : "U")),
-              title: p.title,
-              description: p.description || "",
-              price: String(p.price || "0"),
-              compareAt: p.compare_at_price ? String(p.compare_at_price) : "",
-              currency: p.currency || "BDT",
-              status: p.status || "active",
-              size: p.size || "ONE SIZE",
-              showSize: p.show_size !== false,
-              measurements: p.measurements || {},
-              fabric: p.fabric || "",
-              condition: p.condition || "10/10 Archival",
-              careInstructions: p.care_instructions || "",
-              categoryId: p.category_id,
-              categorySlug: "",
-              campaignId: p.campaign_id,
-              campaignSlug: "",
-              images: p.images && p.images.length ? p.images : ["/cdn/shop/t/75/assets/image_logo.svg"],
-              stock: typeof p.stock === "number" ? p.stock : 1,
-              reservedUntil: p.reserved_until,
-              isOneOfOne: true
-            };
-          });
+          var normalizedRemote = mergeProductLists([data]);
           try {
-            localStorage.setItem("annr_live_products", JSON.stringify(liveProducts));
+            localStorage.setItem("annr_live_products", JSON.stringify(normalizedRemote));
           } catch (e) {}
+          liveProducts = mergeProductLists([normalizedRemote, localAdmList]);
           if (callback) callback(liveProducts);
-        } else if (!localAdm && callback) {
-          callback(liveProducts);
+        } else if (liveProducts.length === 0) {
+          liveProducts = mergeProductLists([baseList, siteCfgList, localAdmList]);
+          if (callback) callback(liveProducts);
         }
       })
       .catch(function () {
-        if (!localAdm && callback) callback(liveProducts);
+        if (liveProducts.length === 0) {
+          liveProducts = mergeProductLists([baseList, siteCfgList, localAdmList]);
+        }
+        if (callback) callback(liveProducts);
       });
+  }
+
+  function setupHomePage() {
+    var path = window.location.pathname;
+    if (path !== "/" && path !== "/index.html" && path !== "/home.html") return;
+
+    var showcase = document.querySelector("product-carousel-showcase");
+    if (!showcase) return;
+
+    fetchLiveProducts(function (products) {
+      if (!products || !products.length) return;
+      var featured = products.filter(function (p) { return p.status !== "draft" && p.status !== "deleted"; }).slice(0, 12);
+      if (!featured.length) return;
+
+      var titleEl = showcase.querySelector(".product-carousel-showcase__title");
+      if (titleEl) titleEl.textContent = "UNIQUE ARCHIVE";
+
+      var eyebrow = showcase.querySelector(".product-carousel-showcase__eyebrow");
+      if (eyebrow) {
+        var cnt = featured.length < 10 ? ("0" + featured.length) : String(featured.length);
+        eyebrow.innerHTML = "<span aria-hidden='true'>■</span> <span>[" + cnt + "]</span>";
+      }
+
+      var cta = showcase.querySelector(".product-carousel-showcase__cta");
+      if (cta) {
+        cta.setAttribute("href", "/collections/unique-campaign/index.html");
+      }
+
+      var sliderEl = showcase.querySelector("[data-carousel-slider]");
+      var mainWrap = sliderEl ? sliderEl.querySelector(".swiper-wrapper") : null;
+      var thumbsEl = showcase.querySelector("[data-carousel-thumbs]");
+      var thumbWrap = thumbsEl ? thumbsEl.querySelector(".swiper-wrapper") : null;
+
+      if (mainWrap) {
+        mainWrap.innerHTML = featured.map(function (p) {
+          var img1 = safeImg(p.images && p.images[0]);
+          var img2 = safeImg((p.images && p.images[1]) || img1);
+          var isSold = p.status === "sold" || p.stock < 1;
+          var sizeLabel = (p.showSize !== false && p.size && p.size !== "NONE") ? (" · SIZE " + esc(p.size)) : "";
+          return (
+            "<div class='swiper-slide product-carousel-showcase__slide'>" +
+              "<div class='product-card' data-handle='" + esc(p.handle) + "'>" +
+                "<div class='product-card-image' style='position:relative'>" +
+                  "<div class='annr-card-one-badge'>" + (isSold ? "SOLD / ARCHIVED" : "1 OF 1" + sizeLabel) + "</div>" +
+                  (isSold ? "<div class='annr-card-sold-overlay'><div class='annr-card-sold-tag'>SOLD / ARCHIVED</div></div>" : "") +
+                  "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(p.title) + "'>" +
+                    "<img src='" + esc(img1) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy' onerror=\"this.src='/_ext/annr-template-001.png'\">" +
+                    (img2 && img2 !== img1 ? "<img src='" + esc(img2) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy' onerror=\"this.src='/_ext/annr-template-001.png'\">" : "") +
+                  "</a>" +
+                "</div>" +
+                "<div style='padding-top:8px'>" +
+                  "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:9px;color:#e05a2b;letter-spacing:1.4px;font-weight:700'>" + esc(p.code) + "</div>" +
+                  "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(p.title) + "</a>" +
+                  "<div class='product-card-price'><span class='money'>Tk " + formatMoney(p.price) + "<span class='money-currency-code'>BDT</span></span></div>" +
+                "</div>" +
+              "</div>" +
+            "</div>"
+          );
+        }).join("");
+      }
+
+      if (thumbWrap) {
+        thumbWrap.innerHTML = featured.map(function (p, idx) {
+          var img1 = safeImg(p.images && p.images[0]);
+          return (
+            "<div class='swiper-slide product-carousel-showcase__thumb" + (idx === 0 ? " is-active swiper-slide-thumb-active" : "") + "'>" +
+              "<div class='product-carousel-showcase__thumb-inner'>" +
+                "<img src='" + esc(img1) + "' alt='" + esc(p.title) + "' width='120' height='120' loading='lazy' onerror=\"this.src='/_ext/annr-template-001.png'\">" +
+              "</div>" +
+            "</div>"
+          );
+        }).join("");
+      }
+
+      if (sliderEl && sliderEl.swiper) {
+        try { sliderEl.swiper.update(); } catch (e) {}
+      }
+      if (thumbsEl && thumbsEl.swiper) {
+        try { thumbsEl.swiper.update(); } catch (e) {}
+      }
+    });
   }
 
   // Render on Product Page
@@ -171,11 +391,23 @@
       document.title = prod.title + " (1 of 1) - AnnR";
 
       // Update Heading & Price
-      var titleEl = document.querySelector(".product-title, .product__title, h1");
+      var titleEl = document.querySelector(".product-info-title, .product-title, .product__title, h1");
       if (titleEl) titleEl.textContent = prod.title;
 
-      var priceEl = document.querySelector(".price-item--regular, .product-price .money, [data-product-price]");
+      var priceEl = document.querySelector(".product-info-price .money, .price-item--regular, .product-price .money, [data-product-price]");
       if (priceEl) priceEl.innerHTML = "Tk " + formatMoney(prod.price) + "<span class='money-currency-code'> BDT</span>";
+
+      var descEl = document.querySelector(".product-info-details-header .product-info-detail-content-inner");
+      if (descEl) {
+        var extraMeta = [];
+        if (prod.fabric) extraMeta.push("<strong>Fabric:</strong> " + esc(prod.fabric));
+        if (prod.condition) extraMeta.push("<strong>Condition:</strong> " + esc(prod.condition));
+        if (prod.careInstructions) extraMeta.push("<strong>Care:</strong> " + esc(prod.careInstructions));
+        descEl.innerHTML =
+          "<h3 class='hide-mob'>DESCRIPTION</h3>" +
+          "<div style='white-space:pre-wrap;line-height:1.6'>" + esc(prod.description || "") + "</div>" +
+          (extraMeta.length ? "<div style='margin-top:12px;font-size:12px;opacity:.85;display:flex;flex-direction:column;gap:4px'>" + extraMeta.join("<br>") + "</div>" : "");
+      }
 
       // Update Product Images in Carousel & Thumbnails
       if (prod.images && prod.images.length > 0) {
@@ -184,18 +416,19 @@
         if (mainWrapper) {
           var mainSlides = "";
           var thumbSlides = "";
-          prod.images.forEach(function (imgSrc, idx) {
+          prod.images.forEach(function (rawSrc, idx) {
+            var imgSrc = safeImg(rawSrc);
             mainSlides +=
               "<div class='swiper-slide' data-media-id='" + idx + "'>" +
                 "<div class='carousel-item' style='aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;background:#faf8f4;overflow:hidden;'>" +
-                  "<img src='" + esc(imgSrc) + "' alt='" + esc(prod.title) + " - View " + (idx + 1) + "' onerror=\"this.src='/cdn/shop/t/75/assets/image_logo.svg'\" style='width:100%;height:100%;object-fit:cover;' loading='" + (idx === 0 ? "eager" : "lazy") + "'>" +
+                  "<img src='" + esc(imgSrc) + "' alt='" + esc(prod.title) + " - View " + (idx + 1) + "' onerror=\"this.src='/_ext/annr-template-001.png'\" style='width:100%;height:100%;object-fit:cover;' loading='" + (idx === 0 ? "eager" : "lazy") + "'>" +
                 "</div>" +
               "</div>";
 
             thumbSlides +=
               "<div class='swiper-slide prod-thumb-slide " + (idx === 0 ? "swiper-slide-thumb-active" : "") + "'>" +
                 "<div class='carousel-thumb-item' style='width:64px;height:64px;overflow:hidden;border:1.5px solid " + (idx === 0 ? "#111" : "#e6e1d7") + ";background:#fff;cursor:pointer;'>" +
-                  "<img src='" + esc(imgSrc) + "' alt='Thumbnail " + (idx + 1) + "' onerror=\"this.src='/cdn/shop/t/75/assets/image_logo.svg'\" style='width:100%;height:100%;object-fit:cover;'>" +
+                  "<img src='" + esc(imgSrc) + "' alt='Thumbnail " + (idx + 1) + "' onerror=\"this.src='/_ext/annr-template-001.png'\" style='width:100%;height:100%;object-fit:cover;'>" +
                 "</div>" +
               "</div>";
           });
@@ -238,16 +471,16 @@
         if (allImgs.length > 0 && prod.images[0]) {
           allImgs.forEach(function (im, i) {
             if (im.closest && im.closest(".product-info-save-button")) return;
-            var targetSrc = prod.images[i] || prod.images[0];
+            var targetSrc = safeImg(prod.images[i] || prod.images[0]);
             im.src = targetSrc;
             if (im.srcset) im.removeAttribute("srcset");
           });
         }
 
         var ogImg = document.querySelector("meta[property='og:image']");
-        if (ogImg && prod.images[0]) ogImg.setAttribute("content", prod.images[0]);
+        if (ogImg && prod.images[0]) ogImg.setAttribute("content", safeImg(prod.images[0]));
         var twImg = document.querySelector("meta[name='twitter:image']");
-        if (twImg && prod.images[0]) twImg.setAttribute("content", prod.images[0]);
+        if (twImg && prod.images[0]) twImg.setAttribute("content", safeImg(prod.images[0]));
       }
 
       // Replace Size Selector with 1-of-1 Archival Badge & Measurement Table
@@ -255,9 +488,10 @@
       var oldQty = document.querySelector(".product-info-quantity-selector, .product-form__quantity");
       if (oldQty) oldQty.style.display = "none";
 
-      var targetContainer = variantArea || document.querySelector("product-form") || document.querySelector("form[action*='/cart/add']");
-      if (targetContainer && !document.getElementById("annr-injected-unique-size")) {
-        var sizeBox = document.createElement("div");
+      var targetContainer = variantArea || document.querySelector(".product-info-submit") || document.querySelector("product-form") || document.querySelector("form[action*='/cart/add']");
+      if (targetContainer) {
+        var existingBox = document.getElementById("annr-injected-unique-size");
+        var sizeBox = existingBox || document.createElement("div");
         sizeBox.id = "annr-injected-unique-size";
 
         var statusPillClass = "annr-unique-pill";
@@ -345,16 +579,21 @@
             "<span class='dot'></span> ONLY 1 PIECE AVAILABLE WORLDWIDE · MAXIMUM 1 PER CLIENT" +
           "</div>";
 
-        if (variantArea) {
-          variantArea.style.display = "none";
-          variantArea.parentNode.insertBefore(sizeBox, variantArea);
-        } else {
-          targetContainer.parentNode.insertBefore(sizeBox, targetContainer);
+        if (!existingBox) {
+          if (variantArea) {
+            variantArea.style.display = "none";
+            variantArea.parentNode.insertBefore(sizeBox, variantArea);
+          } else {
+            targetContainer.parentNode.insertBefore(sizeBox, targetContainer);
+          }
         }
       }
 
-      // Update Add to Cart Button
-      var atcBtn = document.querySelector("[name='add'], [data-product-button], .btn-add-to-cart");
+      // Store active product for capture-phase 1-of-1 checkout interception
+      window.__annrCurrentProduct = prod;
+
+      // Update Add to Cart Button & intercept Shopify AJAX /cart/add with 1-of-1 /checkout flow
+      var atcBtn = document.querySelector("[name='add'], [data-product-button], .btn-add-to-cart, .product-info-submit button");
       if (atcBtn) {
         if (prod.status === "sold" || prod.stock < 1) {
           atcBtn.disabled = true;
@@ -371,6 +610,91 @@
           atcBtn.innerHTML = "<span class='content'><span><span class='text'>ACQUIRE 1-OF-1 PIECE</span></span></span>";
         }
       }
+
+      if (!window.__annrPdpCheckoutBound) {
+        window.__annrPdpCheckoutBound = true;
+        var handleAcquire = function (ev) {
+          var trig = ev.target && ev.target.closest && ev.target.closest("[name='add'], [data-product-button], .btn-add-to-cart, .product-info-submit button, form[action*='/cart/add']");
+          if (!trig) return;
+          if (ev.type === "click" && ev.target.tagName === "FORM") return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          ev.stopImmediatePropagation();
+
+          var active = window.__annrCurrentProduct;
+          if (!active) return;
+          if (active.status === "sold" || active.stock < 1) {
+            alert("This 1-of-1 piece has been sold and permanently archived.");
+            return;
+          }
+          if (active.status === "reserved") {
+            alert("This 1-of-1 piece is currently reserved in another collector's checkout.");
+            return;
+          }
+
+          var numericPrice = parseFloat(String(active.price || "0").replace(/[^0-9.-]+/g, "")) || 0;
+          var cartItem = {
+            id: String(active.id || active.handle),
+            handle: active.handle,
+            code: active.code || "",
+            title: active.title,
+            price: numericPrice,
+            quantity: 1,
+            size: active.showSize !== false ? (active.size || "") : "",
+            showSize: active.showSize !== false,
+            image: safeImg(active.images && active.images[0])
+          };
+
+          try {
+            localStorage.setItem("annr-cart", JSON.stringify([cartItem]));
+          } catch (e) {}
+
+          // Reserve 1-of-1 item in Supabase for 15 minutes when UUID is present
+          if (active.id && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(active.id))) {
+            try {
+              var reserveReq = fetch(SUPABASE_URL + "/rest/v1/rpc/reserve_product", {
+                method: "POST",
+                keepalive: true,
+                headers: {
+                  apikey: SUPABASE_ANON_KEY,
+                  Authorization: "Bearer " + SUPABASE_ANON_KEY,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ p_product_id: active.id })
+              })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                  if (data && data.ok !== false) {
+                    try {
+                      localStorage.setItem(
+                        "annr_reservation",
+                        JSON.stringify({
+                          productId: active.id,
+                          handle: active.handle,
+                          token: data.token || data.reservation_token || null,
+                          reservedUntil: data.reserved_until || null
+                        })
+                      );
+                    } catch (e) {}
+                  }
+                })
+                .catch(function () {});
+
+              Promise.race([
+                reserveReq,
+                new Promise(function (resolve) { setTimeout(resolve, 650); })
+              ]).then(function () {
+                window.location.href = "/checkout";
+              });
+              return;
+            } catch (e) {}
+          }
+
+          window.location.href = "/checkout";
+        };
+        document.addEventListener("click", handleAcquire, true);
+        document.addEventListener("submit", handleAcquire, true);
+      }
     });
   }
 
@@ -381,21 +705,105 @@
     if (!m) return;
     var currentHandle = m[1];
 
-    var grid = document.querySelector("[data-product-grid], .collection-product-grid, .catalog__content");
-    if (!grid) return;
+    // Remove legacy static infinite-pagination so Shopify scripts cannot overwrite dynamic grids
+    document.querySelectorAll("infinite-pagination, .pagination").forEach(function (el) { el.remove(); });
 
-    fetchLiveProducts(function (products) {
-      // Setup Campaign Hero if on unique-campaign
-      var isUniqueCampaign = currentHandle === "unique-campaign";
+    var grid = document.querySelector(".collection-product-grid") || document.querySelector("[data-product-grid], .catalog__content");
+    if (!grid) return;
+    window.__annrUniqueCatalogOwnsGrid = true;
+
+    var isUniqueCampaign = currentHandle === "unique-campaign";
+    var urlCat = new URLSearchParams(window.location.search).get("category") || "";
+    var activeCategory = urlCat ? urlCat.toLowerCase() : "all";
+    var hideSold = false;
+    var sortBy = "newest";
+    var currentProducts = [];
+    var colControlsBound = false;
+
+    function matchesCategory(p, cat) {
+      if (!cat || cat === "all") return true;
+      if (p.categorySlug === cat || p.category === cat) return true;
+      if (Array.isArray(p.collections) && p.collections.indexOf(cat) !== -1) return true;
+      return false;
+    }
+
+    function renderGrid() {
+      var filtered = currentProducts.slice();
+
+      if (!isUniqueCampaign && currentHandle !== "all") {
+        filtered = filtered.filter(function (p) { return matchesCategory(p, currentHandle); });
+      } else if (isUniqueCampaign && activeCategory !== "all") {
+        filtered = filtered.filter(function (p) { return matchesCategory(p, activeCategory); });
+      }
+
+      if (hideSold) {
+        filtered = filtered.filter(function (p) {
+          return p.status !== "sold" && p.stock > 0;
+        });
+      }
+
+      if (sortBy === "price-asc") {
+        filtered.sort(function (a, b) { return (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0); });
+      } else if (sortBy === "price-desc") {
+        filtered.sort(function (a, b) { return (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0); });
+      }
+
+      document.querySelectorAll("[data-product-count]").forEach(function (cntEl) {
+        cntEl.innerHTML = "<span>" + filtered.length + "</span><span>//</span><span>" + (filtered.length === 1 ? "ITEM" : "ITEMS") + "</span>";
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML =
+          "<div style='grid-column: 1 / -1; padding: 60px 20px; text-align: center; background: #faf8f4; border: 1px dashed #dcd6ca; margin: 20px 0;'>" +
+            "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:12px;letter-spacing:2px;color:#777;text-transform:uppercase;margin-bottom:8px'>[ ARCHIVE NOTICE ]</div>" +
+            "<div style='font-family:\"NB Architekt Std\",sans-serif;font-size:20px;font-weight:900;text-transform:uppercase;color:#111'>NO PIECES CURRENTLY MATCH THIS FILTER</div>" +
+            "<p style='font-family:Georgia,serif;font-style:italic;color:#666;margin-top:10px'>New one-of-one pieces are released into the Unique Campaign drops.</p>" +
+          "</div>";
+        return;
+      }
+
+      var html = filtered.map(function (p) {
+        var isSold = p.status === "sold" || p.stock < 1;
+        var img = safeImg(p.images && p.images[0]);
+        var img2 = safeImg((p.images && p.images[1]) || img);
+        var sizeTag = (p.showSize !== false && p.size && p.size !== "NONE") ? (" · SIZE " + esc(p.size)) : "";
+
+        return (
+          "<div class='product-card' data-handle='" + esc(p.handle) + "'>" +
+            "<div class='product-card-image' style='position:relative'>" +
+              "<div class='annr-card-one-badge'>" + (isSold ? "SOLD / ARCHIVED" : "1 OF 1" + sizeTag) + "</div>" +
+              (isSold ? "<div class='annr-card-sold-overlay'><div class='annr-card-sold-tag'>SOLD / ARCHIVED</div></div>" : "") +
+              "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(p.title) + "'>" +
+                "<img src='" + esc(img) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy' onerror=\"this.src='/_ext/annr-template-001.png'\">" +
+                (img2 && img2 !== img ? "<img src='" + esc(img2) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy' onerror=\"this.src='/_ext/annr-template-001.png'\">" : "") +
+              "</a>" +
+            "</div>" +
+            "<div style='padding-top:10px'>" +
+              "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:9.5px;color:#e05a2b;letter-spacing:1.5px;margin-bottom:4px;font-weight:700'>" + esc(p.code) + "</div>" +
+              "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;color:#111;text-decoration:none'>" + esc(p.title) + "</a>" +
+              "<div class='product-card-price' style='margin-top:4px'>" +
+                "<span class='money' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:900;color:#111'>Tk " + formatMoney(p.price) + " <span class='money-currency-code'>BDT</span></span>" +
+              "</div>" +
+            "</div>" +
+          "</div>"
+        );
+      }).join("");
+
+      grid.innerHTML = html;
+    }
+
+    function ensureCollectionChrome() {
       var colHeader = document.querySelector(".collection-header, .catalog-header");
+      var liveCats = getActiveCategories();
 
       if (isUniqueCampaign && !document.getElementById("annr-campaign-hero-el")) {
         var hero = document.createElement("div");
         hero.id = "annr-campaign-hero-el";
         hero.className = "annr-campaign-hero";
 
-        var chips = CATEGORIES.map(function (c) {
-          return "<button type='button' class='annr-cat-chip' data-category='" + esc(c.slug) + "'>" + esc(c.name) + "</button>";
+        var chips = liveCats.map(function (c) {
+          var isAct = activeCategory === c.slug;
+          return "<button type='button' class='annr-cat-chip" + (isAct ? " is-active" : "") + "' data-category='" + esc(c.slug) + "'>" + esc(c.name) + "</button>";
         }).join("");
 
         hero.innerHTML =
@@ -403,7 +811,7 @@
           "<h1>UNIQUE CAMPAIGN</h1>" +
           "<p class='lead'>Every garment in the Unique Campaign exists as exactly one singular piece worldwide. When acquired, it is permanently locked in the AnnR collector archive.</p>" +
           "<div class='annr-category-chips'>" +
-            "<button type='button' class='annr-cat-chip is-active' data-category='all'>ALL ARCHIVE</button>" +
+            "<button type='button' class='annr-cat-chip" + (activeCategory === "all" ? " is-active" : "") + "' data-category='all'>ALL ARCHIVE</button>" +
             chips +
           "</div>";
 
@@ -414,7 +822,6 @@
         }
       }
 
-      // Add Controls Bar (Hide Sold + Sort)
       if (!document.getElementById("annr-grid-controls-el")) {
         var ctrl = document.createElement("div");
         ctrl.id = "annr-grid-controls-el";
@@ -435,146 +842,140 @@
         grid.parentNode.insertBefore(ctrl, grid);
       }
 
-      var activeCategory = "all";
-      var hideSold = false;
-      var sortBy = "newest";
+      if (!colControlsBound) {
+        colControlsBound = true;
+        var chipsList = document.querySelectorAll(".annr-cat-chip");
+        chipsList.forEach(function (btn) {
+          btn.onclick = function () {
+            chipsList.forEach(function (b) { b.classList.remove("is-active"); });
+            btn.classList.add("is-active");
+            activeCategory = btn.getAttribute("data-category") || "all";
+            renderGrid();
+          };
+        });
 
-      function renderGrid() {
-        var filtered = products.slice();
-
-        // If on specific collection (e.g. /collections/hoodies/)
-        if (!isUniqueCampaign && currentHandle !== "all") {
-          filtered = filtered.filter(function (p) {
-            return p.categorySlug === currentHandle || p.category === currentHandle;
-          });
-        } else if (isUniqueCampaign && activeCategory !== "all") {
-          filtered = filtered.filter(function (p) {
-            return p.categorySlug === activeCategory || p.category === activeCategory;
-          });
+        var hideSoldCheckbox = document.getElementById("annr-hide-sold");
+        if (hideSoldCheckbox) {
+          hideSoldCheckbox.onchange = function () {
+            hideSold = hideSoldCheckbox.checked;
+            renderGrid();
+          };
         }
 
-        if (hideSold) {
-          filtered = filtered.filter(function (p) {
-            return p.status !== "sold" && p.stock > 0;
-          });
+        var sortSelect = document.getElementById("annr-sort-products");
+        if (sortSelect) {
+          sortSelect.onchange = function () {
+            sortBy = sortSelect.value;
+            renderGrid();
+          };
         }
-
-        if (sortBy === "price-asc") {
-          filtered.sort(function (a, b) { return (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0); });
-        } else if (sortBy === "price-desc") {
-          filtered.sort(function (a, b) { return (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0); });
-        }
-
-        if (filtered.length === 0) {
-          grid.innerHTML =
-            "<div style='grid-column: 1 / -1; padding: 60px 20px; text-align: center; background: #faf8f4; border: 1px dashed #dcd6ca; margin: 20px 0;'>" +
-              "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:12px;letter-spacing:2px;color:#777;text-transform:uppercase;margin-bottom:8px'>[ ARCHIVE NOTICE ]</div>" +
-              "<div style='font-family:\"NB Architekt Std\",sans-serif;font-size:20px;font-weight:900;text-transform:uppercase;color:#111'>NO PIECES CURRENTLY MATCH THIS FILTER</div>" +
-              "<p style='font-family:Georgia,serif;font-style:italic;color:#666;margin-top:10px'>New one-of-one pieces are released into the Unique Campaign drops.</p>" +
-            "</div>";
-          return;
-        }
-
-        var html = filtered.map(function (p) {
-          var isSold = p.status === "sold" || p.stock < 1;
-          var img = (p.images && p.images[0]) || "/cdn/shop/t/75/assets/image_logo.svg";
-          var img2 = (p.images && p.images[1]) || img;
-
-          var sizeTag = (p.showSize !== false && p.size && p.size !== "NONE") ? (" · SIZE " + esc(p.size)) : "";
-
-          return (
-            "<div class='lazy-item product-card' data-handle='" + esc(p.handle) + "'>" +
-              "<div class='product-card-image' style='position:relative'>" +
-                "<div class='annr-card-one-badge'>1 OF 1" + sizeTag + "</div>" +
-                (isSold ? "<div class='annr-card-sold-overlay'><div class='annr-card-sold-tag'>SOLD / ARCHIVED</div></div>" : "") +
-                "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(p.title) + "'>" +
-                  "<img src='" + esc(img) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy' onerror=\"this.src='/cdn/shop/t/75/assets/image_logo.svg'\">" +
-                  (img2 && img2 !== img ? "<img src='" + esc(img2) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy' onerror=\"this.src='/cdn/shop/t/75/assets/image_logo.svg'\">" : "") +
-                "</a>" +
-              "</div>" +
-              "<div style='padding-top:10px'>" +
-                "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:9.5px;color:#e05a2b;letter-spacing:1.5px;margin-bottom:4px;font-weight:700'>" + esc(p.code) + "</div>" +
-                "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;color:#111;text-decoration:none'>" + esc(p.title) + "</a>" +
-                "<div class='product-card-price' style='margin-top:4px'>" +
-                  "<span class='money' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:900;color:#111'>Tk " + formatMoney(p.price) + " <span class='money-currency-code'>BDT</span></span>" +
-                "</div>" +
-              "</div>" +
-            "</div>"
-          );
-        }).join("");
-
-        grid.innerHTML = html;
       }
+    }
 
+    ensureCollectionChrome();
+
+    fetchLiveProducts(function (products) {
+      currentProducts = Array.isArray(products) ? products : [];
+      ensureCollectionChrome();
       renderGrid();
-
-      // Wire Category Chips
-      var chips = document.querySelectorAll(".annr-cat-chip");
-      chips.forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          chips.forEach(function (b) { b.classList.remove("is-active"); });
-          btn.classList.add("is-active");
-          activeCategory = btn.getAttribute("data-category") || "all";
-          renderGrid();
-        });
-      });
-
-      // Wire Hide Sold
-      var hideSoldCheckbox = document.getElementById("annr-hide-sold");
-      if (hideSoldCheckbox) {
-        hideSoldCheckbox.addEventListener("change", function () {
-          hideSold = hideSoldCheckbox.checked;
-          renderGrid();
-        });
-      }
-
-      // Wire Sort
-      var sortSelect = document.getElementById("annr-sort-products");
-      if (sortSelect) {
-        sortSelect.addEventListener("change", function () {
-          sortBy = sortSelect.value;
-          renderGrid();
-        });
-      }
     });
   }
 
-  // Update Main Navigation Menu
-  function updateNavigation() {
-    var menuContainers = document.querySelectorAll(".header-menu, .header-new__menu, .js-header-menu-block, #header-mobile-menu");
-    if (!menuContainers.length) return;
+  function getActiveCategories() {
+    try {
+      var rawAdm = localStorage.getItem("shihiko-admin-v1");
+      if (rawAdm) {
+        var adm = JSON.parse(rawAdm);
+        if (adm && Array.isArray(adm.categories) && adm.categories.length > 0) {
+          var list = adm.categories
+            .filter(function (c) { return c && c.slug && c.visible !== false && c.is_visible !== false; })
+            .map(function (c) { return { slug: String(c.slug).toLowerCase(), name: String(c.name || c.slug) }; });
+          if (list.length > 0) return list;
+        }
+      }
+    } catch (e) {}
+    return CATEGORIES.slice();
+  }
 
-    var navItems = [
-      { label: "UNIQUE CAMPAIGN", url: "/collections/unique-campaign/index.html", highlight: true },
-      { label: "HOODIES", url: "/collections/hoodies/index.html" },
-      { label: "SWEATSHIRTS", url: "/collections/sweatshirts/index.html" },
-      { label: "TROUSERS", url: "/collections/trousers/index.html" },
-      { label: "SWEATERS", url: "/collections/sweaters/index.html" },
-      { label: "T-SHIRTS", url: "/collections/t-shirts/index.html" },
-      { label: "JACKETS", url: "/collections/jackets/index.html" },
-      { label: "KNITWEAR", url: "/collections/knitwear/index.html" },
-      { label: "ACCESSORIES", url: "/collections/accessories/index.html" },
-      { label: "ALL ARCHIVE", url: "/collections/all/index.html" }
-    ];
+  // Update header mega-menu, mobile submenu & collection bar cleanly without disturbing theme button bindings
+  function applyNavigationCategories(cats) {
+    var path = window.location.pathname || "";
+    var colMatch = path.match(/\/collections\/([a-zA-Z0-9_-]+)/);
+    var activeHandle = colMatch ? colMatch[1].toLowerCase() : "";
 
-    // Find main menu lists
-    document.querySelectorAll(".header-menu-list, .header-new__nav-list").forEach(function (ul) {
-      if (ul.dataset.annrNavUpdated) return;
-      ul.dataset.annrNavUpdated = "true";
+    document.querySelectorAll(".header-new__desktop-bar .header-new__nav-block--right a[href*='/collections/vault']").forEach(function (a) {
+      a.setAttribute("href", "/collections/unique-campaign/index.html");
+      a.textContent = "Unique";
+    });
 
-      var html = navItems.map(function (item) {
-        var highlightStyle = item.highlight ? "color:#e05a2b!important;font-weight:900!important" : "";
+    var megaLists = document.querySelectorAll(".header-new__mega-list[data-annr-categories-mega]");
+    megaLists.forEach(function (ml) {
+      var html =
+        "<div class='header-new__mega-section'>" +
+          "<div class='header-new__mega-heading'><a href='/collections/unique-campaign/index.html'>Unique Campaign</a><span>[01]</span></div>" +
+        "</div>" +
+        "<div class='header-new__mega-section'>" +
+          "<div class='header-new__mega-heading'><a href='/collections/all/index.html'>Shop by Category</a><span>[02]</span></div>" +
+          cats.map(function (c) {
+            return "<a href='/collections/" + esc(c.slug) + "/index.html' class='header-submenu-list-item header-new__mega-link header-new__mega-link--nested'><span>" + esc(c.name) + "</span></a>";
+          }).join("") +
+          "<a href='/collections/all/index.html' class='header-submenu-list-item header-new__mega-link header-new__mega-link--nested'><span>All Archive</span></a>" +
+        "</div>";
+      ml.innerHTML = html;
+    });
+
+    var mobSubs = document.querySelectorAll("#header-mobile-menu .header-new__mobile-submenu[data-annr-categories-mobile]");
+    mobSubs.forEach(function (ms) {
+      ms.innerHTML =
+        "<div class='header-new__mobile-section'>" +
+          "<a href='/collections/unique-campaign/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink header-new__mobile-sublink--heading'><span>Unique Campaign</span><span>[01]</span></a>" +
+        "</div>" +
+        "<div class='header-new__mobile-section'>" +
+          "<a href='/collections/all/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink header-new__mobile-sublink--heading'><span>Shop by Category</span><span>[02]</span></a>" +
+          cats.map(function (c) {
+            return "<a href='/collections/" + esc(c.slug) + "/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink'><span>" + esc(c.name) + "</span></a>";
+          }).join("") +
+          "<a href='/collections/all/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink'><span>All Archive</span></a>" +
+        "</div>";
+    });
+
+    document.querySelectorAll(".collection-menu__list").forEach(function (ul) {
+      var items = [{ slug: "unique-campaign", name: "UNIQUE CAMPAIGN" }]
+        .concat(cats.map(function (c) { return { slug: c.slug, name: c.name.toUpperCase() }; }))
+        .concat([{ slug: "all", name: "ALL ITEMS" }]);
+
+      ul.innerHTML = items.map(function (it) {
+        var isAct = activeHandle === it.slug;
         return (
-          "<li class='header-menu-item'>" +
-            "<a href='" + esc(item.url) + "' class='header-menu-item-link' style='" + highlightStyle + "'>" +
-              "<span class='header-menu-item-label'>" + esc(item.label) + "</span>" +
+          "<li class='collection-menu__item'>" +
+            "<a href='/collections/" + esc(it.slug) + "/index.html' class='collection-menu__link js-noreload" + (isAct ? " collection-menu__link--active" : "") + "' data-collection-navigation-link" + (isAct ? " aria-current='page'" : "") + ">" +
+              esc(it.name) +
             "</a>" +
           "</li>"
         );
       }).join("");
-
-      ul.innerHTML = html;
     });
+  }
+
+  function updateNavigation() {
+    applyNavigationCategories(getActiveCategories());
+
+    fetch(SUPABASE_URL + "/rest/v1/categories?select=slug,name,is_visible,sort_order&order=sort_order.asc", {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + SUPABASE_ANON_KEY
+      }
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (rows) {
+        if (Array.isArray(rows) && rows.length > 0) {
+          var live = rows
+            .filter(function (c) { return c && c.slug && c.is_visible !== false && c.visible !== false; })
+            .map(function (c) { return { slug: String(c.slug).toLowerCase(), name: String(c.name || c.slug) }; });
+          if (live.length > 0) applyNavigationCategories(live);
+        }
+      })
+      .catch(function () {});
   }
 
   // Init
@@ -583,11 +984,24 @@
     updateNavigation();
 
     var path = window.location.pathname;
-    if (path.indexOf("/products/") >= 0) {
+    if (path === "/" || path === "/index.html" || path === "/home.html") {
+      setupHomePage();
+    } else if (path.indexOf("/products/") >= 0) {
       setupProductPage();
     } else if (path.indexOf("/collections/") >= 0) {
       setupCollectionPage();
     }
+  }
+
+  if (!window.__annrCatalogEventsBound) {
+    window.__annrCatalogEventsBound = true;
+    window.addEventListener("annr:products:updated", init);
+    window.addEventListener("annr:categories:updated", updateNavigation);
+    window.addEventListener("storage", function (e) {
+      if (!e || e.key === "shihiko-admin-v1" || e.key === "shihiko-site-config" || e.key === "annr_live_products") {
+        init();
+      }
+    });
   }
 
   if (document.readyState === "loading") {

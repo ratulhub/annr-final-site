@@ -36,7 +36,7 @@ function Media() {
         </div>
         <label className="adm-btn">Upload<input type="file" accept="image/*" multiple hidden onChange={(e) => upload(e.target.files)} /></label>
       </div>
-      <p className="adm-hint">Demo: uploads are stored inside this browser (max 400 KB each) and are not in permanent cloud storage. Use links for big files.</p>
+      <p className="adm-hint">Direct uploads (max 400 KB) sync to Supabase Storage (`public-media`) when signed in, or stay saved locally offline. Use HTTPS image URLs for larger files.</p>
       {err && <div className="adm-err">{err}</div>}
       <div className="adm-row" style={{ marginBottom: 14 }}>
         <input placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />

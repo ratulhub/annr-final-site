@@ -385,8 +385,9 @@ function AdminLayout() {
     try {
       document.documentElement.classList.remove("disable-scroll");
       document.body.classList.remove("disable-scroll");
-      document.documentElement.style.overflow = "auto";
-      document.body.style.overflow = "auto";
+      document.documentElement.style.overflowY = "visible";
+      document.documentElement.style.overflowX = "clip";
+      document.body.style.overflow = "visible";
     } catch {}
   }, [path]);
 
@@ -481,44 +482,53 @@ function AdminLayout() {
             if (el) setMobile(false);
           }}
         >
-          {NAV_GROUPS.map((g) => (
-            <div key={g.group} className="adm-group">
-              <div className="adm-group-title" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <GroupIcon iconKey={g.iconKey} />
-                <span>{g.group}</span>
-              </div>
-              {g.items.map((i) => {
-                const badgeElement = i.badge ? (
-                  <span className="adm-tag" style={{ fontSize: 10, padding: "1px 6px" }}>
-                    {i.badge}
-                  </span>
-                ) : null;
+          {NAV_GROUPS.map((g) => {
+            const role = getSession()?.role;
+            const visibleItems = g.items.filter((i) => {
+              const target = i.report ? `/admin/analytics/${i.report}` : i.module ? `/admin/m/${i.module}` : i.to || "/admin";
+              const need = permissionForPath(target);
+              return !need || can(role, need);
+            });
+            if (!visibleItems.length) return null;
+            return (
+              <div key={g.group} className="adm-group">
+                <div className="adm-group-title" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <GroupIcon iconKey={g.iconKey} />
+                  <span>{g.group}</span>
+                </div>
+                {visibleItems.map((i) => {
+                  const badgeElement = i.badge ? (
+                    <span className="adm-tag" style={{ fontSize: 10, padding: "1px 6px" }}>
+                      {i.badge}
+                    </span>
+                  ) : null;
 
-                if (i.report) {
+                  if (i.report) {
+                    return (
+                      <Link key={i.label} to="/admin/analytics/$report" params={{ report: i.report }} activeProps={{ className: "active" }}>
+                        <span>{i.label}</span>
+                        {badgeElement}
+                      </Link>
+                    );
+                  }
+                  if (i.module) {
+                    return (
+                      <Link key={i.label} to="/admin/m/$module" params={{ module: i.module }} activeProps={{ className: "active" }}>
+                        <span>{i.label}{i.soon && <em>{i.soon}</em>}</span>
+                        {badgeElement}
+                      </Link>
+                    );
+                  }
                   return (
-                    <Link key={i.label} to="/admin/analytics/$report" params={{ report: i.report }} activeProps={{ className: "active" }}>
+                    <Link key={i.to} to={i.to!} activeOptions={{ exact: i.to === "/admin" }} activeProps={{ className: "active" }}>
                       <span>{i.label}</span>
                       {badgeElement}
                     </Link>
                   );
-                }
-                if (i.module) {
-                  return (
-                    <Link key={i.label} to="/admin/m/$module" params={{ module: i.module }} activeProps={{ className: "active" }}>
-                      <span>{i.label}{i.soon && <em>{i.soon}</em>}</span>
-                      {badgeElement}
-                    </Link>
-                  );
-                }
-                return (
-                  <Link key={i.to} to={i.to!} activeOptions={{ exact: i.to === "/admin" }} activeProps={{ className: "active" }}>
-                    <span>{i.label}</span>
-                    {badgeElement}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
+                })}
+              </div>
+            );
+          })}
 
           <div className="adm-group" style={{ borderTop: "1px solid #2d2d2d", paddingTop: 12, marginTop: 12 }}>
             <a href="/home.html" target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, color: "#4ade80", fontWeight: 600 }}>
@@ -673,10 +683,13 @@ function Login({ onDone }: { onDone: () => void }) {
             <input
               type="text"
               autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               maxLength={254}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="arahim, admin, or email"
+              placeholder="arahimratul2004@gmail.com or arahim"
               style={{ textTransform: "none", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
               required
             />
@@ -788,7 +801,7 @@ function Notifications() {
   if (dirty) items.push({ text: "You have unpublished changes", to: "/admin/publish" });
   if (s.site.technical.maintenance) items.push({ text: "Maintenance mode is ON — the store is hidden", to: "/admin/settings" });
   if (low) items.push({ text: `${low} product(s) low on stock`, to: "/admin/products" });
-  items.push({ text: "Analytics: not connected (demo data)", to: "/admin/analytics/settings" });
+  if (!items.length) items.push({ text: "Storefront and admin are synchronized", to: "/admin" });
   return <Dropdown aria="Notifications" label={<>{items.length}</>}>
     <b style={{ display: "block", marginBottom: 8 }}>Notifications</b>
     {items.map((i) => <a key={i.text} href={i.to} className="link" style={{ display: "block", padding: "6px 0" }}>{i.text}</a>)}
@@ -798,7 +811,7 @@ function Notifications() {
 
 function AccountMenu({ onLogout }: { onLogout: () => void }) {
   return <Dropdown plain aria="Account menu" label={<>Account ▾</>}>
-    <div className="adm-hint" style={{ marginBottom: 8 }}>{getSession()?.email} · {getSession()?.role} (test login)</div>
+    <div className="adm-hint" style={{ marginBottom: 8 }}>{getSession()?.email} · {getSession()?.role}</div>
     <Link to="/admin/users" className="link" style={{ display: "block", padding: "6px 0" }}>Users & permissions</Link>
     <Link to="/admin/settings" className="link" style={{ display: "block", padding: "6px 0" }}>Settings</Link>
     <a href="/home.html" target="_blank" rel="noreferrer" className="link" style={{ display: "block", padding: "6px 0" }}>View store ↗</a>

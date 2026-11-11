@@ -16,7 +16,7 @@ function Integrations() {
       <p className="adm-hint">Services the store uses or will use. Nothing is connected from this panel yet, so every status is honest: Not connected.</p>
       <IntegrationsCard />
       <Card title="Already working through the live store">
-        <p style={{ marginTop: 0 }}>Cart, checkout, payment, VIP account login and search are handled by the live Shopify store, not by this panel.</p>
+        <p style={{ marginTop: 0 }}>Cart, checkout, payment, VIP account login, reservations and predictive search run natively through AnnR routes and Supabase.</p>
         <Link className="link" to="/admin/analytics/$report" params={{ report: "settings" }}>Analytics providers</Link>
       </Card>
     </>

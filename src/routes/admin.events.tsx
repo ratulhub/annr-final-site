@@ -34,13 +34,13 @@ const blankEvent = (): CampaignEvent => ({
   minSpend: "5000",
   targetCollection: "all",
   discountCode: "FREEGIFT",
-  giftItem: "AnnR Classics White Socks Bundle",
+  giftItem: "Archival Dustbag & Sticker Pack",
   giftValue: "৳1,200",
-  giftImage: "/cdn/shop/files/UWUSOCKS1.jpg",
-  giftDescription: "Complimentary AnnR gift bundle automatically qualified on eligible orders.",
+  giftImage: "/_ext/annr-template-001.png",
+  giftDescription: "Complimentary archival gift package automatically qualified on eligible orders.",
   showTopBar: false,
-  topBarText: "🎁 FREE ANNR GIFT BUNDLE ON ALL ORDERS OVER ৳5,000 · LIMITED TIME",
-  topBarUrl: "/collections/all/index.html",
+  topBarText: "🎁 COMPLIMENTARY ANNR GIFT ON ORDERS OVER ৳5,000 · LIMITED DROP",
+  topBarUrl: "/collections/unique-campaign/index.html",
   showTicker: false,
   tickerText: "ANNR GIFT CAMPAIGN · FREE GIFT WITH ORDERS OVER ৳5,000 · SHOP NOW",
   showFloatingGiftPill: false,
@@ -211,6 +211,13 @@ function EventsManager() {
     if (confirm(`Delete campaign "${ev.title}"?`)) {
       const next = events.filter((e) => e.id !== id);
       saveEvents(next);
+      if (isSupabaseConfigured()) {
+        void (async () => {
+          try {
+            await supabase.from("campaign_events").delete().eq("slug", ev.id.replace(/^ev-/, "").toLowerCase());
+          } catch {}
+        })();
+      }
       if (selectedId === id) setSelectedId(next[0]?.id || null);
     }
   };
@@ -389,7 +396,7 @@ function EventsManager() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
                 gap: 16,
               }}
             >
@@ -485,7 +492,7 @@ function EventsManager() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
                 gap: 16,
                 background: "#18181b",
                 padding: 16,
@@ -585,11 +592,8 @@ function EventsManager() {
                 {(loyaltySettings.ball_drop_config?.prizes || []).map((prize, idx) => (
                   <div
                     key={idx}
+                    className="adm-prize-row"
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "60px 1.5fr 1fr 100px",
-                      gap: 12,
-                      alignItems: "center",
                       background: "#18181b",
                       padding: "8px 14px",
                       borderRadius: 6,
@@ -890,7 +894,7 @@ function EventsManager() {
                     <input
                       value={selectedEvent.giftItem}
                       onChange={(e) => updateEvent(selectedEvent.id, { giftItem: e.target.value })}
-                      placeholder="e.g. AnnR Classics White Socks Bundle"
+                      placeholder="e.g. Archival Dustbag & Sticker Pack"
                     />
                   </label>
 
@@ -927,7 +931,7 @@ function EventsManager() {
                     <input
                       value={selectedEvent.giftImage}
                       onChange={(e) => updateEvent(selectedEvent.id, { giftImage: e.target.value })}
-                      placeholder="/cdn/shop/files/UWUSOCKS1.jpg"
+                      placeholder="/_ext/annr-template-001.png"
                     />
                   </label>
 

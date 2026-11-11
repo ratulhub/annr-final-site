@@ -38,7 +38,7 @@ function Content() {
       </div>}</Obj></Card>
       <Card title="Text replacements" action={<button className="adm-btn" onClick={() => setT([...site.texts, { id: uid(), find: "", replace: "", scope: "all", enabled: true }])}>+ Add</button>}>
         <p className="adm-hint">Change any wording on the store: type the exact original text and what it should say. Scope limits it to a page type or a path like /pages/faq.</p>
-        {site.texts.length ? <table><thead><tr><th /><th>Original text</th><th>New text</th><th>Where</th><th>On</th><th /></tr></thead><tbody>
+        {site.texts.length ? <div className="adm-table-wrap"><table><thead><tr><th /><th>Original text</th><th>New text</th><th>Where</th><th>On</th><th /></tr></thead><tbody>
           {site.texts.map((r, i) => { const up = (p: Partial<TextRule>) => setT(site.texts.map((x) => (x.id === r.id ? { ...x, ...p } : x))); return <tr key={r.id}>
             <td><OrderBtns i={i} n={site.texts.length} onMove={(to) => setT(move(site.texts, i, to))} /></td>
             <td><input value={r.find} onChange={(e) => up({ find: e.target.value })} /></td>
@@ -46,12 +46,12 @@ function Content() {
             <td><input list="scopes" value={r.scope} onChange={(e) => up({ scope: e.target.value })} /></td>
             <td><input type="checkbox" checked={r.enabled} onChange={(e) => up({ enabled: e.target.checked })} /></td>
             <td><button className="adm-btn danger sm" onClick={() => confirm("Delete this replacement?") && setT(site.texts.filter((x) => x.id !== r.id))}>✕</button></td></tr>; })}
-        </tbody></table> : <p>No text changes yet.</p>}
+        </tbody></table></div> : <p>No text changes yet.</p>}
         <datalist id="scopes">{SCOPES.map((s) => <option key={s} value={s} />)}</datalist>
       </Card>
       <Card title="Image replacements" action={<button className="adm-btn" onClick={() => setI([...site.images, { id: uid(), from: "", to: "", alt: "", position: "", scope: "all", enabled: true }])}>+ Add</button>}>
         <p className="adm-hint">Swap any picture or video on the store. Paste part of the original file name (e.g. hero_1.jpg) and choose a new one from the Media library.</p>
-        {site.images.length ? <table><thead><tr><th>Original file</th><th>New image</th><th>Alt text</th><th>Focus</th><th>Where</th><th>On</th><th /></tr></thead><tbody>
+        {site.images.length ? <div className="adm-table-wrap"><table><thead><tr><th>Original file</th><th>New image</th><th>Alt text</th><th>Focus</th><th>Where</th><th>On</th><th /></tr></thead><tbody>
           {site.images.map((r) => { const up = (p: Partial<ImageRule>) => setI(site.images.map((x) => (x.id === r.id ? { ...x, ...p } : x))); return <tr key={r.id}>
             <td><input value={r.from} onChange={(e) => up({ from: e.target.value })} /></td>
             <td><select value={r.to} onChange={(e) => up({ to: e.target.value })}><option value="">Choose…</option>{site.media.map((m) => <option key={m.id} value={m.url}>{m.name}</option>)}</select></td>
@@ -60,7 +60,7 @@ function Content() {
             <td><input list="scopes" value={r.scope} onChange={(e) => up({ scope: e.target.value })} /></td>
             <td><input type="checkbox" checked={r.enabled} onChange={(e) => up({ enabled: e.target.checked })} /></td>
             <td><button className="adm-btn danger sm" onClick={() => confirm("Delete this replacement?") && setI(site.images.filter((x) => x.id !== r.id))}>✕</button></td></tr>; })}
-        </tbody></table> : <p>No image changes yet.</p>}
+        </tbody></table></div> : <p>No image changes yet.</p>}
       </Card>
     </>
   );

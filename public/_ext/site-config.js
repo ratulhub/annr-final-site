@@ -80,25 +80,46 @@
     var r = safeUrl(s); return r.charAt(0) === "#" || /^(mailto|tel):/i.test(r) ? "" : r;
   }
 
+  var LEGACY_PRODUCT_HANDLES = {
+    "aka-manto-longsleeve": 1,
+    "divine-sanctum-tee": 1,
+    "ruin-and-rebirth-varsity-jacket": 1,
+    "blue-moon-long-sleeve": 1,
+    "hound-of-hades-tee": 1,
+    "ruin-and-rebirth-reversible-hoodie": 1
+  };
+
+  function isPublicStatus(st) {
+    return !st || st === "active" || st === "sold" || st === "reserved";
+  }
+
   function renderProductCardHtml(p, o) {
     o = o || (P && P[p.handle]) || {};
     var title = o.title != null ? o.title : p.title || "";
     var price = o.price != null ? o.price : p.price || "0";
     var pr = String(price).replace(/\.00$/, "");
     var compareAt = o.compareAt != null ? o.compareAt : p.compareAt;
-    var img = (o.images && o.images[0]) || p.image || "";
-    var img2 = (o.images && o.images[1]) || p.image2 || img;
-    var badge = o.badge != null ? o.badge : p.badge;
-    var badgeHtml = badge ? "<div class='product-card-labels' style='background:#000;color:#fff'>" + esc(badge) + "</div>" : "";
+    var img = (o.images && o.images[0]) || (p.images && p.images[0]) || p.image || "";
+    var img2 = (o.images && o.images[1]) || (p.images && p.images[1]) || p.image2 || img;
+    var st = String(o.status || p.status || "active").toLowerCase();
+    var isSold = st === "sold" || o.stock === 0 || p.stock === 0;
+    var code = o.code || p.code || "";
+    var sz = o.size != null ? o.size : p.size;
+    var showSz = (o.showSize !== undefined ? o.showSize !== false : p.showSize !== false) && sz && sz !== "NONE";
+    var badge = o.badge != null ? o.badge : (p.badge || (isSold ? "SOLD / ARCHIVED" : "1 OF 1" + (showSz ? " · SIZE " + sz : "")));
+    var badgeHtml = badge ? "<div class='product-card-labels' style='background:#111;color:#fff'>" + esc(badge) + "</div>" : "";
+    var soldOverlay = isSold ? "<div class='annr-card-sold-overlay' style='position:absolute;inset:0;background:rgba(17,17,17,0.68);display:flex;align-items:center;justify-content:center;z-index:4;pointer-events:none'><div class='annr-card-sold-tag' style='background:#fff;color:#111;padding:6px 12px;font-weight:900;font-size:11px;letter-spacing:1.5px;border:2px solid #111'>SOLD / ARCHIVED</div></div>" : "";
+    var codeHtml = code ? "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:9.5px;color:#e05a2b;letter-spacing:1.5px;margin-top:6px;font-weight:700'>" + esc(code) + "</div>" : "";
     var cmpHtml = compareAt ? "<span class='old-price money' style='opacity:.55;margin-left:6px;text-decoration:line-through;font-size:.9em'>Tk " + esc(String(compareAt).replace(/\.00$/, "")) + "<span class='money-currency-code'>BDT</span></span>" : "";
 
     return "<div class='lazy-item product-card' data-handle='" + esc(p.handle) + "'>" +
-      "<div class='product-card-image'>" + badgeHtml +
+      "<div class='product-card-image' style='position:relative'>" + badgeHtml + soldOverlay +
         "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(title) + "'>" +
           "<img src='" + esc(safeImg(img)) + "' alt='" + esc(title) + "' width='1200' height='1200' loading='lazy'>" +
           (img2 && img2 !== img ? "<img src='" + esc(safeImg(img2)) + "' alt='" + esc(title) + "' width='1200' height='1200' loading='lazy'>" : "") +
         "</a>" +
       "</div>" +
+      codeHtml +
       "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(title) + "</a>" +
       "<div class='product-card-price'>" +
         "<span class='money'>Tk " + esc(pr) + "<span class='money-currency-code'>BDT</span></span>" +
@@ -107,7 +128,6 @@
     "</div>";
   }
 
-  // Search Engine & Catalog
   // Search Engine & Dynamic Catalog
   var baseCatalog = [];
   try {
@@ -137,45 +157,48 @@
   function getFullCatalog() {
     var map = {};
     var list = [];
-    (baseCatalog || []).forEach(function (p) {
-      if (p && p.handle) {
-        map[p.handle] = p;
-        list.push(p);
-      }
-    });
+    function upsertCat(p) {
+      if (!p || !p.handle || LEGACY_PRODUCT_HANDLES[p.handle]) return;
+      if (!map[p.handle]) list.push(p);
+      map[p.handle] = Object.assign({}, map[p.handle] || {}, p);
+    }
 
-    // Merge live admin products so any newly created/edited product appears immediately without republish
+    (baseCatalog || []).forEach(upsertCat);
+
+    // Merge remote Supabase products cached in this browser
+    try {
+      var rawLive = localStorage.getItem("annr_live_products");
+      if (rawLive) {
+        var liveParsed = JSON.parse(rawLive);
+        if (Array.isArray(liveParsed)) liveParsed.forEach(upsertCat);
+      }
+    } catch (e) {}
+
+    if (cfg && Array.isArray(cfg.catalog)) {
+      cfg.catalog.forEach(upsertCat);
+    }
+
+    // Merge live admin products so newly created/edited products appear immediately in this browser
     try {
       var rawAdm = localStorage.getItem("shihiko-admin-v1");
       if (rawAdm) {
         var admParsed = JSON.parse(rawAdm);
         if (admParsed && Array.isArray(admParsed.products)) {
-          admParsed.products.forEach(function (p) {
-            if (p && p.handle) {
-              if (!map[p.handle]) list.push(p);
-              map[p.handle] = Object.assign({}, map[p.handle] || {}, p);
-            }
-          });
+          admParsed.products.forEach(upsertCat);
         }
       }
     } catch (e) {}
 
-    if (cfg && Array.isArray(cfg.catalog)) {
-      cfg.catalog.forEach(function (p) {
-        if (p && p.handle) {
-          if (!map[p.handle]) list.push(p);
-          map[p.handle] = Object.assign({}, map[p.handle] || {}, p);
-        }
-      });
-    }
     var delSet = {};
     if (cfg && Array.isArray(cfg.deletedProducts)) {
       cfg.deletedProducts.forEach(function (h) { delSet[h] = true; });
     }
     return list.filter(function (p) {
-      if (delSet[p.handle]) return false;
+      if (!p || !p.handle || LEGACY_PRODUCT_HANDLES[p.handle] || delSet[p.handle]) return false;
       var o = P && P[p.handle];
-      if (o && (o.deleted || o.status === "deleted")) return false;
+      if (o && (o.deleted || o.status === "deleted" || o.status === "draft" || o.status === "archived")) return false;
+      var mergedStatus = String((o && o.status) || p.status || "active").toLowerCase();
+      if (!isPublicStatus(mergedStatus)) return false;
       return true;
     }).map(function (p) {
       return Object.assign({}, map[p.handle] || p, (P && P[p.handle]) || {});
@@ -183,72 +206,72 @@
   }
 
   var SEARCH_SYNONYMS = {
-    "tshirt": "tee",
-    "t-shirt": "tee",
-    "shirt": "tee",
-    "sweatshirt": "hoodie",
-    "hoody": "hoodie",
-    "sweater": "hoodie",
-    "jacket": "jacket",
-    "coat": "jacket",
-    "pant": "jeans",
-    "pants": "jeans",
-    "trouser": "jeans",
-    "trousers": "jeans",
-    "jogger": "joggers",
-    "bottom": "jeans",
-    "bottoms": "jeans",
-    "cap": "hat",
-    "beanie": "hat",
-    "sock": "socks"
+    "tshirt": "t-shirts",
+    "t-shirt": "t-shirts",
+    "shirt": "t-shirts",
+    "tee": "t-shirts",
+    "tees": "t-shirts",
+    "hoody": "hoodies",
+    "hoodie": "hoodies",
+    "sweatshirt": "sweatshirts",
+    "crewneck": "sweatshirts",
+    "sweater": "sweaters",
+    "jacket": "jackets",
+    "coat": "jackets",
+    "outerwear": "jackets",
+    "pant": "trousers",
+    "pants": "trousers",
+    "jean": "trousers",
+    "jeans": "trousers",
+    "trouser": "trousers",
+    "trousers": "trousers",
+    "jogger": "trousers",
+    "joggers": "trousers",
+    "cargo": "trousers",
+    "bottom": "trousers",
+    "bottoms": "trousers",
+    "knit": "knitwear",
+    "knitwear": "knitwear",
+    "cap": "accessories",
+    "beanie": "accessories",
+    "hat": "accessories",
+    "hats": "accessories",
+    "sock": "accessories",
+    "socks": "accessories"
   };
 
   function searchProducts(query) {
     var q = String(query || "").trim().toLowerCase();
     var rawTerms = q.split(/\s+/).filter(Boolean);
     var all = getFullCatalog();
-    if (!rawTerms.length) return all.filter(function (p) { return !p.status || p.status === "active"; });
+    if (!rawTerms.length) return all.filter(function (p) { return isPublicStatus(p.status); });
 
     var terms = rawTerms.map(function (t) { return SEARCH_SYNONYMS[t] || t; });
 
     var scored = [];
     for (var i = 0; i < all.length; i++) {
       var p = all[i];
-      if (p.status && p.status !== "active") continue;
+      if (!isPublicStatus(p.status)) continue;
       var o = (P && P[p.handle]) || {};
-      if (o.status && o.status !== "active") continue;
+      if (!isPublicStatus(o.status)) continue;
 
       var title = (o.title || p.title || "").toLowerCase();
       var desc = (o.description || p.description || "").toLowerCase();
       var handle = (p.handle || "").toLowerCase();
-      var tags = (o.tags || p.tags || "").toLowerCase();
-      var type = (o.type || p.type || "").toLowerCase();
+      var codeStr = String(o.code || p.code || "").toLowerCase();
+      var tagsVal = o.tags != null ? o.tags : p.tags;
+      var tags = Array.isArray(tagsVal) ? tagsVal.join(" ").toLowerCase() : String(tagsVal || "").toLowerCase();
+      var type = (o.categorySlug || o.category || p.categorySlug || p.category || o.type || p.type || "").toLowerCase();
+      var campaignStr = (o.campaignSlug || o.campaign || p.campaignSlug || p.campaign || "").toLowerCase();
+      var colsStr = Array.isArray(p.collections) ? p.collections.join(" ").toLowerCase() : "";
+      var showSz = o.showSize !== undefined ? o.showSize !== false : p.showSize !== false;
+      var sizeStr = showSz ? String(o.size || p.size || "").toLowerCase() : "";
       var idStr = String(o.id != null ? o.id : (p.id != null ? p.id : "")).toLowerCase();
       var skuList = [];
       if (Array.isArray(p.skus)) skuList = skuList.concat(p.skus);
       if (Array.isArray(o.skus)) skuList = skuList.concat(o.skus);
       if (p.sku) skuList.push(p.sku);
       if (o.sku) skuList.push(o.sku);
-      if (Array.isArray(p.variants)) {
-        p.variants.forEach(function (v) {
-          if (v) {
-            if (v.sku) skuList.push(v.sku);
-            if (v.id) skuList.push(String(v.id));
-            if (v.barcode) skuList.push(String(v.barcode));
-            if (v.title) skuList.push(String(v.title));
-          }
-        });
-      }
-      if (Array.isArray(o.variants)) {
-        o.variants.forEach(function (v) {
-          if (v) {
-            if (v.sku) skuList.push(v.sku);
-            if (v.id) skuList.push(String(v.id));
-            if (v.barcode) skuList.push(String(v.barcode));
-            if (v.title) skuList.push(String(v.title));
-          }
-        });
-      }
       var skusStr = skuList.join(" ").toLowerCase();
 
       var matchedAll = true;
@@ -259,7 +282,10 @@
         var rawT = rawTerms[j];
         var termMatched = false;
 
-        // Exact / partial match on Product Code, SKU, or Product ID (highest relevance)
+        if (codeStr && (codeStr === t || codeStr === rawT || codeStr.indexOf(t) >= 0 || codeStr.indexOf(rawT) >= 0)) {
+          score += 160;
+          termMatched = true;
+        }
         if (idStr && (idStr === t || idStr === rawT || idStr.indexOf(t) >= 0 || idStr.indexOf(rawT) >= 0)) {
           score += 150;
           termMatched = true;
@@ -270,19 +296,23 @@
         }
         if (title.indexOf(t) >= 0 || title.indexOf(rawT) >= 0) {
           score += 100;
-          if (title.indexOf(t) === 0 || title.indexOf(rawT) === 0) score += 50; // starts with
+          if (title.indexOf(t) === 0 || title.indexOf(rawT) === 0) score += 50;
           termMatched = true;
         }
         if (handle.indexOf(t) >= 0 || handle.indexOf(rawT) >= 0) {
           score += 60;
           termMatched = true;
         }
-        if (tags.indexOf(t) >= 0 || tags.indexOf(rawT) >= 0) {
+        if (tags.indexOf(t) >= 0 || tags.indexOf(rawT) >= 0 || colsStr.indexOf(t) >= 0 || colsStr.indexOf(rawT) >= 0) {
           score += 40;
           termMatched = true;
         }
-        if (type.indexOf(t) >= 0 || type.indexOf(rawT) >= 0) {
-          score += 30;
+        if (type.indexOf(t) >= 0 || type.indexOf(rawT) >= 0 || campaignStr.indexOf(t) >= 0 || campaignStr.indexOf(rawT) >= 0) {
+          score += 35;
+          termMatched = true;
+        }
+        if (sizeStr && (sizeStr === t || sizeStr === rawT)) {
+          score += 20;
           termMatched = true;
         }
         if (desc.indexOf(t) >= 0 || desc.indexOf(rawT) >= 0) {
@@ -316,11 +346,11 @@
         "<div id='predictive-search-new-results'>" +
           "<div style='padding:24px 16px;text-align:center;font:11px/1.6 \"NB Architekt Std\",sans-serif;letter-spacing:1px;text-transform:uppercase;color:#888'>" +
             "<div style='margin-bottom:10px;font-weight:700;color:#aaa'>No direct matches for “" + esc(q) + "”</div>" +
-            "<div style='font-size:10px;opacity:.7'>Popular collections: " +
-              "<a href='/collections/all/index.html' style='color:#fff;margin:0 4px;text-decoration:underline'>All</a> · " +
-              "<a href='/search/index.html?q=hoodie' style='color:#fff;margin:0 4px;text-decoration:underline'>Hoodies</a> · " +
-              "<a href='/search/index.html?q=jacket' style='color:#fff;margin:0 4px;text-decoration:underline'>Jackets</a> · " +
-              "<a href='/search/index.html?q=tee' style='color:#fff;margin:0 4px;text-decoration:underline'>Tees</a>" +
+            "<div style='font-size:10px;opacity:.7'>Browse archive: " +
+              "<a href='/collections/unique-campaign/index.html' style='color:#fff;margin:0 4px;text-decoration:underline'>Unique Campaign</a> · " +
+              "<a href='/collections/hoodies/index.html' style='color:#fff;margin:0 4px;text-decoration:underline'>Hoodies</a> · " +
+              "<a href='/collections/jackets/index.html' style='color:#fff;margin:0 4px;text-decoration:underline'>Jackets</a> · " +
+              "<a href='/collections/trousers/index.html' style='color:#fff;margin:0 4px;text-decoration:underline'>Trousers</a>" +
             "</div>" +
           "</div>" +
         "</div>" +
@@ -596,12 +626,12 @@
             resultsEl.innerHTML = "<div class='header-search-new__heading'>RESULTS FOR “" + esc(val.toUpperCase()) + "” (" + matches.length + ")</div>" +
               "<div class='header-search-new__result-products'>" + cardsHtml + "</div>" +
               "<div style='text-align:center;margin-top:16px'>" +
-                "<a href='/search/index.html?type=product&q=" + encodeURIComponent(val) + "' style='display:inline-block;padding:9px 20px;background:#e05a2b;color:#ffffff;font-family:'NB Architekt Std',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-radius:4px;text-decoration:none'>VIEW ALL " + matches.length + "+ RESULTS →</a>" +
+                "<a href='/search/index.html?type=product&q=" + encodeURIComponent(val) + "' style='display:inline-block;padding:9px 20px;background:#e05a2b;color:#ffffff;font-family:\"NB Architekt Std\",sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-radius:4px;text-decoration:none'>VIEW ALL " + matches.length + "+ RESULTS →</a>" +
               "</div>";
           } else {
             resultsEl.innerHTML = "<div class='header-search-new__empty-state'>" +
               "<p style='font-size:13px;font-weight:700;color:#fff;margin-bottom:6px'>NO PRODUCTS FOUND FOR “" + esc(val.toUpperCase()) + "”</p>" +
-              "<p style='font-size:11px;color:#a1a1aa'>Try searching by product title, product code (e.g. 8867606036700), or SKU (e.g. YOKLSAM-00).</p>" +
+              "<p style='font-size:11px;color:#a1a1aa'>Try searching by product title, piece code (e.g. ANNR-001), or category (e.g. hoodies, jackets, trousers).</p>" +
             "</div>";
           }
         }, 120);
@@ -688,7 +718,7 @@
       } else if (q) {
         gridEl.innerHTML = "<div style='grid-column:1/-1;text-align:center;padding:60px 20px;font:12px/1.6 \"NB Architekt Std\",sans-serif;letter-spacing:1px;text-transform:uppercase;opacity:.8'>" +
           "<p style='font-size:14px;margin-bottom:8px'>No products found matching “" + esc(q) + "”</p>" +
-          "<p style='font-size:11px;opacity:.6'>Try checking your spelling, product code (e.g. 8867606036700), or keywords like “hoodie”, “jacket”, “tee”, “jeans”.</p>" +
+          "<p style='font-size:11px;opacity:.6'>Try checking your spelling, piece code (e.g. ANNR-001), or keywords like “hoodies”, “jackets”, “t-shirts”, “trousers”.</p>" +
         "</div>";
       }
     }
@@ -696,18 +726,19 @@
     // Top Category Filters on Search Page
     var topFilter = document.querySelector(".collection-top-filter");
     if (topFilter) {
-      var categories = ["ALL", "HOODIES", "TEES", "JACKETS", "JEANS", "HATS", "ACCESSORIES"];
+      var categories = ["ALL", "UNIQUE CAMPAIGN", "HOODIES", "SWEATSHIRTS", "TROUSERS", "SWEATERS", "T-SHIRTS", "JACKETS", "KNITWEAR", "ACCESSORIES"];
       topFilter.innerHTML = "<div style='display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px'>" +
         categories.map(function (cat) {
-          var isActive = (!q && cat === "ALL") || (q.toLowerCase() === (SEARCH_SYNONYMS[cat.toLowerCase()] || cat.toLowerCase()));
-          return "<button type='button' class='annr-search-tag-pill' data-cat='" + esc(cat) + "' style='padding:6px 14px;border:1px solid " + (isActive ? "#e05a2b" : "rgba(0,0,0,0.15)") + ";background:" + (isActive ? "#e05a2b" : "#ffffff") + ";color:" + (isActive ? "#ffffff" : "#111111") + ";font-family:\'NB Architekt Std\',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .15s ease'>" + esc(cat) + "</button>";
+          var slug = cat === "UNIQUE CAMPAIGN" ? "unique-campaign" : cat.toLowerCase();
+          var isActive = (!q && cat === "ALL") || (q.toLowerCase() === slug) || (q.toLowerCase() === (SEARCH_SYNONYMS[slug] || slug));
+          return "<button type='button' class='annr-search-tag-pill' data-cat='" + esc(slug) + "' style='padding:6px 14px;border:1px solid " + (isActive ? "#e05a2b" : "rgba(0,0,0,0.15)") + ";background:" + (isActive ? "#e05a2b" : "#ffffff") + ";color:" + (isActive ? "#ffffff" : "#111111") + ";font-family:\"NB Architekt Std\",sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .15s ease'>" + esc(cat) + "</button>";
         }).join("") +
       "</div>";
 
       topFilter.querySelectorAll(".annr-search-tag-pill").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var cat = btn.getAttribute("data-cat");
-          var term = cat === "ALL" ? "" : cat.toLowerCase();
+          var term = cat === "all" ? "" : cat;
           var newUrl = term ? ("/search/index.html?type=product&q=" + encodeURIComponent(term)) : "/search/index.html";
           history.pushState(null, "", newUrl);
           setupSearchPage();
@@ -886,7 +917,7 @@
       if (!h) return;
       var info = colsMap[h];
       if (info) {
-        if (info.visible === false) {
+        if (info.visible === false || info.is_visible === false) {
           sec.style.setProperty("display", "none", "important");
           return;
         } else {
@@ -909,7 +940,7 @@
       var info = colsMap[h];
       var wrapper = a.closest(".header-new__mobile-section") || a;
       if (info) {
-        if (info.visible === false) {
+        if (info.visible === false || info.is_visible === false) {
           wrapper.style.setProperty("display", "none", "important");
           return;
         } else {
@@ -932,7 +963,7 @@
       if (!h) return;
       var info = colsMap[h];
       if (info) {
-        if (info.visible === false) {
+        if (info.visible === false || info.is_visible === false) {
           item.style.setProperty("display", "none", "important");
           return;
         } else {
@@ -957,11 +988,11 @@
       var h = handleOf(a.getAttribute("href"), "products");
       if (!h) return;
       var o = P && P[h];
-      var isDel = (cfg && Array.isArray(cfg.deletedProducts) && cfg.deletedProducts.indexOf(h) !== -1) ||
-                  (o && (o.deleted || o.status === "deleted"));
-      var isInactive = o && o.status && o.status !== "active";
+      var isDel = LEGACY_PRODUCT_HANDLES[h] ||
+                  (cfg && Array.isArray(cfg.deletedProducts) && cfg.deletedProducts.indexOf(h) !== -1) ||
+                  (o && (o.deleted || o.status === "deleted" || o.status === "draft" || o.status === "archived"));
       var card = a.closest(".product-card, li, .grid__item") || a.parentElement;
-      if (isDel || isInactive) {
+      if (isDel) {
         if (card) card.style.setProperty("display", "none", "important");
         return;
       }
@@ -991,10 +1022,10 @@
     var o = ph ? (P && P[ph]) : ch ? (C[ch] || colsMap[ch]) : gh ? G[gh] : null;
 
     if (ph) {
-      var isDel = (cfg && Array.isArray(cfg.deletedProducts) && cfg.deletedProducts.indexOf(ph) !== -1) ||
-                  (P && P[ph] && (P[ph].deleted || P[ph].status === "deleted"));
-      var isInactive = P && P[ph] && P[ph].status && P[ph].status !== "active";
-      if ((isDel || isInactive) && !preview) {
+      var isDel = LEGACY_PRODUCT_HANDLES[ph] ||
+                  (cfg && Array.isArray(cfg.deletedProducts) && cfg.deletedProducts.indexOf(ph) !== -1) ||
+                  (P && P[ph] && (P[ph].deleted || P[ph].status === "deleted" || P[ph].status === "draft" || P[ph].status === "archived"));
+      if (isDel && !preview) {
         showUnavailable(tech.notFoundTitle || "PRODUCT UNAVAILABLE", tech.notFoundText || "This product is currently offline.");
         return;
       }
@@ -1010,96 +1041,102 @@
         var descBox = document.querySelector(".product-info-details-header .product-info-detail-content-inner");
         if (descBox) descBox.innerHTML = "<h3 class='hide-mob'>DESCRIPTION</h3><div style='white-space:pre-wrap'>" + esc(prod.description) + "</div>";
       }
-      // Universal Interactive Size Guide Popup (#sizes-popup) + Admin Panel Sync
+      // Universal Interactive Size Guide Popup (#sizes-popup) + Admin Panel Sync (Inches Default)
       (function setupUniversalSizeGuide(handle, productObj) {
         var DEFAULT_PRESETS = {
           tee: {
+            unit: "in",
             fitType: "oversized fit",
             headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
             rows: [
-              { size: "S", col1: "57", col2: "70", col3: "21" },
-              { size: "M", col1: "60", col2: "72", col3: "22" },
-              { size: "L", col1: "63", col2: "75", col3: "23" },
-              { size: "XL", col1: "66", col2: "77", col3: "24" },
-              { size: "XXL", col1: "69", col2: "79", col3: "25" }
+              { size: "S", col1: "22.5", col2: "27.5", col3: "8.3" },
+              { size: "M", col1: "23.6", col2: "28.3", col3: "8.7" },
+              { size: "L", col1: "24.8", col2: "29.5", col3: "9.1" },
+              { size: "XL", col1: "26.0", col2: "30.3", col3: "9.4" },
+              { size: "XXL", col1: "27.2", col2: "31.1", col3: "9.8" }
             ],
-            notes: "Heavyweight 280 GSM combed cotton. Drop-shoulder oversized streetwear silhouette."
+            notes: "Measurements shown in inches (1″ = 2.54 cm). Heavyweight 280 GSM combed cotton, drop-shoulder silhouette."
           },
           hoodie: {
+            unit: "in",
             fitType: "oversized fit",
             headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
             rows: [
-              { size: "S", col1: "62", col2: "68", col3: "59" },
-              { size: "M", col1: "65", col2: "71", col3: "61" },
-              { size: "L", col1: "68", col2: "74", col3: "62" },
-              { size: "XL", col1: "71", col2: "76", col3: "63" },
-              { size: "XXL", col1: "74", col2: "79", col3: "64" }
+              { size: "S", col1: "24.4", col2: "26.8", col3: "23.2" },
+              { size: "M", col1: "25.6", col2: "28.0", col3: "24.0" },
+              { size: "L", col1: "26.8", col2: "29.1", col3: "24.4" },
+              { size: "XL", col1: "28.0", col2: "29.9", col3: "24.8" },
+              { size: "XXL", col1: "29.1", col2: "31.1", col3: "25.2" }
             ],
-            notes: "480 GSM heavyweight French terry fleece. Boxy drop-shoulder fit."
+            notes: "Measurements shown in inches (1″ = 2.54 cm). 480 GSM heavyweight French terry fleece, boxy drop-shoulder fit."
           },
-          longsleeve: {
+          sweatshirt: {
+            unit: "in",
             fitType: "relaxed fit",
             headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
             rows: [
-              { size: "S", col1: "58", col2: "69", col3: "60" },
-              { size: "M", col1: "61", col2: "72", col3: "62" },
-              { size: "L", col1: "64", col2: "74", col3: "63" },
-              { size: "XL", col1: "67", col2: "77", col3: "65" },
-              { size: "XXL", col1: "70", col2: "79", col3: "66" }
+              { size: "S", col1: "22.8", col2: "27.2", col3: "23.6" },
+              { size: "M", col1: "24.0", col2: "28.3", col3: "24.4" },
+              { size: "L", col1: "25.2", col2: "29.1", col3: "24.8" },
+              { size: "XL", col1: "26.4", col2: "30.3", col3: "25.6" },
+              { size: "XXL", col1: "27.6", col2: "31.1", col3: "26.0" }
             ],
-            notes: "Relaxed silhouette with ribbed cuffs."
+            notes: "Measurements shown in inches (1″ = 2.54 cm). Relaxed silhouette with ribbed cuffs."
           },
           jacket: {
+            unit: "in",
             fitType: "boxy fit",
             headers: ["SIZE", "CHEST", "LENGTH", "SLEEVE"],
             rows: [
-              { size: "S", col1: "63", col2: "66", col3: "61" },
-              { size: "M", col1: "66", col2: "68", col3: "62" },
-              { size: "L", col1: "69", col2: "71", col3: "64" },
-              { size: "XL", col1: "72", col2: "73", col3: "65" },
-              { size: "XXL", col1: "75", col2: "75", col3: "67" }
+              { size: "S", col1: "24.8", col2: "26.0", col3: "24.0" },
+              { size: "M", col1: "26.0", col2: "26.8", col3: "24.4" },
+              { size: "L", col1: "27.2", col2: "28.0", col3: "25.2" },
+              { size: "XL", col1: "28.3", col2: "28.7", col3: "25.6" },
+              { size: "XXL", col1: "29.5", col2: "29.5", col3: "26.4" }
             ],
-            notes: "Cropped boxy outerwear cut. Size up for extra layering room."
+            notes: "Measurements shown in inches (1″ = 2.54 cm). Cropped boxy outerwear cut."
           },
-          pants: {
+          trousers: {
+            unit: "in",
             fitType: "relaxed fit",
             headers: ["SIZE", "WAIST", "LENGTH", "INSEAM"],
             rows: [
-              { size: "S (30)", col1: "76", col2: "104", col3: "74" },
-              { size: "M (32)", col1: "81", col2: "106", col3: "75" },
-              { size: "L (34)", col1: "86", col2: "108", col3: "77" },
-              { size: "XL (36)", col1: "91", col2: "110", col3: "78" },
-              { size: "XXL (38)", col1: "96", col2: "112", col3: "79" }
+              { size: "S (30)", col1: "30.0", col2: "40.9", col3: "29.1" },
+              { size: "M (32)", col1: "31.9", col2: "41.7", col3: "29.5" },
+              { size: "L (34)", col1: "33.9", col2: "42.5", col3: "30.3" },
+              { size: "XL (36)", col1: "35.8", col2: "43.3", col3: "30.7" },
+              { size: "XXL (38)", col1: "37.8", col2: "44.1", col3: "31.1" }
             ],
-            notes: "Wide-leg architectural cut. Waist measured flat × 2."
+            notes: "Measurements shown in inches (1″ = 2.54 cm). Wide-leg architectural cut; waist measured flat × 2."
           },
           shorts: {
+            unit: "in",
             fitType: "relaxed fit",
             headers: ["SIZE", "WAIST", "LENGTH", "OPENING"],
             rows: [
-              { size: "S", col1: "74", col2: "48", col3: "31" },
-              { size: "M", col1: "79", col2: "50", col3: "32" },
-              { size: "L", col1: "84", col2: "52", col3: "34" },
-              { size: "XL", col1: "89", col2: "54", col3: "35" },
-              { size: "XXL", col1: "94", col2: "56", col3: "36" }
+              { size: "S", col1: "29.1", col2: "18.9", col3: "12.2" },
+              { size: "M", col1: "31.1", col2: "19.7", col3: "12.6" },
+              { size: "L", col1: "33.1", col2: "20.5", col3: "13.4" },
+              { size: "XL", col1: "35.0", col2: "21.3", col3: "13.8" },
+              { size: "XXL", col1: "37.0", col2: "22.0", col3: "14.2" }
             ],
-            notes: "Elasticated drawstring waist with relaxed knee-length cut."
+            notes: "Measurements shown in inches (1″ = 2.54 cm). Elasticated drawstring waist with relaxed knee-length cut."
           }
         };
 
         var titleText = (productObj.title || (document.querySelector(".product-info-title") || {}).textContent || handle || "").toLowerCase();
-        var combinedKey = (handle + " " + titleText).toLowerCase();
+        var combinedKey = (handle + " " + titleText + " " + (productObj.category || "")).toLowerCase();
         var isBottoms = /jean|pant|trouser|cargo|jogger|sweatpant|short/.test(combinedKey);
         var defaultPreset = /short/.test(combinedKey)
           ? DEFAULT_PRESETS.shorts
           : isBottoms
-          ? DEFAULT_PRESETS.pants
+          ? DEFAULT_PRESETS.trousers
           : /jacket|coat|bomber|vest|workwear|windbreaker/.test(combinedKey)
           ? DEFAULT_PRESETS.jacket
-          : /hoodie|zip|sweatshirt|fleece/.test(combinedKey)
+          : /hoodie|zip|fleece/.test(combinedKey)
           ? DEFAULT_PRESETS.hoodie
-          : /longsleeve|long-sleeve|knit|sweater|crewneck|thermal/.test(combinedKey)
-          ? DEFAULT_PRESETS.longsleeve
+          : /sweatshirt|sweater|knitwear|crewneck|thermal/.test(combinedKey)
+          ? DEFAULT_PRESETS.sweatshirt
           : DEFAULT_PRESETS.tee;
 
         // Check if Admin Panel saved a custom sizeChart for this product
@@ -1164,7 +1201,7 @@
             if (formEl && !document.querySelector(".js-sizes-trigger")) {
               var wrapDiv = document.createElement("div");
               wrapDiv.style.cssText = "margin:10px 0;display:flex;justify-content:flex-end";
-              wrapDiv.innerHTML = "<button type='button' class='sizes-popup-trigger js-sizes-trigger' style='background:none;border:none;text-decoration:underline;font:11px/1 \"NB Architekt Std\",sans-serif;text-transform:uppercase;letter-spacing:1px;cursor:pointer;color:inherit'>Size Guide</button>";
+              wrapDiv.innerHTML = "<button type='button' class='sizes-popup-trigger js-sizes-trigger' style='background:none;border:none;text-decoration:underline;font:11px/1 \"NB Architekt Std\",sans-serif;text-transform:uppercase;letter-spacing:1px;cursor:pointer;color:inherit'>Size Guide (IN)</button>";
               formEl.parentNode.insertBefore(wrapDiv, formEl);
             }
           }
@@ -1182,21 +1219,42 @@
         var buildTablesHtml = function (guide) {
           var hdrs = guide.headers || ["SIZE", "CHEST", "LENGTH", "SLEEVE"];
           var rows = guide.rows || defaultPreset.rows;
-          var toIn = function (cmVal) {
-            var n = parseFloat(String(cmVal).replace(/[^0-9.]/g, ""));
-            return isFinite(n) ? (Math.round((n / 2.54) * 10) / 10) : cmVal;
+          var storedInCm = guide.unit === "cm";
+          var toIn = function (val) {
+            if (!storedInCm) return val;
+            var n = parseFloat(String(val).replace(/[^0-9.]/g, ""));
+            return isFinite(n) ? (Math.round((n / 2.54) * 10) / 10) : val;
+          };
+          var toCm = function (val) {
+            if (storedInCm) return val;
+            var n = parseFloat(String(val).replace(/[^0-9.]/g, ""));
+            return isFinite(n) ? (Math.round((n * 2.54) * 10) / 10) : val;
           };
           var headRow = "<thead><tr><th>" + esc(hdrs[0]) + "</th><th>" + esc(hdrs[1]) + "<span>[1]</span></th><th>" + esc(hdrs[2]) + "<span>[2]</span></th><th>" + esc(hdrs[3]) + "<span>[3]</span></th></tr></thead>";
-          var cmBody = "<tbody>" + rows.map(function (r) {
-            return "<tr><td>" + esc(r.size) + "</td><td>" + esc(r.col1) + "</td><td>" + esc(r.col2) + "</td><td>" + esc(r.col3) + "</td></tr>";
-          }).join("") + "</tbody>";
           var inBody = "<tbody>" + rows.map(function (r) {
-            return "<tr><td>" + esc(r.size) + "</td><td>" + esc(toIn(r.col1)) + "</td><td>" + esc(toIn(r.col2)) + "</td><td>" + esc(toIn(r.col3)) + "</td></tr>";
+            return "<tr><td>" + esc(r.size) + "</td><td>" + esc(toIn(r.col1)) + "″</td><td>" + esc(toIn(r.col2)) + "″</td><td>" + esc(toIn(r.col3)) + "″</td></tr>";
+          }).join("") + "</tbody>";
+          var cmBody = "<tbody>" + rows.map(function (r) {
+            return "<tr><td>" + esc(r.size) + "</td><td>" + esc(toCm(r.col1)) + "</td><td>" + esc(toCm(r.col2)) + "</td><td>" + esc(toCm(r.col3)) + "</td></tr>";
           }).join("") + "</tbody>";
 
-          return "<div class='sizes-popup-table' data-size-unit='cm'><table>" + headRow + cmBody + "</table></div>" +
-                 "<div class='sizes-popup-table hide' data-size-unit='in'><table>" + headRow + inBody + "</table></div>" +
+          return "<div class='sizes-popup-table' data-size-unit='in'><table>" + headRow + inBody + "</table></div>" +
+                 "<div class='sizes-popup-table hide' data-size-unit='cm'><table>" + headRow + cmBody + "</table></div>" +
                  (guide.notes ? "<div class='adm-size-notes' style='margin-top:14px;padding:10px 12px;background:rgba(0,0,0,0.04);border-left:2px solid #111;font:11px/1.5 \"NB Architekt Std\",sans-serif;text-transform:uppercase;letter-spacing:0.5px;color:#222'>" + esc(guide.notes) + "</div>" : "");
+        };
+
+        var applyPopupUnit = function (pop, unit) {
+          if (!pop) return;
+          pop.querySelectorAll("table.sizes-popup-table-cm").forEach(function (tbl) {
+            tbl.style.display = unit === "cm" ? "table" : "none";
+          });
+          pop.querySelectorAll("table.sizes-popup-table-in").forEach(function (tbl) {
+            tbl.style.display = unit === "in" ? "table" : "none";
+          });
+          pop.querySelectorAll(".sizes-popup-table[data-size-unit]").forEach(function (tbl) {
+            var dataU = tbl.getAttribute("data-size-unit");
+            if (dataU) tbl.classList.toggle("hide", dataU !== unit);
+          });
         };
 
         if (!popupEl) {
@@ -1221,9 +1279,9 @@
                 "<div class='sizes-popup-Content-header'>" +
                   "<div class='sizes-popup-Content-title'>Select unit</div>" +
                   "<div class='sizes-popup-switcher'>" +
-                    "<input type='radio' name='unit' value='in' id='unit-in' class='js-size-switcher'>" +
+                    "<input type='radio' name='unit' value='in' id='unit-in' checked class='js-size-switcher'>" +
                     "<label for='unit-in' class='sizes-popup-switcher-label'>IN</label>" +
-                    "<input type='radio' name='unit' value='cm' id='unit-cm' checked class='js-size-switcher'>" +
+                    "<input type='radio' name='unit' value='cm' id='unit-cm' class='js-size-switcher'>" +
                     "<label for='unit-cm' class='sizes-popup-switcher-label'>CM</label>" +
                   "</div>" +
                 "</div>" +
@@ -1232,7 +1290,18 @@
             "</div>";
           document.body.appendChild(popupEl);
         } else {
-          // Popup already exists in static HTML: fix broken external shihiko.com image & apply any Admin Panel override
+          // Popup already exists in static HTML: default unit switcher to Inches ("in")
+          var unitCheckbox = popupEl.querySelector("input[type='checkbox'].js-size-switcher");
+          var unitInRadio = popupEl.querySelector("#unit-in, input[type='radio'].js-size-switcher[value='in']");
+          var unitCmRadio = popupEl.querySelector("#unit-cm, input[type='radio'].js-size-switcher[value='cm']");
+          if (!popupEl.dataset.annrUnitInit) {
+            popupEl.dataset.annrUnitInit = "1";
+            if (unitCheckbox) unitCheckbox.checked = true;
+            if (unitInRadio) unitInRadio.checked = true;
+            if (unitCmRadio) unitCmRadio.checked = false;
+            applyPopupUnit(popupEl, "in");
+          }
+
           var imgContainer = popupEl.querySelector(".sizes-popup-image");
           if (imgContainer) {
             var extImg = imgContainer.querySelector("img[src*='shihiko.com']");
@@ -1255,12 +1324,8 @@
               while (tempDiv.firstChild) {
                 contentBox.appendChild(tempDiv.firstChild);
               }
-              // Sync radio state
               var checkedUnit = popupEl.querySelector(".js-size-switcher:checked");
-              var uVal = checkedUnit ? checkedUnit.value : "cm";
-              contentBox.querySelectorAll(".sizes-popup-table").forEach(function (t) {
-                t.classList.toggle("hide", t.getAttribute("data-size-unit") !== uVal);
-              });
+              applyPopupUnit(popupEl, checkedUnit ? checkedUnit.value : "in");
             }
           } else if (plainNotes) {
             var cBox = popupEl.querySelector(".sizes-popup-Content");
@@ -1295,12 +1360,10 @@
             var sw = ev.target && ev.target.closest && ev.target.closest(".js-size-switcher");
             if (!sw) return;
             ev.stopImmediatePropagation();
-            var unit = sw.value;
+            var unit = sw.type === "checkbox" ? (sw.checked ? "in" : "cm") : (sw.value === "cm" || sw.id === "unit-cm" ? "cm" : "in");
             var pop = document.getElementById("sizes-popup");
             if (!pop) return;
-            pop.querySelectorAll(".sizes-popup-table").forEach(function (tbl) {
-              tbl.classList.toggle("hide", tbl.getAttribute("data-size-unit") !== unit);
-            });
+            applyPopupUnit(pop, unit);
           }, true);
         }
       })(ph, prod);
@@ -1316,7 +1379,7 @@
           });
         }
       }
-      if (Array.isArray(prod.variants) && prod.variants.length) {
+      if (prod.isOneOfOne === false && Array.isArray(prod.variants) && prod.variants.length) {
         var sizeContainer = document.querySelector(".size-selector-sizes");
         var headerSize = document.querySelector(".js-size-selector-header-size");
         if (sizeContainer) {
@@ -1342,7 +1405,7 @@
         var totalStock = Array.isArray(prod.variants)
           ? prod.variants.reduce(function (n, v) { return n + (Number(v && v.stock) || 0); }, 0)
           : (Number(prod.stock) || 0);
-        if (totalStock <= 0) {
+        if (totalStock <= 0 || prod.status === "sold") {
           var subBtn = document.querySelector(".product-info-submit button[type=submit]");
           if (subBtn) { subBtn.disabled = true; var sbt = subBtn.querySelector(".text") || subBtn; sbt.textContent = "SOLD OUT"; }
         }
@@ -1373,7 +1436,7 @@
         }
       }
       var grid = document.querySelector(".collection-product-grid");
-      if (grid) {
+      if (grid && !window.__annrUniqueCatalogOwnsGrid) {
         // Collect existing product handles in the grid
         var existingInGrid = {};
         grid.querySelectorAll(".product-card").forEach(function (card) {
@@ -1381,8 +1444,9 @@
           var h = link && handleOf(link.getAttribute("href"), "products");
           if (h) {
             existingInGrid[h] = true;
-            var isProductDeleted = (cfg && Array.isArray(cfg.deletedProducts) && cfg.deletedProducts.indexOf(h) !== -1) ||
-                                   (P && P[h] && (P[h].deleted || P[h].status === "deleted" || (P[h].status && P[h].status !== "active")));
+            var isProductDeleted = LEGACY_PRODUCT_HANDLES[h] ||
+                                   (cfg && Array.isArray(cfg.deletedProducts) && cfg.deletedProducts.indexOf(h) !== -1) ||
+                                   (P && P[h] && (P[h].deleted || (P[h].status && !isPublicStatus(P[h].status))));
             if (isProductDeleted) card.style.setProperty("display", "none", "important");
           }
         });
@@ -1397,12 +1461,13 @@
           });
         }
 
-        // Dynamically append any active product belonging to this collection that isn't in DOM
+        // Dynamically append any public product belonging to this collection that isn't in DOM
         var allProds = getFullCatalog();
         allProds.forEach(function (p) {
           if (!p || !p.handle || existingInGrid[p.handle]) return;
-          if (p.status && p.status !== "active") return;
-          var inCol = ch === "all" ||
+          if (!isPublicStatus(p.status)) return;
+          var inCol = ch === "all" || ch === "unique-campaign" ||
+                      p.category === ch || p.categorySlug === ch ||
                       (Array.isArray(p.collections) && p.collections.indexOf(ch) !== -1) ||
                       (o && Array.isArray(o.products) && o.products.indexOf(p.handle) !== -1);
           if (inCol) {
@@ -2253,20 +2318,6 @@
             list.unshift(data.member);
           }
           localStorage.setItem("annr-vip-members", JSON.stringify(list));
-
-          // Auto-admin promotion for store owner arahim / ratul
-          if (em.indexOf("arahim") !== -1 || em.indexOf("ratul") !== -1 || em.indexOf("admin") !== -1) {
-            var adminSess = {
-              email: data.member.email,
-              role: "super_admin",
-              startedAt: Date.now(),
-              lastSeen: Date.now(),
-              reauthAt: Date.now(),
-              id: "owner-arahim"
-            };
-            sessionStorage.setItem("shihiko-admin-session", JSON.stringify(adminSess));
-            localStorage.setItem("shihiko-admin-session", JSON.stringify(adminSess));
-          }
         } catch(e) {}
       }
 
@@ -2493,27 +2544,7 @@
             var altHash1 = sha256HexSync("annr_vip_salt_2026:" + cleanPw);
             return postLogin(altHash1).then(function(res2) {
               if (res2.ok && res2.data && res2.data.ok) return res2;
-              return postLogin("plain:" + cleanPw.toLowerCase()).then(function(res3) {
-                if (res3.ok && res3.data && res3.data.ok) return res3;
-                return postLogin("annr_migration_reset").then(function(resReset) {
-                  if (resReset.ok && resReset.data && resReset.data.ok && resReset.data.member) {
-                    var m = resReset.data.member;
-                    callRegisterRpc({
-                      p_full_name: m.full_name,
-                      p_email: m.email,
-                      p_phone: m.phone,
-                      p_division: m.division,
-                      p_district: m.district,
-                      p_upazila: m.upazila,
-                      p_full_address: m.full_address,
-                      p_is_whatsapp: m.is_whatsapp,
-                      p_password_hash: primaryHash
-                    });
-                    return resReset;
-                  }
-                  return res;
-                });
-              });
+              return res;
             });
           }
           return res;
@@ -2792,60 +2823,124 @@
         }
       }
 
+      var ADMIN_OWNER_EMAIL = "arahimratul2004@gmail.com";
+      var ADMIN_OWNER_OFFLINE_HASH = "460e6ab9ee0bc8b560fff79423e933fb6a5873f77da9be0489273c0f4a3454cd";
+      var ADMIN_ROLE_PRIORITY = {
+        super_admin: 8,
+        admin: 7,
+        content_manager: 6,
+        product_manager: 5,
+        order_manager: 4,
+        marketing_manager: 3,
+        analytics_viewer: 2,
+        support_agent: 1
+      };
+
+      function isValidAdminRole(role) {
+        return typeof role === "string" && Object.prototype.hasOwnProperty.call(ADMIN_ROLE_PRIORITY, role);
+      }
+
+      function pickHighestRole(roles) {
+        var best = null;
+        if (!Array.isArray(roles)) return null;
+        for (var i = 0; i < roles.length; i++) {
+          var r = roles[i];
+          if (isValidAdminRole(r) && (!best || ADMIN_ROLE_PRIORITY[r] > ADMIN_ROLE_PRIORITY[best])) {
+            best = r;
+          }
+        }
+        return best;
+      }
+
+      function getLocalStaffEntry(email) {
+        try {
+          var em = String(email || "").toLowerCase().trim();
+          if (!em) return null;
+          var rawAdminStore = localStorage.getItem("shihiko-admin-v1");
+          if (!rawAdminStore) return null;
+          var parsed = JSON.parse(rawAdminStore);
+          if (!parsed || !Array.isArray(parsed.admins)) return null;
+          return parsed.admins.find(function (a) {
+            return a && typeof a.email === "string" && a.email.toLowerCase().trim() === em;
+          }) || null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function hasValidAdminSession() {
+        try {
+          var raw = sessionStorage.getItem("shihiko-admin-session") || localStorage.getItem("shihiko-admin-session");
+          if (!raw) return false;
+          var p = JSON.parse(raw);
+          var now = Date.now();
+          var em = String((p && (p.email || (p.user && p.user.email))) || "").toLowerCase().trim();
+          var role = String((p && (p.role || (p.user && p.user.role))) || "").trim();
+          var started = typeof p.startedAt === "number" ? p.startedAt : (typeof p.timestamp === "number" ? p.timestamp : 0);
+          var seen = typeof p.lastSeen === "number" ? p.lastSeen : (typeof p.timestamp === "number" ? p.timestamp : 0);
+          if (p && em && isValidAdminRole(role) && started > 0 && seen > 0 && (now - seen < 1800000) && (now - started < 28800000)) {
+            return true;
+          }
+          sessionStorage.removeItem("shihiko-admin-session");
+          localStorage.removeItem("shihiko-admin-session");
+        } catch (e) {
+          try {
+            sessionStorage.removeItem("shihiko-admin-session");
+            localStorage.removeItem("shihiko-admin-session");
+          } catch (e2) {}
+        }
+        return false;
+      }
+
       function isMemberAdmin(emailOrMember) {
         try {
           var em = "";
           if (typeof emailOrMember === "string") em = emailOrMember.toLowerCase().trim();
-          else if (emailOrMember && typeof emailOrMember === "object") em = (emailOrMember.email || "").toLowerCase().trim();
+          else if (emailOrMember && typeof emailOrMember === "object") em = String(emailOrMember.email || "").toLowerCase().trim();
           if (!em) return false;
-          if (em === "arahimratul2004@gmail.com" || em === "arahim" || em === "ratul" || em.indexOf("arahim") !== -1 || em === "superadmin") return true;
-          var rawAdminStore = localStorage.getItem("shihiko-admin-v1");
-          if (rawAdminStore) {
-            var parsed = JSON.parse(rawAdminStore);
-            if (Array.isArray(parsed.admins)) {
-              var found = parsed.admins.find(function(a) { return a && a.email && a.email.toLowerCase().trim() === em; });
-              if (found) return true;
-            }
-          }
-        } catch(e) {}
+          if (em === ADMIN_OWNER_EMAIL) return true;
+          return !!getLocalStaffEntry(em);
+        } catch (e) {}
         return false;
       }
 
-      function ensureAdminSessionAndRedirect(emailOrMember) {
+      function ensureAdminSessionAndRedirect(emailOrMember, explicitRole) {
         try {
           var em = "";
-          var name = "";
+          var id = "";
           if (typeof emailOrMember === "string") {
             em = emailOrMember.toLowerCase().trim();
           } else if (emailOrMember && typeof emailOrMember === "object") {
-            em = (emailOrMember.email || "").toLowerCase().trim();
-            name = emailOrMember.full_name || emailOrMember.name || "";
+            em = String(emailOrMember.email || "").toLowerCase().trim();
+            id = String(emailOrMember.id || "");
           }
-          var isSuper = (em === "arahimratul2004@gmail.com" || em.indexOf("arahim") !== -1 || em === "ratul");
-          var role = isSuper ? "super_admin" : "admin";
+          if (!em) return false;
+
+          var role = isValidAdminRole(explicitRole) ? explicitRole : null;
+          if (!role && em === ADMIN_OWNER_EMAIL) {
+            role = "super_admin";
+          } else if (!role) {
+            var staff = getLocalStaffEntry(em);
+            if (staff && isValidAdminRole(staff.role)) role = staff.role;
+          }
+          if (!role) return false;
+
           var now = Date.now();
+          var resolvedId = id || (em === ADMIN_OWNER_EMAIL ? "admin-arahim" : ("admin-" + em.replace(/[^a-z0-9]/g, "_")));
           var admSess = {
-            email: em || "arahimratul2004@gmail.com",
+            email: em,
             role: role,
             startedAt: now,
             lastSeen: now,
             reauthAt: now,
-            id: isSuper ? "admin-arahim" : ("admin-" + em.replace(/[^a-z0-9]/g, "_")),
-            user: {
-              id: isSuper ? "admin-arahim" : ("admin-" + em.replace(/[^a-z0-9]/g, "_")),
-              name: name || (isSuper ? "Rahim Ratul (Super Admin)" : "Staff Administrator"),
-              email: em || "arahimratul2004@gmail.com",
-              role: role,
-              permissions: ["*"]
-            },
-            token: "admin-jwt-" + now,
-            timestamp: now
+            id: resolvedId
           };
-          localStorage.setItem("shihiko-admin-session", JSON.stringify(admSess));
-          sessionStorage.setItem("shihiko-admin-session", JSON.stringify(admSess));
+          var serialized = JSON.stringify(admSess);
+          localStorage.setItem("shihiko-admin-session", serialized);
+          sessionStorage.setItem("shihiko-admin-session", serialized);
           window.location.replace("/admin");
           return true;
-        } catch(e) {}
+        } catch (e) {}
         return false;
       }
 
@@ -2853,25 +2948,14 @@
         var c = vipContainer();
         if (!c) return;
 
-        // Check if admin session is already active - instantly go to admin panel
-        try {
-          var existingAdm = localStorage.getItem("shihiko-admin-session") || sessionStorage.getItem("shihiko-admin-session");
-          if (existingAdm) {
-            var parsedAdm = JSON.parse(existingAdm);
-            if (parsedAdm && (parsedAdm.role || parsedAdm.user)) {
-              window.location.replace("/admin");
-              return;
-            }
-          }
-        } catch (e) {}
+        // Only redirect to /admin when an authenticated, non-expired staff session already exists
+        if (hasValidAdminSession()) {
+          window.location.replace("/admin");
+          return;
+        }
 
         var sessionData = getSessionMember();
         if (sessionData && sessionData.member) {
-          // If logged in user is admin, directly redirect to Admin Panel
-          if (isMemberAdmin(sessionData.member)) {
-            ensureAdminSessionAndRedirect(sessionData.member);
-            return;
-          }
           // Hide static login/signup tab bar when logged in; dashboard renders its own .vip-nav
           try {
             document.querySelectorAll(".vip-tab").forEach(function(el) { el.style.display = "none"; });
@@ -3039,11 +3123,11 @@
                   "<div class='vip-vault-form-grid'>" +
                     "<div class='vip-field'>" +
                       "<label class='vip-field-label'>FULL NAME <span class='req'>*</span></label>" +
-                      "<input type='text' id='vip-reg-name' required maxlength='120' autocomplete='name' placeholder='Enter your full name'>" +
+                      "<input type='text' id='vip-reg-name' required maxlength='120' autocomplete='name' autocapitalize='words' autocorrect='off' spellcheck='false' placeholder='Enter your full name'>" +
                     "</div>" +
                     "<div class='vip-field'>" +
                       "<label class='vip-field-label'>EMAIL ADDRESS <span class='req'>*</span></label>" +
-                      "<input type='email' id='vip-reg-email' required autocomplete='email' autocapitalize='off' inputmode='email' placeholder='Enter your email address'>" +
+                      "<input type='email' id='vip-reg-email' required autocomplete='email' autocapitalize='none' autocorrect='off' spellcheck='false' inputmode='email' placeholder='Enter your email address'>" +
                     "</div>" +
 
                     "<div class='vip-field'>" +
@@ -3056,7 +3140,7 @@
                     "<div class='vip-field'>" +
                       "<label class='vip-field-label'>PASSWORD <span class='req'>*</span></label>" +
                       "<div class='vip-pass-group'>" +
-                        "<input type='password' id='vip-reg-pass' required minlength='6' autocomplete='new-password' placeholder='Create a password (min 6 characters)'>" +
+                        "<input type='password' id='vip-reg-pass' required minlength='6' autocomplete='new-password' autocapitalize='none' autocorrect='off' spellcheck='false' placeholder='Create a password (min 6 characters)'>" +
                         "<button type='button' class='vip-eye-toggle' id='vip-reg-eye' aria-label='Toggle password visibility'>" + eyeOpenSvg + "</button>" +
                       "</div>" +
                     "</div>" +
@@ -3083,11 +3167,11 @@
 
                     "<div class='vip-field'>" +
                       "<label class='vip-field-label'>DELIVERY ADDRESS (OPTIONAL)</label>" +
-                      "<input type='text' id='vip-reg-addr' maxlength='300' autocomplete='street-address' placeholder='Thana, Road, House (Optional)'>" +
+                      "<input type='text' id='vip-reg-addr' maxlength='300' autocomplete='street-address' autocapitalize='sentences' autocorrect='off' placeholder='Thana, Road, House (Optional)'>" +
                     "</div>" +
                     "<div class='vip-field'>" +
                       "<label class='vip-field-label'>FRIEND'S REFERRAL CODE (OPTIONAL)</label>" +
-                      "<input type='text' id='vip-reg-refcode' maxlength='24' autocapitalize='characters' placeholder='Enter referral code (e.g. VIP-RATUL88)'>" +
+                      "<input type='text' id='vip-reg-refcode' maxlength='24' autocapitalize='characters' placeholder='Enter referral code (e.g. VIP-ANNR10)'>" +
                     "</div>" +
                   "</div>" +
                   "<input type='hidden' id='vip-reg-thana' value=''>" +
@@ -3115,12 +3199,12 @@
                   "<div class='vip-vault-login-fields'>" +
                     "<div class='vip-field'>" +
                       "<label class='vip-field-label'>EMAIL OR MOBILE NUMBER <span class='req'>*</span></label>" +
-                      "<input type='text' id='vip-login-id' required autocomplete='username' autocapitalize='off' placeholder='Enter your registered email or phone'>" +
+                      "<input type='text' id='vip-login-id' required autocomplete='username' autocapitalize='none' autocorrect='off' spellcheck='false' placeholder='Enter your registered email or phone'>" +
                     "</div>" +
                     "<div class='vip-field'>" +
                       "<label class='vip-field-label'>PASSWORD <span class='req'>*</span></label>" +
                       "<div class='vip-pass-group'>" +
-                        "<input type='password' id='vip-login-pass' required autocomplete='current-password' placeholder='Enter your password'>" +
+                        "<input type='password' id='vip-login-pass' required autocomplete='current-password' autocapitalize='none' autocorrect='off' spellcheck='false' placeholder='Enter your password'>" +
                         "<button type='button' class='vip-eye-toggle' id='vip-login-eye' aria-label='Toggle password visibility'>" + eyeOpenSvg + "</button>" +
                       "</div>" +
                     "</div>" +
@@ -3204,7 +3288,7 @@
         showSignin(openLoginInitially);
         wireGeo(fs);
 
-        // Sign In Form Handler
+        // Sign In Form Handler (Authenticated Staff/Super Admin + VIP Customer Login)
         fl.onsubmit = function (e) {
           e.preventDefault();
           var idInput = String(c.querySelector("#vip-login-id").value || "").trim();
@@ -3222,14 +3306,10 @@
           var phone = "";
           var accounts = getVipAccounts();
           var cleanId = idInput.toLowerCase().trim();
-          var isShortcutAdmin = false;
 
-          if (cleanId === "arahim" || cleanId === "admin" || cleanId === "superadmin") {
-            email = "arahimratul2004@gmail.com";
-            isShortcutAdmin = true;
-          } else if (cleanId === "ratul" || cleanId === "ratul123") {
-            email = "ratul123@gmail.com";
-            isShortcutAdmin = true;
+          // Only exact owner username 'arahim' maps to the owner email; never allow wildcard/demo shortcuts.
+          if (cleanId === "arahim") {
+            email = ADMIN_OWNER_EMAIL;
           } else if (idInput.indexOf("@") !== -1) {
             email = cleanId;
           } else {
@@ -3238,33 +3318,10 @@
             if (phone.length === 10 && /^1[3-9]/.test(phone)) phone = "0" + phone;
           }
 
-          // Check admin roster in local storage
-          if (!email && !phone) {
-            try {
-              var rawAdm = localStorage.getItem("shihiko-admin-v1");
-              if (rawAdm) {
-                var admParsed = JSON.parse(rawAdm);
-                if (Array.isArray(admParsed.admins)) {
-                  var admMatch = admParsed.admins.find(function(a) {
-                    return a && (
-                      (a.email && a.email.toLowerCase().trim() === cleanId) ||
-                      (a.name && a.name.toLowerCase().trim() === cleanId) ||
-                      (a.id && a.id.toLowerCase().trim() === cleanId)
-                    );
-                  });
-                  if (admMatch && admMatch.email) {
-                    email = admMatch.email.toLowerCase().trim();
-                    isShortcutAdmin = true;
-                  }
-                }
-              }
-            } catch(e) {}
-          }
-
           var targetId = email || phone || idInput;
           var acc = (email ? accounts[email] : null) || (phone ? accounts[phone] : null);
 
-          // If not directly in accounts, search annr-vip-members list
+          // Look up existing VIP wallet by exact email, phone, or referral code only (never display name)
           if (!acc) {
             try {
               var rawMembers = localStorage.getItem("annr-vip-members");
@@ -3276,10 +3333,9 @@
                     var mEmail = (m.email || "").toLowerCase().trim();
                     var mPhone = (m.phone || "").replace(/[^0-9]/g, "");
                     var mCode = (m.referral_code || "").toUpperCase().trim();
-                    var mName = (m.full_name || "").toLowerCase().trim();
                     if (email && mEmail === email) return true;
                     if (phone && mPhone === phone) return true;
-                    if (cleanId && (mCode === cleanId.toUpperCase() || mEmail === cleanId || mName === cleanId)) return true;
+                    if (cleanId && (mCode === cleanId.toUpperCase() || mEmail === cleanId)) return true;
                     return false;
                   });
                   if (found) {
@@ -3289,6 +3345,7 @@
                       email: email,
                       phone: phone,
                       name: found.full_name || "VIP Member",
+                      passHash: found.passHash || found.password_hash || "",
                       available_points: found.available_points != null ? found.available_points : 100,
                       member: found,
                       coupon: { code: found.referral_code || "VIP-ANNR10" }
@@ -3299,22 +3356,137 @@
             } catch(e) {}
           }
 
-          hashPassword(pw).then(function(inputHash) {
-            hashPassword(pw.toLowerCase()).then(function(lowerHash) {
+          function attemptSupabaseStaffLogin() {
+            if (!email) return Promise.resolve({ handled: false, networkOffline: false, rejected: false });
+            return fetch(SB_URL + "/auth/v1/token?grant_type=password", {
+              method: "POST",
+              headers: {
+                "apikey": SB_KEY,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ email: email, password: pw.slice(0, 200) })
+            }).then(function (r) {
+              return r.json().catch(function () { return {}; }).then(function (authData) {
+                if (r.ok && authData && authData.access_token && authData.user) {
+                  // Persist Supabase session so /admin routes execute authenticated RLS queries immediately
+                  try {
+                    var expiresIn = Number(authData.expires_in) || 3600;
+                    var expiresAt = authData.expires_at || (Math.floor(Date.now() / 1000) + expiresIn);
+                    localStorage.setItem("sb-aooydxydkyjtulhduexa-auth-token", JSON.stringify({
+                      access_token: authData.access_token,
+                      refresh_token: authData.refresh_token || "",
+                      token_type: authData.token_type || "bearer",
+                      expires_in: expiresIn,
+                      expires_at: expiresAt,
+                      user: authData.user
+                    }));
+                  } catch (e) {}
+
+                  var isExactOwner = email === ADMIN_OWNER_EMAIL;
+                  return fetch(SB_URL + "/rest/v1/user_roles?user_id=eq." + encodeURIComponent(authData.user.id) + "&select=role", {
+                    headers: {
+                      "apikey": SB_KEY,
+                      "Authorization": "Bearer " + authData.access_token
+                    }
+                  }).then(function (rr) {
+                    return rr.json().catch(function () { return null; }).then(function (roleRows) {
+                      var resolvedRole = isExactOwner ? "super_admin" : null;
+                      if (rr.ok && Array.isArray(roleRows) && roleRows.length > 0) {
+                        var dbRole = pickHighestRole(roleRows.map(function (x) { return x && x.role; }));
+                        if (dbRole) {
+                          resolvedRole = isExactOwner && ADMIN_ROLE_PRIORITY[dbRole] < ADMIN_ROLE_PRIORITY.super_admin ? "super_admin" : dbRole;
+                        }
+                      } else if (!rr.ok) {
+                        var localStaff = getLocalStaffEntry(email);
+                        if (localStaff && isValidAdminRole(localStaff.role)) resolvedRole = localStaff.role;
+                      }
+
+                      if (isExactOwner && (!Array.isArray(roleRows) || !roleRows.some(function (x) { return x && x.role === "super_admin"; }))) {
+                        fetch(SB_URL + "/rest/v1/user_roles?on_conflict=user_id,role", {
+                          method: "POST",
+                          headers: {
+                            "apikey": SB_KEY,
+                            "Authorization": "Bearer " + authData.access_token,
+                            "Content-Type": "application/json",
+                            "Prefer": "resolution=ignore-duplicates"
+                          },
+                          body: JSON.stringify({
+                            user_id: authData.user.id,
+                            role: "super_admin",
+                            granted_at: new Date().toISOString()
+                          })
+                        }).catch(function () {});
+                      }
+
+                      if (resolvedRole) {
+                        setBusy(fl, false);
+                        ensureAdminSessionAndRedirect({ email: email, id: authData.user.id }, resolvedRole);
+                        return { handled: true };
+                      }
+                      // Regular authenticated customer without staff role continues to VIP login
+                      return { handled: false, networkOffline: false, rejected: false };
+                    });
+                  }).catch(function () {
+                    var fallbackRole = isExactOwner ? "super_admin" : null;
+                    if (!fallbackRole) {
+                      var ls = getLocalStaffEntry(email);
+                      if (ls && isValidAdminRole(ls.role)) fallbackRole = ls.role;
+                    }
+                    if (fallbackRole) {
+                      setBusy(fl, false);
+                      ensureAdminSessionAndRedirect({ email: email, id: authData.user.id }, fallbackRole);
+                      return { handled: true };
+                    }
+                    return { handled: false, networkOffline: false, rejected: false };
+                  });
+                }
+
+                // 4xx from Supabase Auth means explicit credential rejection (never fall back offline)
+                if (r.status >= 400 && r.status < 500) {
+                  return { handled: false, networkOffline: false, rejected: true };
+                }
+                return { handled: false, networkOffline: true, rejected: false };
+              });
+            }).catch(function () {
+              return { handled: false, networkOffline: true, rejected: false };
+            });
+          }
+
+          attemptSupabaseStaffLogin().then(function (staffRes) {
+            if (staffRes.handled) return;
+
+            // Offline-only cryptographic SHA-256 verification for admin/staff when Supabase Auth is unreachable
+            if (staffRes.networkOffline && email) {
+              var adminHash = sha256HexSync(email + ":" + pw.slice(0, 200));
+              var staffEntry = getLocalStaffEntry(email);
+              var isOwnerMatch = email === ADMIN_OWNER_EMAIL && adminHash === ADMIN_OWNER_OFFLINE_HASH;
+              var isStaffHashMatch = Boolean(staffEntry && staffEntry.passwordHash && adminHash === staffEntry.passwordHash);
+              if (isOwnerMatch || isStaffHashMatch) {
+                var offRole = isOwnerMatch ? "super_admin" : (isValidAdminRole(staffEntry.role) ? staffEntry.role : null);
+                if (offRole) {
+                  setBusy(fl, false);
+                  ensureAdminSessionAndRedirect({ email: email, id: staffEntry ? staffEntry.id : "admin-arahim" }, offRole);
+                  return;
+                }
+              }
+            }
+
+            // If user explicitly tried to sign into the owner admin account and Supabase rejected password
+            if (staffRes.rejected && email === ADMIN_OWNER_EMAIL) {
+              setBusy(fl, false);
+              showErr(fl, "Wrong email or password.");
+              return;
+            }
+
+            hashPassword(pw).then(function(inputHash) {
+              var legacySaltHash = sha256HexSync("annr_vip_salt_2026:" + pw);
+
               function passMatches(storedHash) {
-                if (!storedHash) return true;
-                return (
-                  storedHash === inputHash ||
-                  storedHash === lowerHash ||
-                  storedHash === "plain:" + pw ||
-                  storedHash === "plain:" + pw.toLowerCase() ||
-                  storedHash === pw ||
-                  storedHash === pw.toLowerCase()
-                );
+                if (!storedHash) return false;
+                return storedHash === inputHash || storedHash === legacySaltHash;
               }
 
               function useLocalAccount() {
-                if (!acc.passHash) acc.passHash = inputHash;
                 var member = acc.member || {
                   full_name: acc.name || "VIP Member",
                   email: acc.email || email,
@@ -3341,15 +3513,11 @@
                 });
                 saveVipAccount(acc);
                 setBusy(fl, false);
-                if (isShortcutAdmin || isMemberAdmin(email || member)) {
-                  ensureAdminSessionAndRedirect(member);
-                  return;
-                }
                 renderInPageVipHub();
                 try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
               }
 
-              // Attempt login via Supabase RPC with both hash and raw password
+              // Attempt VIP member login via Supabase RPC with salted SHA-256 hash
               callLoginRpc(targetId, inputHash, pw).then(function(res) {
                 if (res.ok && res.data && res.data.ok) {
                   var synced = syncRemoteWalletPayload(res.data) || {
@@ -3371,10 +3539,6 @@
                     coupon: cpn
                   });
                   setBusy(fl, false);
-                  if (isShortcutAdmin || isMemberAdmin(m.email || email || m)) {
-                    ensureAdminSessionAndRedirect(m);
-                    return;
-                  }
                   renderInPageVipHub();
                   try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {}
                   return;
@@ -3382,13 +3546,8 @@
 
                 // Explicit credentials error returned by Supabase (e.g. wrong password)
                 if (res.ok && res.data && res.data.ok === false && res.data.error) {
-                  // If local account has matching password, let local work
                   if (acc && passMatches(acc.passHash)) {
                     useLocalAccount();
-                    return;
-                  }
-                  if (isShortcutAdmin || isMemberAdmin(email || targetId)) {
-                    ensureAdminSessionAndRedirect(email || "arahimratul2004@gmail.com");
                     return;
                   }
                   setBusy(fl, false);
@@ -3396,13 +3555,9 @@
                   return;
                 }
 
-                // Fallback to local account
+                // Fallback to local account ONLY when verified against stored hash
                 if (acc) {
-                  if (acc.passHash && !passMatches(acc.passHash)) {
-                    if (isShortcutAdmin || isMemberAdmin(email || targetId)) {
-                      ensureAdminSessionAndRedirect(email || "arahimratul2004@gmail.com");
-                      return;
-                    }
+                  if (!passMatches(acc.passHash)) {
                     setBusy(fl, false);
                     showErr(fl, "Incorrect password. Please verify your password and try again.");
                     return;
@@ -3411,20 +3566,11 @@
                   return;
                 }
 
-                if (isShortcutAdmin || isMemberAdmin(email || targetId)) {
-                  ensureAdminSessionAndRedirect(email || "arahimratul2004@gmail.com");
-                  return;
-                }
-
                 setBusy(fl, false);
-                showErr(fl, "No VIP account found with this email or mobile number. Please check your credentials or click 'Create Account' to join.");
+                showErr(fl, "Wrong email/phone or password, or no VIP account exists yet.");
               }).catch(function() {
                 if (acc) {
-                  if (acc.passHash && !passMatches(acc.passHash)) {
-                    if (isShortcutAdmin || isMemberAdmin(email || targetId)) {
-                      ensureAdminSessionAndRedirect(email || "arahimratul2004@gmail.com");
-                      return;
-                    }
+                  if (!passMatches(acc.passHash)) {
                     setBusy(fl, false);
                     showErr(fl, "Incorrect password. Please verify your password and try again.");
                     return;
@@ -3432,17 +3578,13 @@
                   useLocalAccount();
                   return;
                 }
-                if (isShortcutAdmin || isMemberAdmin(email || targetId)) {
-                  ensureAdminSessionAndRedirect(email || "arahimratul2004@gmail.com");
-                  return;
-                }
                 setBusy(fl, false);
-                showErr(fl, "No VIP account found with this email or mobile number. Please check your credentials or click 'Create Account' to join.");
+                showErr(fl, "Wrong email/phone or password, or no VIP account exists yet.");
               });
+            }).catch(function(err) {
+              setBusy(fl, false);
+              showErr(fl, (err && err.message) || "Could not complete authentication. Please try again.");
             });
-          }).catch(function(err) {
-            setBusy(fl, false);
-            showErr(fl, (err && err.message) || "Could not complete authentication. Please try again.");
           });
         };
 
@@ -3501,7 +3643,7 @@
               p_is_whatsapp: isWa,
               p_referred_by: ref || null,
               p_password_hash: hash,
-              p_plain_password: pw
+              p_plain_password: null
             }).then(function(res) {
               setBusy(fs, false);
 
@@ -3867,11 +4009,11 @@
                     "<div style='font:11px/1.4 \"FK Grotesk SemiMono\",monospace;color:#6b665e'>" + esc(m.phone || "") + " &nbsp;·&nbsp; " + esc(m.email || "") + " &nbsp;·&nbsp; " + esc(m.district || "Dhaka") + ", " + esc(m.division || "Dhaka") + "</div>" +
                   "</div>" +
                   "<div style='display:flex;gap:10px;align-items:center;flex-wrap:wrap'>" +
-                    ((m.email && (m.email.toLowerCase().indexOf("arahim") !== -1 || m.email.toLowerCase().indexOf("ratul") !== -1 || m.email.toLowerCase().indexOf("admin") !== -1))
+                    (hasValidAdminSession()
                       ? "<a href='/admin' class='vip-dash-btn-dark' style='background:#111111;border:1.5px solid #111111;color:#ffffff;display:inline-flex;align-items:center;gap:6px'>⚙ ADMIN PANEL</a>"
                       : "") +
                     "<button type='button' id='vip-redeem-checkout-btn' class='vip-dash-btn-orange'>⚡ REDEEM PTS AT CHECKOUT</button>" +
-                    "<a href='/collections/all/index.html' class='vip-dash-btn-dark'>SHOP CATALOG →</a>" +
+                    "<a href='/collections/unique-campaign/index.html' class='vip-dash-btn-dark'>SHOP UNIQUE ARCHIVE →</a>" +
                     "<button type='button' id='vip-signout-btn' class='vip-dash-btn-light'>SIGN OUT</button>" +
                   "</div>" +
                 "</div>" +
@@ -4756,6 +4898,68 @@
           }
         }
       }).catch(function() {});
+      // 3. Sync live products from Supabase so all visitors & search reflect newly added products
+      var sbUrl = "https://aooydxydkyjtulhduexa.supabase.co";
+      var sbKey = "sb_publishable_rWZ3_sO_15nX-jMpRMrnng_CrRhuJK5";
+      var pFull = "id,handle,code,title,description,price,compare_at_price,currency,status,size,show_size,measurement_unit,measurements,fabric,condition,care_instructions,images,tags,category_id,campaign_id,stock,reserved_until,created_at,categories(slug,name),campaigns(slug,name)";
+      var pMid = "id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,images,tags,category_id,campaign_id,stock,reserved_until,created_at,categories(slug,name),campaigns(slug,name)";
+      var pMin = "id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,images,tags,category_id,campaign_id,stock,reserved_until,created_at";
+      var qProd = function (sel) {
+        return fetch(sbUrl + "/rest/v1/products?select=" + sel + "&order=created_at.desc", { headers: { "apikey": sbKey } });
+      };
+      qProd(pFull)
+        .then(function (r) { return r.status === 400 ? qProd(pMid) : r; })
+        .then(function (r) { return r.status === 400 ? qProd(pMin) : r; })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (rows) {
+          if (Array.isArray(rows) && rows.length > 0) {
+            var cleaned = rows.filter(function (p) {
+              return p && p.handle && !LEGACY_PRODUCT_HANDLES[p.handle] && p.status !== "draft" && p.status !== "deleted" && p.status !== "archived";
+            }).map(function (p) {
+              var tags = Array.isArray(p.tags) ? p.tags : [];
+              var catTag = "";
+              var campTag = "";
+              var hideSz = false;
+              tags.forEach(function (t) {
+                var s = String(t || "");
+                if (s.indexOf("cat:") === 0) catTag = s.slice(4);
+                else if (s.indexOf("camp:") === 0) campTag = s.slice(5);
+                else if (s === "__hide_size") hideSz = true;
+              });
+              var catSlug = String((p.categories && p.categories.slug) || catTag || "").toLowerCase();
+              var campSlug = String((p.campaigns && p.campaigns.slug) || campTag || "unique-campaign").toLowerCase();
+              return {
+                id: p.id,
+                handle: p.handle,
+                code: p.code || "",
+                title: p.title || "",
+                description: p.description || "",
+                price: String(p.price || "0"),
+                compareAt: p.compare_at_price ? String(p.compare_at_price) : "",
+                currency: p.currency || "BDT",
+                status: p.status || "active",
+                size: p.size || "ONE SIZE",
+                showSize: p.show_size !== undefined ? p.show_size !== false : !hideSz,
+                measurements: p.measurements || {},
+                fabric: p.fabric || "",
+                condition: p.condition || "10/10 Archival",
+                careInstructions: p.care_instructions || "",
+                category: catSlug,
+                categorySlug: catSlug,
+                campaign: campSlug,
+                campaignSlug: campSlug,
+                collections: [catSlug, campSlug, "unique-campaign", "all"].filter(Boolean),
+                images: p.images || [],
+                tags: tags,
+                stock: p.status === "sold" ? 0 : (typeof p.stock === "number" ? p.stock : 1),
+                isOneOfOne: true
+              };
+            });
+            try { localStorage.setItem("annr_live_products", JSON.stringify(cleaned)); } catch (e) {}
+            if (tpl === "search") setupSearchPage();
+            else apply();
+          }
+        }).catch(function () {});
     } catch(e) {}
   })();
 })();
@@ -4864,7 +5068,7 @@
     if (!document.getElementById("annr-unique-catalog-script")) {
       var ucScript = document.createElement("script");
       ucScript.id = "annr-unique-catalog-script";
-      ucScript.src = "/_ext/unique-catalog.js";
+      ucScript.src = "/_ext/unique-catalog.js?v=20261112-v1";
       ucScript.defer = true;
       document.body.appendChild(ucScript);
     }

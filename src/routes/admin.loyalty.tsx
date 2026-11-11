@@ -38,62 +38,7 @@ import { BD_DIVISIONS } from "../lib/bangladesh-geo";
 
 export const Route = createFileRoute("/admin/loyalty")({ component: LoyaltyAdmin });
 
-const DEFAULT_DEMO_MEMBERS: VipMember[] = [
-  {
-    id: "m-1",
-    email: "ratul@example.com",
-    full_name: "Ratul Ahmed",
-    phone: "01712345678",
-    is_whatsapp: true,
-    division: "Dhaka",
-    district: "Dhaka",
-    upazila: "Dhanmondi",
-    full_address: "House 12, Road 5, Dhanmondi",
-    tier: "Gold",
-    tier_multiplier: 1.25,
-    available_points: 450,
-    pending_points: 100,
-    redeemed_points: 50,
-    withdrawn_points: 200,
-    total_earned_points: 800,
-    referral_points_earned: 400,
-    campaign_points_earned: 300,
-    welcome_points_earned: 100,
-    friends_referred: 4,
-    lifetime_spend_bdt: 14500,
-    lifetime_orders: 3,
-    referral_code: "VIP-RATUL88",
-    status: "active",
-    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
-  },
-  {
-    id: "m-2",
-    email: "tanvir@example.com",
-    full_name: "Tanvir Hossain",
-    phone: "01898765432",
-    is_whatsapp: true,
-    division: "Chattogram",
-    district: "Chattogram",
-    upazila: "Agrabad",
-    full_address: "CDA Ave, Agrabad",
-    tier: "Silver",
-    tier_multiplier: 1.0,
-    available_points: 200,
-    pending_points: 0,
-    redeemed_points: 0,
-    withdrawn_points: 0,
-    total_earned_points: 200,
-    referral_points_earned: 100,
-    campaign_points_earned: 0,
-    welcome_points_earned: 100,
-    friends_referred: 1,
-    lifetime_spend_bdt: 4800,
-    lifetime_orders: 1,
-    referral_code: "VIP-TANVIR12",
-    status: "active",
-    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-  },
-];
+const DEFAULT_DEMO_MEMBERS: VipMember[] = [];
 
 const CAMPAIGN_TYPE_LABELS: { value: CampaignType; label: string }[] = [
   { value: "registration_bonus", label: "1. Registration Bonus Campaign" },
@@ -562,7 +507,7 @@ function LoyaltyAdmin() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(185px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 185px), 1fr))",
                 gap: 12,
               }}
             >
@@ -593,38 +538,40 @@ function LoyaltyAdmin() {
             </div>
           </Card>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 16 }}>
             <Card title="Top Referral Performers" subtitle="VIP members generating the highest referral conversions">
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, textAlign: "left" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
-                    <th style={{ padding: "8px 6px" }}>Member</th>
-                    <th style={{ padding: "8px 6px" }}>Code</th>
-                    <th style={{ padding: "8px 6px" }}>Tier</th>
-                    <th style={{ padding: "8px 6px" }}>Referrals</th>
-                    <th style={{ padding: "8px 6px" }}>Available PTS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...members]
-                    .sort((a, b) => Number(b.friends_referred || 0) - Number(a.friends_referred || 0) || b.available_points - a.available_points)
-                    .slice(0, 6)
-                    .map((m) => (
-                      <tr key={m.id || m.email} style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
-                        <td style={{ padding: "8px 6px" }}>
-                          <b>{m.full_name}</b>
-                          <div style={{ fontSize: 10, color: "var(--p-text-subdued)" }}>{m.email}</div>
-                        </td>
-                        <td style={{ padding: "8px 6px", fontFamily: "monospace", fontWeight: 700 }}>{m.referral_code}</td>
-                        <td style={{ padding: "8px 6px" }}>
-                          <span className="adm-tag info">{m.tier}</span>
-                        </td>
-                        <td style={{ padding: "8px 6px", fontWeight: 700 }}>{m.friends_referred || 0}</td>
-                        <td style={{ padding: "8px 6px", color: "#008060", fontWeight: 700 }}>{m.available_points} PTS</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+              <div className="adm-table-wrap">
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
+                      <th style={{ padding: "8px 6px" }}>Member</th>
+                      <th style={{ padding: "8px 6px" }}>Code</th>
+                      <th style={{ padding: "8px 6px" }}>Tier</th>
+                      <th style={{ padding: "8px 6px" }}>Referrals</th>
+                      <th style={{ padding: "8px 6px" }}>Available PTS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...members]
+                      .sort((a, b) => Number(b.friends_referred || 0) - Number(a.friends_referred || 0) || b.available_points - a.available_points)
+                      .slice(0, 6)
+                      .map((m) => (
+                        <tr key={m.id || m.email} style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
+                          <td style={{ padding: "8px 6px" }}>
+                            <b>{m.full_name}</b>
+                            <div style={{ fontSize: 10, color: "var(--p-text-subdued)" }}>{m.email}</div>
+                          </td>
+                          <td style={{ padding: "8px 6px", fontFamily: "monospace", fontWeight: 700 }}>{m.referral_code}</td>
+                          <td style={{ padding: "8px 6px" }}>
+                            <span className="adm-tag info">{m.tier}</span>
+                          </td>
+                          <td style={{ padding: "8px 6px", fontWeight: 700 }}>{m.friends_referred || 0}</td>
+                          <td style={{ padding: "8px 6px", color: "#008060", fontWeight: 700 }}>{m.available_points} PTS</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </Card>
 
             <Card title="Recent Points Ledger Activity" subtitle="Latest automated & admin-audited points transactions">
@@ -1011,7 +958,7 @@ function LoyaltyAdmin() {
             </select>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
+          <div className="adm-table-wrap">
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
@@ -1280,7 +1227,7 @@ function LoyaltyAdmin() {
               No referral records match the current filter.
             </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
+            <div className="adm-table-wrap">
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
@@ -1418,7 +1365,7 @@ function LoyaltyAdmin() {
               No points ledger transactions recorded yet.
             </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
+            <div className="adm-table-wrap">
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
@@ -1792,7 +1739,7 @@ function LoyaltyAdmin() {
             </button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: 14 }}>
             {tiers.map((t) => (
               <div
                 key={t.id}
@@ -1850,7 +1797,7 @@ function LoyaltyAdmin() {
                 padding: 16,
               }}
             >
-              <div style={{ background: "#fff", padding: 24, borderRadius: 8, maxWidth: 520, width: "100%" }}>
+              <div style={{ background: "#fff", padding: 24, borderRadius: 8, maxWidth: 520, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
                 <h2 style={{ marginTop: 0 }}>Configure VIP Tier: {editingTier.name}</h2>
                 <div className="adm-grid" style={{ marginBottom: 16 }}>
                   <label className="adm-field">
@@ -1953,7 +1900,7 @@ function LoyaltyAdmin() {
               No withdrawal requests submitted yet.
             </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
+            <div className="adm-table-wrap">
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--p-border-subdued)" }}>
@@ -2036,6 +1983,8 @@ function LoyaltyAdmin() {
                   borderRadius: 8,
                   maxWidth: 480,
                   width: "100%",
+                  maxHeight: "90vh",
+                  overflowY: "auto",
                   boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
                 }}
               >
@@ -2077,7 +2026,7 @@ function LoyaltyAdmin() {
                   />
                 </label>
 
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                   <button
                     type="button"
                     className="adm-btn danger sm"
@@ -2324,7 +2273,7 @@ function LoyaltyAdmin() {
             </div>
           </Card>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 16 }}>
             <Card title="Immutable Admin Loyalty Audit Log" subtitle="Every manual point adjustment, setting update, and referral review">
               {adminLogs.length === 0 ? (
                 <div style={{ padding: 16, fontSize: 12, color: "var(--p-text-subdued)" }}>

@@ -20,11 +20,14 @@ export const Route = createFileRoute("/checkout")({ component: CheckoutPage });
 
 interface CartItem {
   id: string;
+  handle?: string;
+  code?: string;
   title: string;
   price: number;
   quantity: number;
   image?: string;
   size?: string;
+  showSize?: boolean;
 }
 
 function CheckoutPage() {
@@ -77,18 +80,7 @@ function CheckoutPage() {
       }
     } catch {}
 
-    if (loadedItems.length === 0) {
-      loadedItems = [
-        {
-          id: "prod-1",
-          title: "AnnR Archival One-of-One Piece",
-          price: 4800,
-          quantity: 1,
-          size: "M",
-          image: "/cdn/shop/t/75/assets/image_logo.svg",
-        },
-      ];
-    }
+    // Empty cart stays empty (no fake demo fallback item)
     // Enforce unique piece rule: quantity is locked to 1
     loadedItems = loadedItems.map((item) => ({ ...item, quantity: 1 }));
     setItems(loadedItems);
@@ -387,20 +379,28 @@ function CheckoutPage() {
         localStorage.removeItem("annr-cart");
         localStorage.removeItem("shihiko-cart");
         localStorage.removeItem("annr_cart_coupon");
+        localStorage.removeItem("annr_reservation");
 
-        // Mark purchased one-of-one pieces as sold in local store and Supabase
+        // Mark purchased one-of-one pieces as sold in local store, live cache, and Supabase
         try {
+          const isSoldMatch = (p: any) =>
+            items.some((it) => it.id === p.id || (p.handle && (it.id === p.handle || it.handle === p.handle)) || it.title === p.title);
           const rawAdm = localStorage.getItem("shihiko-admin-v1");
           if (rawAdm) {
             const adm = JSON.parse(rawAdm);
             if (Array.isArray(adm.products)) {
-              adm.products = adm.products.map((p: any) => {
-                if (items.some((it) => it.id === p.id || (p.handle && it.id === p.handle) || it.title === p.title)) {
-                  return { ...p, status: "sold", stock: 0, soldAt: new Date().toISOString() };
-                }
-                return p;
-              });
+              adm.products = adm.products.map((p: any) => (isSoldMatch(p) ? { ...p, status: "sold", stock: 0, soldAt: new Date().toISOString() } : p));
               localStorage.setItem("shihiko-admin-v1", JSON.stringify(adm));
+            }
+          }
+          const rawLive = localStorage.getItem("annr_live_products");
+          if (rawLive) {
+            const live = JSON.parse(rawLive);
+            if (Array.isArray(live)) {
+              localStorage.setItem(
+                "annr_live_products",
+                JSON.stringify(live.map((p: any) => (isSoldMatch(p) ? { ...p, status: "sold", stock: 0 } : p))),
+              );
             }
           }
         } catch {}
@@ -1009,35 +1009,45 @@ function CheckoutPage() {
               </h2>
 
               {/* Items List */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
-                {items.map((item) => (
-                  <div key={item.id} style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt=""
-                        style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 4, background: "#222" }}
-                      />
-                    )}
-                    <div style={{ flex: 1, fontSize: 12 }}>
-                      <div style={{ fontWeight: 600 }}>{item.title}</div>
-                      {item.size && <div style={{ fontSize: 10, opacity: 0.6 }}>Size: {item.size}</div>}
-                      <div style={{ opacity: 0.75 }}>
-                        ৳{item.price.toLocaleString()} × {item.quantity}
+              {items.length === 0 ? (
+                <div style={{ background: "#181818", border: "1px dashed #333", borderRadius: 4, padding: 16, marginBottom: 20, fontSize: 12 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>No piece currently selected in checkout.</div>
+                  <div style={{ opacity: 0.75, marginBottom: 10 }}>Choose an available 1-of-1 garment from the Unique Campaign to reserve it for checkout.</div>
+                  <a href="/collections/unique-campaign/index.html" style={{ color: "#fa9442", fontWeight: 700, textDecoration: "underline" }}>
+                    Browse Unique Campaign →
+                  </a>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+                  {items.map((item) => (
+                    <div key={item.id} style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt=""
+                          style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 4, background: "#222" }}
+                        />
+                      )}
+                      <div style={{ flex: 1, fontSize: 12 }}>
+                        <div style={{ fontWeight: 600 }}>{item.title}</div>
+                        {item.showSize !== false && item.size && <div style={{ fontSize: 10, opacity: 0.6 }}>Size: {item.size}</div>}
+                        <div style={{ opacity: 0.75 }}>
+                          ৳{item.price.toLocaleString()} × {item.quantity}
+                        </div>
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>
+                        ৳{(item.price * item.quantity).toLocaleString()}
                       </div>
                     </div>
-                    <div style={{ fontWeight: 700, fontSize: 13 }}>
-                      ৳{(item.price * item.quantity).toLocaleString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
 
               {/* Coupon Form */}
               <form onSubmit={handleApplyCoupon} style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <input
                   type="text"
-                  placeholder="VIP or Promo Coupon (e.g. VIP-RATUL88)"
+                  placeholder="VIP or Promo Coupon (e.g. VIP-ANNR10)"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   style={{

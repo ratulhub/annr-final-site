@@ -1,16 +1,83 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { setState, uid, useAdmin, type Campaign } from "../admin/store";
+import { safeImageUrl } from "../admin/security/sanitize";
+import { publish, setState, uid, useAdmin, type Campaign } from "../admin/store";
 import { BackBtn, Card } from "../admin/ui";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/campaigns")({ component: CampaignsPage });
+
+async function syncCampaignDb(c: Campaign, oldSlug?: string): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured()) return { ok: true };
+  try {
+    const cleanImg = c.heroImageUrl ? safeImageUrl(c.heroImageUrl) || null : null;
+    if (oldSlug && oldSlug !== c.slug) {
+      await supabase.from("campaigns").delete().eq("slug", oldSlug);
+    }
+    const { error } = await supabase.from("campaigns").upsert(
+      {
+        slug: c.slug,
+        name: c.name,
+        description: c.description || "",
+        hero_image_url: cleanImg,
+        hero_title: c.heroTitle || c.name,
+        hero_subtitle: c.heroSubtitle || "",
+        status: c.status || "active",
+        sort_order: c.sortOrder || 0,
+      },
+      { onConflict: "slug" },
+    );
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Failed to sync campaign" };
+  }
+}
 
 function CampaignsPage() {
   const s = useAdmin();
   const campaigns = s.campaigns || [];
   const [editing, setEditing] = useState<Campaign | null>(null);
+  const [syncError, setSyncError] = useState("");
+  const [syncing, setSyncing] = useState(false);
+
+  const syncFromDb = async () => {
+    if (!isSupabaseConfigured()) {
+      setSyncError("Supabase not configured.");
+      return;
+    }
+    setSyncing(true);
+    setSyncError("");
+    try {
+      const { data, error } = await supabase.from("campaigns").select("*").order("sort_order", { ascending: true });
+      if (error) {
+        setSyncError(`DB load error: ${error.message}`);
+        return;
+      }
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped: Campaign[] = data.map((r: any, idx: number) => ({
+          id: String(r.id || uid()),
+          slug: String(r.slug || ""),
+          name: String(r.name || r.slug || "Campaign"),
+          description: String(r.description || ""),
+          heroImageUrl: r.hero_image_url ? String(r.hero_image_url) : "",
+          heroTitle: String(r.hero_title || r.name || ""),
+          heroSubtitle: String(r.hero_subtitle || ""),
+          status: (r.status as Campaign["status"]) || "active",
+          sortOrder: Number(r.sort_order ?? idx + 1),
+        }));
+        setState((x) => ({ ...x, campaigns: mapped }));
+        setTimeout(() => { try { publish(); } catch {} }, 30);
+      }
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Failed to sync campaigns");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const addCampaign = () => {
+    setSyncError("");
     const newCamp: Campaign = {
       id: uid(),
       slug: "new-campaign-" + uid(),
@@ -22,26 +89,57 @@ function CampaignsPage() {
       sortOrder: campaigns.length + 1,
     };
     setState((x) => ({ ...x, campaigns: [...(x.campaigns || []), newCamp] }));
+    setTimeout(() => { try { publish(); } catch {} }, 30);
+    void syncCampaignDb(newCamp).then((r) => {
+      if (!r.ok && r.error) setSyncError(`Saved locally; DB sync failed: ${r.error}`);
+    });
     setEditing(newCamp);
   };
 
   const updateCampaign = (id: string, patch: Partial<Campaign>) => {
+    setSyncError("");
+    let nextObj: Campaign | null = null;
+    let oldSlug: string | undefined;
     setState((x) => ({
       ...x,
-      campaigns: (x.campaigns || []).map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      campaigns: (x.campaigns || []).map((c) => {
+        if (c.id !== id) return c;
+        oldSlug = c.slug;
+        nextObj = { ...c, ...patch };
+        return nextObj;
+      }),
     }));
     if (editing && editing.id === id) {
       setEditing((prev) => (prev ? { ...prev, ...patch } : null));
     }
+    setTimeout(() => { try { publish(); } catch {} }, 30);
+    if (nextObj) {
+      void syncCampaignDb(nextObj, oldSlug).then((r) => {
+        if (!r.ok && r.error) setSyncError(`Saved locally; DB sync failed: ${r.error}`);
+      });
+    }
   };
 
   const deleteCampaign = (id: string, name: string) => {
+    const target = campaigns.find((c) => c.id === id);
     if (confirm(`Delete campaign "${name}"?`)) {
+      setSyncError("");
       setState((x) => ({
         ...x,
         campaigns: (x.campaigns || []).filter((c) => c.id !== id),
       }));
       if (editing && editing.id === id) setEditing(null);
+      setTimeout(() => { try { publish(); } catch {} }, 30);
+      if (target && isSupabaseConfigured()) {
+        void (async () => {
+          try {
+            const { error } = await supabase.from("campaigns").delete().eq("slug", target.slug);
+            if (error) setSyncError(`Removed locally; DB delete failed: ${error.message}`);
+          } catch (err) {
+            setSyncError(err instanceof Error ? err.message : "DB delete failed");
+          }
+        })();
+      }
     }
   };
 
@@ -57,13 +155,25 @@ function CampaignsPage() {
             </p>
           </div>
         </div>
-        <button className="adm-btn primary" onClick={addCampaign}>
-          + Add Campaign Drop
-        </button>
+        <div className="adm-row" style={{ gap: 8 }}>
+          <button type="button" className="adm-btn ghost" disabled={syncing} onClick={() => void syncFromDb()}>
+            {syncing ? "Syncing..." : "⚡ Sync from DB"}
+          </button>
+          <button className="adm-btn primary" onClick={addCampaign}>
+            + Add Campaign Drop
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: editing ? "1.1fr 0.9fr" : "1fr", gap: 20 }}>
-        <div className="adm-card" style={{ padding: 0 }}>
+      {syncError && (
+        <div className="adm-banner critical" style={{ marginBottom: 14 }}>
+          <span style={{ flex: 1 }}>{syncError}</span>
+          <button type="button" className="adm-btn ghost sm" onClick={() => setSyncError("")}>Dismiss</button>
+        </div>
+      )}
+
+      <div className={editing ? "adm-two-col-wide" : undefined}>
+        <div className="adm-card adm-table-wrap" style={{ padding: 0 }}>
           <table>
             <thead>
               <tr>
@@ -154,6 +264,18 @@ function CampaignsPage() {
                   type="text"
                   value={editing.heroSubtitle || ""}
                   onChange={(e) => updateCampaign(editing.id, { heroSubtitle: e.target.value })}
+                />
+              </label>
+              <label className="adm-field">
+                <span>Hero Banner Image URL (https:// or /...)</span>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={editing.heroImageUrl || ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    updateCampaign(editing.id, { heroImageUrl: v ? safeImageUrl(v) || v : "" });
+                  }}
                 />
               </label>
               <label className="adm-field">

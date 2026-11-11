@@ -315,8 +315,8 @@ export const DEFAULT_LOYALTY_CAMPAIGNS: LoyaltyCampaign[] = [
     target_handles: [],
     usage_limit: null,
     per_user_limit: 1,
-    times_claimed: 14,
-    total_points_issued: 1400,
+    times_claimed: 0,
+    total_points_issued: 0,
     priority: 10,
     stackable: true,
     starts_at: "2026-01-01",
@@ -336,8 +336,8 @@ export const DEFAULT_LOYALTY_CAMPAIGNS: LoyaltyCampaign[] = [
     target_handles: [],
     usage_limit: null,
     per_user_limit: 10,
-    times_claimed: 6,
-    total_points_issued: 900,
+    times_claimed: 0,
+    total_points_issued: 0,
     priority: 20,
     stackable: true,
     starts_at: "2026-01-01",
@@ -1136,7 +1136,7 @@ export async function registerVipMember(payload: {
         p_gender: payload.gender || "prefer_not_to_say",
         p_referred_by: payload.referredBy || null,
         p_password_hash: payload.passwordHash || null,
-        p_plain_password: payload.plainPassword || null,
+        p_plain_password: null,
       });
 
       if (!error && data?.ok && data.member) {
@@ -1645,9 +1645,6 @@ export async function validateReferralCoupon(
     if (buyerEmail && buyerEmail.trim()) {
       const cleanBuyer = buyerEmail.trim().toLowerCase();
       if (owner && owner.email && owner.email.toLowerCase() === cleanBuyer) {
-        return { valid: false, error: "You cannot use your own referral coupon" };
-      }
-      if (normCode === "VIP-RATUL88" && cleanBuyer.includes("ratul")) {
         return { valid: false, error: "You cannot use your own referral coupon" };
       }
 

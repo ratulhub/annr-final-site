@@ -73,25 +73,52 @@ describe("VIP Referral & Loyalty Coupon Rules", () => {
   });
 
   it("rejects order amounts below minimum order threshold", async () => {
-    const res = await validateReferralCoupon("VIP-RATUL88", 200);
+    const reg = await registerVipMember({
+      fullName: "Test Member",
+      email: "vip-test-member@example.com",
+      phone: "01711112233",
+      division: "Dhaka",
+      district: "Dhaka",
+      fullAddress: "Road 1, Dhanmondi",
+    });
+    expect(reg.ok).toBe(true);
+    const code = reg.member!.referral_code;
+    const res = await validateReferralCoupon(code, 200);
     expect(res.valid).toBe(false);
     expect(res.error).toContain("Minimum order");
   });
 
   it("validates valid referral coupon code and calculates discount", async () => {
-    const res = await validateReferralCoupon("VIP-RATUL88", 5000, "customer@example.com");
-    if (res.valid) {
-      expect(res.discount_amount).toBeGreaterThan(0);
-      expect(res.points_reward).toBe(100);
-    }
+    const reg = await registerVipMember({
+      fullName: "Test Valid Owner",
+      email: "vip-owner-valid@example.com",
+      phone: "01711112244",
+      division: "Dhaka",
+      district: "Dhaka",
+      fullAddress: "Road 2, Banani",
+    });
+    expect(reg.ok).toBe(true);
+    const code = reg.member!.referral_code;
+    const res = await validateReferralCoupon(code, 5000, "customer@example.com");
+    expect(res.valid).toBe(true);
+    expect(res.discount_amount).toBeGreaterThan(0);
+    expect(res.points_reward).toBe(100);
   });
 
   it("prevents self-referral abuse when email matches coupon owner", async () => {
-    const ownerEmail = "ratul@example.com";
-    const res = await validateReferralCoupon("VIP-RATUL88", 5000, ownerEmail);
-    if (!res.valid) {
-      expect(res.error).toMatch(/own referral coupon/i);
-    }
+    const ownerEmail = "vip-self-check@example.com";
+    const reg = await registerVipMember({
+      fullName: "Self Check Owner",
+      email: ownerEmail,
+      phone: "01711112255",
+      division: "Dhaka",
+      district: "Dhaka",
+      fullAddress: "Road 3, Gulshan",
+    });
+    expect(reg.ok).toBe(true);
+    const res = await validateReferralCoupon(reg.member!.referral_code, 5000, ownerEmail);
+    expect(res.valid).toBe(false);
+    expect(res.error).toMatch(/own referral coupon/i);
   });
 });
 

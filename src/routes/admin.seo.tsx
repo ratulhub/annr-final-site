@@ -35,14 +35,14 @@ function Seo() {
         <Big label="robots.txt (saved for when the site has a server)" value={v.robots} onChange={(robots) => set({ robots })} rows={3} />
       </div>}</Obj></Card>
       <Card title={`Page SEO (${rows.length})`}>
-        <table><thead><tr><th>Type</th><th>Page</th><th>Search title</th><th>Search description</th></tr></thead><tbody>
+        <div className="adm-table-wrap"><table><thead><tr><th>Type</th><th>Page</th><th>Search title</th><th>Search description</th></tr></thead><tbody>
           {rows.map((r) => <tr key={r.kind + r.handle}>
             <td>{r.kind.slice(0, -1)}</td>
             <td>{r.kind === "products" ? <Link className="link" to="/admin/products/$handle" params={{ handle: r.handle }}>{r.title}</Link> : r.title}</td>
             <td><input value={r.seoTitle} onChange={(e) => up(r, "seoTitle", e.target.value)} />{r.seoTitle.length > 60 && <small className="adm-hint">{r.seoTitle.length}/60</small>}</td>
             <td><input value={r.seoDescription} onChange={(e) => up(r, "seoDescription", e.target.value)} />{!r.seoDescription && <small className="adm-err">Missing</small>}</td>
           </tr>)}
-        </tbody></table>
+        </tbody></table></div>
       </Card>
     </>
   );

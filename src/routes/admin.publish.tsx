@@ -55,10 +55,10 @@ function PublishPage() {
       </div>
       <Card title="Draft preview (real store pages)"><DevicePreview url="/home.html" /></Card>
       <Card title="Published versions">
-        {hist.length ? <table><thead><tr><th>Published</th><th /></tr></thead><tbody>
+        {hist.length ? <div className="adm-table-wrap"><table><thead><tr><th>Published</th><th /></tr></thead><tbody>
           {hist.map((h, i) => <tr key={h.at}><td>{new Date(h.at).toLocaleString()}{i === 0 && " (current)"}</td>
             <td style={{ textAlign: "right" }}><button className="adm-btn ghost sm" disabled={!mayPublish} onClick={() => { if (!mayPublish) return; if (confirm("Load this version into the draft? Publish afterwards to make it live.")) { restoreVersion(i); logAuthEvent("site_restore"); } }}>Restore to draft</button></td></tr>)}
-        </tbody></table> : <p>No versions yet. Each publish saves one here (last 10).</p>}
+        </tbody></table></div> : <p>No versions yet. Each publish saves one here (last 10).</p>}
       </Card>
     </>
   );

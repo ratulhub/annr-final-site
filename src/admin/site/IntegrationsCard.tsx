@@ -7,7 +7,7 @@ export function IntegrationsCard() {
   const site = useSite();
   return <Card title="Integrations">
     <table><thead><tr><th>Service</th><th>Type</th><th>Status</th><th>Notes</th></tr></thead><tbody>
-      {site.integrations.map((i) => <tr key={i.id}><td>{i.name}</td><td>{i.kind}</td><td><span className="adm-tag">Not connected</span></td>
+      {site.integrations.map((i) => <tr key={i.id}><td>{i.name}</td><td>{i.kind}</td><td><span className={`adm-tag ${i.status === "connected" ? "ok" : ""}`}>{i.status === "connected" ? "Connected" : "Not connected"}</span></td>
         <td><input value={i.note} onChange={(e) => setSite("integrations", site.integrations.map((x) => (x.id === i.id ? { ...x, note: e.target.value } : x)))} /></td></tr>)}
     </tbody></table>
     <p className="adm-hint">No keys are stored here. Real connections need a backend so secrets stay private.</p>

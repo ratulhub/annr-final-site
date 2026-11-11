@@ -10,8 +10,8 @@ export const Route = createFileRoute("/admin/forms")({ component: Forms });
 const APPLIED: Record<string, string> = {
   newsletter: "Title, button, placeholder and consent text update on the store.",
   search: "Placeholder updates on the store.",
-  "vip-login": "Title, button, email/password placeholders and consent text update on /account/login; sign-in submission is handled by Shopify.",
-  "vip-register": "Title, button and consent text update on /account/register; registration submission is handled by Shopify.",
+  "vip-login": "Title, button, email/password placeholders and consent text update on the VIP login hub (Supabase Auth).",
+  "vip-register": "Title, button and consent text update on the VIP registration hub (Supabase Auth).",
 };
 
 function Forms() {
@@ -41,7 +41,7 @@ function Forms() {
             </div>
           </Card>
           <Card title="Fields" action={<button className="adm-btn ghost" onClick={() => setF([...f.fields, { id: uid(), key: "field", label: "New field", placeholder: "", required: false, enabled: true }])}>+ Add field</button>}>
-            <table><thead><tr><th /><th>Label</th><th>Placeholder</th><th>Required</th><th>Enabled</th><th /></tr></thead><tbody>
+            <div className="adm-table-wrap"><table><thead><tr><th /><th>Label</th><th>Placeholder</th><th>Required</th><th>Enabled</th><th /></tr></thead><tbody>
               {f.fields.map((x, i) => { const up = (p: Partial<FormField>) => setF(f.fields.map((y) => (y.id === x.id ? { ...y, ...p } : y))); return <tr key={x.id}>
                 <td><OrderBtns i={i} n={f.fields.length} onMove={(to) => setF(move(f.fields, i, to))} /></td>
                 <td><input value={x.label} onChange={(e) => up({ label: e.target.value })} /></td>
@@ -49,10 +49,10 @@ function Forms() {
                 <td><input type="checkbox" checked={x.required} onChange={(e) => up({ required: e.target.checked })} /></td>
                 <td><input type="checkbox" checked={x.enabled} onChange={(e) => up({ enabled: e.target.checked })} /></td>
                 <td><button className="adm-btn danger sm" onClick={() => confirm("Remove field?") && setF(f.fields.filter((y) => y.id !== x.id))}>✕</button></td></tr>; })}
-            </tbody></table>
+            </tbody></table></div>
           </Card>
           <Card title="Submissions">
-            <p>No submissions. This store's forms send to the live Shopify store, not to this admin, so nothing is recorded here yet. Submissions will appear in <code>public.contact_submissions</code> once the Supabase backend is connected.</p>
+            <p>Submissions will appear in <code>public.contact_submissions</code> once form webhooks are connected to Supabase.</p>
           </Card>
         </div>;
       })}

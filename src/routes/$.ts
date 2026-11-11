@@ -1,7 +1,34 @@
 import { createFileRoute } from "@tanstack/react-router";
-import fs from "node:fs";
-import path from "node:path";
 import catalog from "../admin/catalog.json";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
+
+const LEGACY_PRODUCT_HANDLES = new Set([
+  "aka-manto-longsleeve",
+  "divine-sanctum-tee",
+  "ruin-and-rebirth-varsity-jacket",
+  "blue-moon-long-sleeve",
+  "hound-of-hades-tee",
+  "ruin-and-rebirth-reversible-hoodie",
+]);
+
+const LEGACY_COLLECTION_HANDLES = new Set([
+  "archived",
+  "bonsai",
+  "bottoms",
+  "classics",
+  "clocked-out",
+  "divine",
+  "flight-tags-keychains",
+  "golden-goal",
+  "hats",
+  "jeans",
+  "joggers",
+  "longsleeves",
+  "outwear",
+  "samurai",
+  "socks",
+  "vault",
+]);
 
 // Same behaviour as the original mirror server: live Shopify features (cart, cart drawer,
 // recommendations, localization) are passed through to the real store; any other
@@ -173,38 +200,83 @@ function esc(t: unknown): string {
 }
 
 const SEARCH_SYNONYMS: Record<string, string> = {
-  tshirt: "tee",
-  "t-shirt": "tee",
-  shirt: "tee",
-  sweatshirt: "hoodie",
-  hoody: "hoodie",
-  sweater: "hoodie",
-  jacket: "jacket",
-  pant: "jeans",
-  pants: "jeans",
-  trouser: "jeans",
-  trousers: "jeans",
-  jogger: "joggers",
-  cap: "hat",
-  beanie: "hat",
-  sock: "socks",
+  tshirt: "t-shirts",
+  "t-shirt": "t-shirts",
+  shirt: "t-shirts",
+  tee: "t-shirts",
+  tees: "t-shirts",
+  hoody: "hoodies",
+  hoodie: "hoodies",
+  sweatshirt: "sweatshirts",
+  crewneck: "sweatshirts",
+  sweater: "sweaters",
+  knit: "knitwear",
+  jacket: "jackets",
+  coat: "jackets",
+  outerwear: "jackets",
+  pant: "trousers",
+  pants: "trousers",
+  jean: "trousers",
+  jeans: "trousers",
+  trouser: "trousers",
+  jogger: "trousers",
+  joggers: "trousers",
+  cargo: "trousers",
+  bottom: "trousers",
+  bottoms: "trousers",
+  cap: "accessories",
+  beanie: "accessories",
+  hat: "accessories",
+  hats: "accessories",
+  sock: "accessories",
+  socks: "accessories",
 };
 
-function buildPredictiveSearchHtml(query: string): string {
+async function buildPredictiveSearchHtml(query: string): Promise<string> {
   const rawTerms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
   if (!rawTerms.length) {
     return `<div id="shopify-section-predictive-search-new" class="shopify-section"><div id="predictive-search-new-results"><div class="header-search-new__result-products" data-header-search-new-result-products></div></div></div>`;
   }
   const terms = rawTerms.map((t) => SEARCH_SYNONYMS[t] || t);
-  const matches = ((catalog.products || []) as Array<Record<string, unknown>>).filter((p) => {
+  const byHandle = new Map<string, Record<string, unknown>>();
+  for (const p of (catalog.products || []) as Array<Record<string, unknown>>) {
+    const h = String(p["handle"] || "");
+    if (h && !LEGACY_PRODUCT_HANDLES.has(h)) byHandle.set(h, p);
+  }
+  if (isSupabaseConfigured()) {
+    try {
+      const { data } = await supabase
+        .from("products")
+        .select("id,handle,title,description,product_type,tags,price,images,status,code,size,show_size")
+        .in("status", ["active", "reserved", "sold"])
+        .limit(100);
+      if (Array.isArray(data)) {
+        for (const r of data as Array<Record<string, unknown>>) {
+          const h = String(r["handle"] || "");
+          if (h && !LEGACY_PRODUCT_HANDLES.has(h)) {
+            byHandle.set(h, {
+              ...r,
+              category: r["product_type"] || "",
+              showSize: r["show_size"],
+            });
+          }
+        }
+      }
+    } catch {}
+  }
+
+  const matches = Array.from(byHandle.values()).filter((p) => {
+    const h = String(p["handle"] || "");
+    if (!h || LEGACY_PRODUCT_HANDLES.has(h)) return false;
     if (p["status"] && p["status"] !== "active" && p["status"] !== "sold" && p["status"] !== "reserved") return false;
     const skus = Array.isArray(p["skus"]) ? (p["skus"] as string[]).join(" ") : "";
     const variants = Array.isArray(p["variants"])
       ? (p["variants"] as Array<Record<string, unknown>>).map((v) => `${v["sku"] || ""} ${v["id"] || ""} ${v["title"] || ""}`).join(" ")
       : "";
     const code = String(p["code"] || "");
-    const size = String(p["size"] || "");
-    const hay = `${p["title"] || ""} ${p["description"] || ""} ${p["handle"] || ""} ${p["type"] || ""} ${code} ${size} ${p["tags"] || ""} ${p["id"] || ""} ${skus} ${variants}`.toLowerCase();
+    const size = p["showSize"] !== false ? String(p["size"] || "") : "";
+    const cat = String(p["category"] || p["type"] || "");
+    const hay = `${p["title"] || ""} ${p["description"] || ""} ${h} ${cat} ${code} ${size} ${Array.isArray(p["tags"]) ? (p["tags"] as string[]).join(" ") : p["tags"] || ""} ${p["id"] || ""} ${skus} ${variants}`.toLowerCase();
     return terms.every((t, i) => hay.includes(t) || Boolean(rawTerms[i] && hay.includes(rawTerms[i]!)));
   }).slice(0, 10);
 
@@ -214,18 +286,18 @@ function buildPredictiveSearchHtml(query: string): string {
 
   const cards = matches.map((p) => {
     const images = Array.isArray(p["images"]) ? (p["images"] as string[]) : [];
-    const img = (typeof p["image"] === "string" ? p["image"] : "") || images[0] || "/cdn/shop/t/75/assets/image_logo.svg";
+    const img = (typeof p["image"] === "string" ? p["image"] : "") || images[0] || "/_ext/annr-template-001.png";
     const pTitle = esc(p["title"]);
     const price = String(p["price"] || "0").replace(/\.00$/, "");
     const handle = String(p["handle"] || "");
     const code = esc(p["code"] || "");
-    const size = esc(p["size"] || "");
-    const badgeText = p["status"] === "sold" ? "SOLD / ARCHIVE" : `1 OF 1${size ? ` · SIZE ${size}` : ""}`;
-    return `<div class="lazy-item product-card">
+    const size = p["showSize"] !== false ? esc(p["size"] || "") : "";
+    const badgeText = p["status"] === "sold" ? "SOLD / ARCHIVE" : `1 OF 1${size && size !== "NONE" ? ` · SIZE ${size}` : ""}`;
+    return `<div class="product-card">
 	<div class="product-card-image" style="position:relative">
     <div style="position:absolute;top:6px;left:6px;background:rgba(17,17,17,0.9);color:#fff;font-family:'FK Grotesk SemiMono',monospace;font-size:8px;font-weight:700;padding:2px 6px;letter-spacing:1px;z-index:2">${badgeText}</div>
 		<a href="/products/${esc(handle)}/index.html" class="product-card-image-wrapper" aria-label="${pTitle}">
-			<img src="${esc(img)}" alt="${pTitle}" loading="lazy">
+			<img src="${esc(img)}" alt="${pTitle}" loading="lazy" onerror="this.src='/_ext/annr-template-001.png'">
 		</a>
 	</div>
   ${code ? `<div style="font-family:'FK Grotesk SemiMono',monospace;font-size:9px;color:#e05a2b;font-weight:700;margin-top:6px">${code}</div>` : ""}
@@ -245,7 +317,28 @@ async function handle({ request }: { request: Request }) {
   return secure(await route(request));
 }
 
+async function fetchStaticHtml(url: URL, assetPath: string): Promise<Response | null> {
+  try {
+    const res = await fetch(new URL(assetPath, url.origin), {
+      headers: { "x-annr-static-check": "1" },
+    });
+    const ct = res.headers.get("content-type") || "";
+    if (res.ok && /text\/html/i.test(ct)) {
+      return new Response(res.body, {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+      });
+    }
+  } catch {
+    // ignore fetch error
+  }
+  return null;
+}
+
 async function route(request: Request): Promise<Response> {
+  if (request.headers.get("x-annr-static-check") === "1") {
+    return new Response("Not found", { status: 404 });
+  }
   const url = new URL(request.url);
   if (!ALLOWED_METHODS.has(request.method)) return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD, POST" } });
   if (!isSameOriginMutation(request, url)) return new Response("Forbidden: cross-origin mutation rejected", { status: 403 });
@@ -256,7 +349,7 @@ async function route(request: Request): Promise<Response> {
     });
   }
   if (url.pathname === "/search/suggest") {
-    return new Response(buildPredictiveSearchHtml(url.searchParams.get("q") || ""), {
+    return new Response(await buildPredictiveSearchHtml(url.searchParams.get("q") || ""), {
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
     });
@@ -289,50 +382,48 @@ async function route(request: Request): Promise<Response> {
     }
   }
   if (request.method === "GET") {
-    // Dynamic product page fallback for newly added admin products
+    // Dynamic product page routing & legacy handle redirects
     const prodMatch = url.pathname.match(/^\/products\/([a-zA-Z0-9_-]+)(?:\/index\.html)?$/);
     if (prodMatch && prodMatch[1]) {
       const handle = prodMatch[1];
+      if (LEGACY_PRODUCT_HANDLES.has(handle)) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: `/products/annr-archival-001/index.html${url.search}` },
+        });
+      }
       if (!url.pathname.endsWith("/index.html")) {
         return new Response(null, {
           status: 302,
           headers: { location: `/products/${handle}/index.html${url.search}` },
         });
       }
-      const targetFile = path.resolve(process.cwd(), "public", "products", handle, "index.html");
-      if (!fs.existsSync(targetFile)) {
-        const templateFile = path.resolve(process.cwd(), "public", "products", "aka-manto-longsleeve", "index.html");
-        if (fs.existsSync(templateFile)) {
-          const templateHtml = fs.readFileSync(templateFile, "utf-8");
-          return new Response(templateHtml, {
-            status: 200,
-            headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
-          });
-        }
-      }
+      const existing = await fetchStaticHtml(url, url.pathname);
+      if (existing) return existing;
+      const fallbackProd = await fetchStaticHtml(url, "/products/annr-archival-001/index.html");
+      if (fallbackProd) return fallbackProd;
     }
 
-    // Dynamic collection page fallback for newly added collections
-    const colMatch = url.pathname.match(/^\/collections\/([a-zA-Z0-9_-]+)(?:\/index\.html)?$/);
+    // Dynamic collection page routing & legacy collection redirects
+    const colMatch = url.pathname.match(/^\/collections\/([a-zA-Z0-9_-]+)(?:\/index(?:\.page-\d+)?\.html)?$/);
     if (colMatch && colMatch[1]) {
       const colHandle = colMatch[1];
+      if (LEGACY_COLLECTION_HANDLES.has(colHandle)) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: `/collections/unique-campaign/index.html${url.search}` },
+        });
+      }
       if (!url.pathname.endsWith("/index.html")) {
         return new Response(null, {
           status: 302,
           headers: { location: `/collections/${colHandle}/index.html${url.search}` },
         });
       }
-      const targetFile = path.resolve(process.cwd(), "public", "collections", colHandle, "index.html");
-      if (!fs.existsSync(targetFile)) {
-        const templateFile = path.resolve(process.cwd(), "public", "collections", "all", "index.html");
-        if (fs.existsSync(templateFile)) {
-          const templateHtml = fs.readFileSync(templateFile, "utf-8");
-          return new Response(templateHtml, {
-            status: 200,
-            headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
-          });
-        }
-      }
+      const existing = await fetchStaticHtml(url, url.pathname);
+      if (existing) return existing;
+      const fallbackCol = await fetchStaticHtml(url, "/collections/unique-campaign/index.html");
+      if (fallbackCol) return fallbackCol;
     }
 
     // Clean VIP & Account route redirects

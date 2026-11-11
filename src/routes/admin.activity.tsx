@@ -26,7 +26,7 @@ function ActivityLog() {
         <input placeholder="Search item or field" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 300 }} />
         <select value={sec} onChange={(e) => setSec(e.target.value)} style={{ maxWidth: 180 }}>{sections.map((o) => <option key={o}>{o}</option>)}</select>
       </div>
-      <div className="adm-card" style={{ padding: 0, overflowX: "auto" }}>
+      <div className="adm-card adm-table-wrap" style={{ padding: 0 }}>
         <table>
           <thead><tr><th>When</th><th>Section</th><th>Action</th><th>Item</th><th>Changed fields</th><th>By</th></tr></thead>
           <tbody>

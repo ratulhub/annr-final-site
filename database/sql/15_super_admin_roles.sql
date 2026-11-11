@@ -3,9 +3,11 @@
 -- Run this in Supabase SQL Editor.
 --
 -- Features:
--- 1. Automatically recognizes 'arahimratul2004@gmail.com' (and any 'arahim' account) as Super Admin.
--- 2. Sets up triggers on auth.users so any sign-in/sign-up by arahim is automatically granted 'super_admin'.
--- 3. Gives arahim full authority to add other admins and manage staff roles (super_admin, admin, content_manager, etc.).
+-- 1. Strictly recognizes exact root owner 'arahimratul2004@gmail.com' as Super Admin
+--    (no wildcard email prefixes or substring matches that would allow privilege escalation).
+-- 2. Sets up a trigger on auth.users so exact owner email 'arahimratul2004@gmail.com'
+--    is automatically granted 'super_admin'.
+-- 3. Lets super_admin grant/revoke staff roles safely (preventing self-modification).
 -- 4. Provides RPC functions:
 --    - public.admin_assign_role(target_email text, role_name text)
 --    - public.admin_revoke_role(target_email text, role_name text)
@@ -73,19 +75,17 @@ select v.r::public.app_role, p from (values
 on conflict do nothing;
 
 -- Step 4: Root Super Admin identification function
--- Returns true if user has super_admin role OR is arahim / store owner
+-- Exact match only for owner email 'arahimratul2004@gmail.com' or explicit user_roles row.
 create or replace function public.is_super_admin()
 returns boolean language sql stable security definer set search_path = '' as $$
-  select exists (
-    select 1 from public.user_roles ur
-    where ur.user_id = auth.uid() and ur.role = 'super_admin'::public.app_role
-  ) or exists (
-    select 1 from auth.users u
-    where u.id = auth.uid() and (
-      lower(u.email) = 'arahimratul2004@gmail.com'
-      or lower(u.email) like 'arahim%'
-      or lower(u.email) like '%ratul123%'
-      or lower(u.email) like '%admin@annr.com'
+  select auth.uid() is not null and (
+    exists (
+      select 1 from public.user_roles ur
+      where ur.user_id = auth.uid() and ur.role = 'super_admin'::public.app_role
+    ) or exists (
+      select 1 from auth.users u
+      where u.id = auth.uid()
+        and lower(trim(u.email)) = 'arahimratul2004@gmail.com'
     )
   );
 $$;
@@ -96,37 +96,33 @@ grant execute on function public.is_super_admin() to authenticated, anon;
 -- Step 5: General permission checking function
 create or replace function public.has_permission(_perm text)
 returns boolean language sql stable security definer set search_path = '' as $$
-  select public.is_super_admin() or exists (
-    select 1 from public.user_roles ur
-    join public.role_permissions rp on rp.role = ur.role
-    where ur.user_id = auth.uid() and rp.permission = _perm
+  select auth.uid() is not null and (
+    public.is_super_admin() or exists (
+      select 1 from public.user_roles ur
+      join public.role_permissions rp on rp.role = ur.role
+      where ur.user_id = auth.uid() and rp.permission = _perm
+    )
   );
 $$;
 
 revoke all on function public.has_permission(text) from public;
 grant execute on function public.has_permission(text) to authenticated, anon;
 
--- Step 6: Immediate promotion of existing arahim / ratul accounts
+-- Step 6: Immediate promotion of exact root owner account 'arahimratul2004@gmail.com'
 insert into public.user_roles (user_id, role, granted_at)
 select id, 'super_admin'::public.app_role, now()
 from auth.users
-where (
-  lower(email) = 'arahimratul2004@gmail.com'
-  or lower(email) like 'arahim%'
-  or lower(email) like '%ratul123%'
-)
+where lower(trim(email)) = 'arahimratul2004@gmail.com'
 on conflict (user_id, role) do nothing;
 
--- Step 7: Automatic Trigger to promote arahim on signup/login in auth.users
+-- Step 7: Automatic Trigger to promote exact root owner on signup/email change
 create or replace function public.handle_auto_admin_assignment()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  if lower(new.email) = 'arahimratul2004@gmail.com'
-     or lower(new.email) like 'arahim%'
-     or lower(new.email) like '%ratul123%' then
+  if lower(trim(coalesce(new.email, ''))) = 'arahimratul2004@gmail.com' then
     insert into public.user_roles (user_id, role, granted_at)
     values (new.id, 'super_admin'::public.app_role, now())
-    on conflict (user_id, role) do update set role = 'super_admin'::public.app_role;
+    on conflict (user_id, role) do nothing;
   end if;
   return new;
 end;
@@ -144,17 +140,15 @@ create or replace function public.admin_assign_role(
 )
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
-  v_caller_is_admin boolean;
   v_target_id uuid;
   v_app_role public.app_role;
 begin
-  select public.is_super_admin() into v_caller_is_admin;
-  if not v_caller_is_admin then
+  if auth.uid() is null or not public.is_super_admin() then
     raise exception 'Unauthorized: Only a super_admin can assign staff roles' using errcode = '42501';
   end if;
 
   begin
-    v_app_role := _role::public.app_role;
+    v_app_role := trim(_role)::public.app_role;
   exception when others then
     raise exception 'Invalid role: %. Valid options: super_admin, admin, content_manager, product_manager, order_manager, marketing_manager, analytics_viewer, support_agent', _role;
   end;
@@ -169,6 +163,10 @@ begin
       'ok', false,
       'error', format('No user found with email "%s". The person must sign up or register an account first.', _target_email)
     );
+  end if;
+
+  if v_target_id = auth.uid() then
+    raise exception 'Cannot modify your own roles' using errcode = '42501';
   end if;
 
   insert into public.user_roles (user_id, role, granted_by, granted_at)
@@ -192,16 +190,14 @@ create or replace function public.admin_revoke_role(
 )
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
-  v_caller_is_admin boolean;
   v_target_id uuid;
   v_app_role public.app_role;
 begin
-  select public.is_super_admin() into v_caller_is_admin;
-  if not v_caller_is_admin then
+  if auth.uid() is null or not public.is_super_admin() then
     raise exception 'Unauthorized: Only a super_admin can revoke staff roles' using errcode = '42501';
   end if;
 
-  v_app_role := _role::public.app_role;
+  v_app_role := trim(_role)::public.app_role;
 
   -- Safety protection: Never revoke super_admin from root owner
   if lower(trim(_target_email)) = 'arahimratul2004@gmail.com' and v_app_role = 'super_admin' then
@@ -217,6 +213,10 @@ begin
     return jsonb_build_object('ok', false, 'error', format('User "%s" not found', _target_email));
   end if;
 
+  if v_target_id = auth.uid() then
+    raise exception 'Cannot modify your own roles' using errcode = '42501';
+  end if;
+
   delete from public.user_roles
   where user_id = v_target_id and role = v_app_role;
 
@@ -227,14 +227,20 @@ begin
 end;
 $$;
 
--- Step 10: Function to list all current staff members
+-- Step 10: Function to list all current staff members (strictly authorized for staff admins)
 create or replace function public.admin_list_staff()
 returns table (
   user_id uuid,
   email text,
   role public.app_role,
   granted_at timestamptz
-) language sql stable security definer set search_path = '' as $$
+) language plpgsql stable security definer set search_path = '' as $$
+begin
+  if auth.uid() is null or not (public.has_permission('users.manage') or public.is_super_admin()) then
+    raise exception 'Unauthorized: users.manage permission required' using errcode = '42501';
+  end if;
+
+  return query
   select
     u.id as user_id,
     u.email::text as email,
@@ -243,6 +249,7 @@ returns table (
   from public.user_roles ur
   join auth.users u on u.id = ur.user_id
   order by ur.granted_at desc;
+end;
 $$;
 
 revoke all on function public.admin_assign_role(text, text) from public, anon;
@@ -259,13 +266,13 @@ alter table public.user_roles enable row level security;
 drop policy if exists "user_roles_self_read" on public.user_roles;
 create policy "user_roles_self_read" on public.user_roles
   for select to authenticated
-  using (user_id = auth.uid() or public.is_super_admin());
+  using (user_id = auth.uid() or public.has_permission('users.manage') or public.is_super_admin());
 
 drop policy if exists "user_roles_super_admin_manage" on public.user_roles;
 create policy "user_roles_super_admin_manage" on public.user_roles
   for all to authenticated
   using (public.is_super_admin())
-  with check (public.is_super_admin());
+  with check (public.is_super_admin() and user_id <> auth.uid());
 
 -- Step 12: Catalog Permissions & 1-of-1 Columns Update
 alter table public.products add column if not exists care_instructions text;
@@ -281,13 +288,3 @@ create policy products_write_staff on public.products
   for all to authenticated
   using (public.has_permission('catalog.write') or public.is_super_admin())
   with check (public.has_permission('catalog.write') or public.is_super_admin());
-
--- Verification output
-select
-  u.email,
-  ur.role,
-  ur.granted_at
-from public.user_roles ur
-join auth.users u on u.id = ur.user_id;
-
-

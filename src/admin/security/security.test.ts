@@ -42,6 +42,11 @@ describe("Roles and permissions", () => {
   it("nobody can change their own role", () => expect(canAssignRole("super_admin", "u1", "u1")).toBe(false));
   it("only super_admin assigns roles", () => ROLES.filter((r) => r !== "super_admin").forEach((r) => expect(canAssignRole(r, "a", "b")).toBe(false)));
   it("security pages need security.read", () => expect(permissionForPath("/admin/security")).toBe("security.read"));
+  it("enforces permissions on categories, campaigns, and loyalty routes", () => {
+    expect(permissionForPath("/admin/categories")).toBe("catalog.read");
+    expect(permissionForPath("/admin/campaigns")).toBe("marketing.write");
+    expect(permissionForPath("/admin/loyalty")).toBe("marketing.write");
+  });
 });
 
 describe("Login lockout and session expiry", () => {
@@ -55,6 +60,11 @@ describe("Login lockout and session expiry", () => {
   const base: Session = { email: "a", role: "super_admin", startedAt: 0, lastSeen: 0, reauthAt: 0, id: "x" };
   it("expires after 30 min idle", () => expect(sessionValid(base, IDLE_MS)).toBe(false));
   it("expires after 8 h even if active", () => expect(sessionValid({ ...base, lastSeen: ABSOLUTE_MS - 1 }, ABSOLUTE_MS)).toBe(false));
+  it("rejects empty, future-dated, or invalid-role sessions", () => {
+    expect(sessionValid({}, 1000)).toBe(false);
+    expect(sessionValid({ email: "a@b.com", role: "root", startedAt: 0, lastSeen: 0 }, 1000)).toBe(false);
+    expect(sessionValid({ email: "a@b.com", role: "super_admin", startedAt: 500_000, lastSeen: 500_000 }, 1000)).toBe(false);
+  });
 });
 
 describe("Uploads", () => {

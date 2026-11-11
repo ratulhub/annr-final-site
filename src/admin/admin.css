@@ -32,19 +32,25 @@
   --red: #d72c0d;
 }
 
-/* Ensure the entire admin viewport scrolls naturally without trapped wheel/touch events */
-html, body {
+/* Ensure viewport scrolls smoothly while position:fixed sidebar stays anchored */
+html {
   height: auto !important;
   min-height: 100% !important;
   max-height: none !important;
-  overflow-y: auto !important;
+  overflow-y: visible !important;
   overflow-x: clip !important;
+}
+
+body {
+  height: auto !important;
+  min-height: 100% !important;
+  max-height: none !important;
+  overflow: visible !important;
   position: static !important;
-  -webkit-overflow-scrolling: touch !important;
 }
 
 body.disable-scroll, html.disable-scroll {
-  overflow-y: auto !important;
+  overflow-y: visible !important;
   height: auto !important;
 }
 
@@ -94,6 +100,7 @@ body.disable-scroll, html.disable-scroll {
   height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   flex-shrink: 0;
   border-right: 1px solid #2d2d2d;
   display: flex;
@@ -207,6 +214,7 @@ body.disable-scroll, html.disable-scroll {
   flex: 1 1 auto;
   min-width: 0;
   width: calc(100% - 240px);
+  max-width: calc(100% - 240px);
   margin-left: 240px;
   display: flex;
   flex-direction: column;
@@ -214,11 +222,12 @@ body.disable-scroll, html.disable-scroll {
   overflow-x: clip;
   overflow-y: visible;
   box-sizing: border-box;
-  transition: margin-left 0.22s cubic-bezier(0.16, 1, 0.3, 1), width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: margin-left 0.22s cubic-bezier(0.16, 1, 0.3, 1), width 0.22s cubic-bezier(0.16, 1, 0.3, 1), max-width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .adm.collapsed .adm-body {
   width: 100%;
+  max-width: 100%;
   margin-left: 0;
 }
 
@@ -251,6 +260,8 @@ body.disable-scroll, html.disable-scroll {
   color: var(--p-text-subdued);
   font-weight: 400;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .adm-crumbs a {
@@ -294,6 +305,9 @@ body.disable-scroll, html.disable-scroll {
   margin-bottom: 16px;
   background: #ffffff;
   box-shadow: 0 0 0 1px rgba(63, 63, 68, 0.05), 0 1px 3px 0 rgba(63, 63, 68, 0.15);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .adm-card > h2 {
@@ -321,6 +335,9 @@ body.disable-scroll, html.disable-scroll {
   background: #ffffff;
   box-shadow: 0 0 0 1px rgba(63, 63, 68, 0.05), 0 1px 3px 0 rgba(63, 63, 68, 0.15);
   transition: border-color 0.15s ease;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .adm-stat:hover {
@@ -361,6 +378,8 @@ body.disable-scroll, html.disable-scroll {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .adm-field > span {
@@ -655,11 +674,14 @@ body.disable-scroll, html.disable-scroll {
 
 /* Login screen */
 .adm-login {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   background: #1a1a1a;
   width: 100%;
+  padding: 20px 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .adm-login form {
@@ -667,10 +689,17 @@ body.disable-scroll, html.disable-scroll {
   padding: 36px 40px;
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  width: min(400px, 92vw);
+  width: min(400px, 100%);
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 420px) {
+  .adm-login form {
+    padding: 24px 18px;
+  }
 }
 
 .adm-err {
@@ -773,6 +802,8 @@ body.disable-scroll, html.disable-scroll {
   padding: 0;
   overflow: hidden;
   border: none;
+  transform: translateX(-100%);
+  pointer-events: none;
 }
 
 .adm-scrim {
@@ -974,10 +1005,24 @@ body.disable-scroll, html.disable-scroll {
   align-items: start;
 }
 
+.adm-two-col-wide {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 20px;
+  align-items: start;
+}
+
 .adm-media-layout {
   display: grid;
   grid-template-columns: 1fr 320px;
   gap: 16px;
+}
+
+.adm-prize-row {
+  display: grid;
+  grid-template-columns: 60px 1.5fr 1fr 100px;
+  gap: 12px;
+  align-items: center;
 }
 
 /* Media Query: Tablets & Mobile (< 800px) */
@@ -1005,6 +1050,7 @@ body.disable-scroll, html.disable-scroll {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
     background: #1a1a1a !important;
+    border-right: 1px solid #2d2d2d !important;
     box-shadow: none;
   }
 
@@ -1201,7 +1247,7 @@ body.disable-scroll, html.disable-scroll {
   }
 
   /* Two Column layouts stack on tablet/mobile */
-  .adm-events-layout, .adm-two-col, .adm-media-layout {
+  .adm-events-layout, .adm-two-col, .adm-two-col-wide, .adm-media-layout, .adm-prize-row {
     grid-template-columns: 1fr !important;
     gap: 14px;
   }

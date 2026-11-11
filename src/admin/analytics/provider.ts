@@ -28,7 +28,7 @@ export function buckets(f: Filters): string[] {
 const days = (f: Filters) => Math.max(1, Math.round((+new Date(f.end) - +new Date(f.start)) / 864e5) + 1);
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
 const r1 = (n: number) => Math.round(n * 10) / 10;
-const PAGES = ["/home.html", "/collections/all/index.html", "/collections/vault/index.html", "/products/aka-manto-longsleeve/index.html", "/products/divine-sanctum-tee/index.html", "/pages/faq/index.html", "/collections/hoodies/index.html", "/pages/shipping-policy/index.html", "/account/login/index.html", "/pages/return-policy/index.html"];
+const PAGES = ["/home.html", "/collections/unique-campaign/index.html", "/collections/all/index.html", "/products/annr-archival-001/index.html", "/collections/hoodies/index.html", "/collections/jackets/index.html", "/collections/trousers/index.html", "/pages/faq/index.html", "/pages/shipping-policy/index.html", "/account/login/index.html"];
 const CHANNELS = ["Direct", "Organic search", "Social", "Referral", "Email", "Paid"];
 const DEVICES = ["Mobile", "Desktop", "Tablet"];
 const BROWSERS = ["Chrome", "Safari", "Samsung Internet", "Firefox", "Edge"];
@@ -80,7 +80,7 @@ function demoReport(id: string, f: Filters): Report {
       trend: { title: "Sessions by channel", series: CHANNELS.slice(0, 3).map((c) => line(c, 40 + R() * 40)) },
       bars: [{ title: "Channel share", items: split(CHANNELS, S) }],
       tables: [
-        { title: "Campaigns (UTM)", columns: ["Source", "Medium", "Campaign", "Sessions"], rows: [["instagram", "social", "orbit-drop", Math.round(S * 0.08)], ["newsletter", "email", "vault-restock", Math.round(S * 0.04)], ["facebook", "paid", "eid-sale", Math.round(S * 0.03)]] },
+        { title: "Campaigns (UTM)", columns: ["Source", "Medium", "Campaign", "Sessions"], rows: [["instagram", "social", "unique-campaign", Math.round(S * 0.08)], ["newsletter", "email", "archival-drop", Math.round(S * 0.04)], ["facebook", "paid", "unique-pieces", Math.round(S * 0.03)]] },
         { title: "Referring domains", columns: ["Domain", "Sessions"], rows: split(["instagram.com", "facebook.com", "tiktok.com", "google.com", "discord.com"], Math.round(S * 0.4)).map((p) => [p.label, p.value]) },
       ],
       note: "Search queries and ad-platform data need Search Console / ad accounts connected.",
@@ -117,7 +117,7 @@ function demoReport(id: string, f: Filters): Report {
     case "ecommerce": { const orders = Math.round(S * 0.012); const aov = 9800; return {
       cards: [{ label: "Orders", value: orders, help: "Completed checkouts." }, { label: "Gross revenue", value: orders * aov, unit: "৳", help: "Before refunds." }, { label: "Refunds", value: Math.round(orders * 0.03) * aov, unit: "৳", lowerIsBetter: true, help: "Refunded value." }, { label: "Avg. order value", value: aov, unit: "৳", help: "Revenue ÷ orders." }, { label: "Conversion rate", value: r1((orders / S) * 100), unit: "%", help: "Orders ÷ sessions." }],
       trend: { title: "Orders", series: [line("Orders", 1.8)] },
-      tables: [{ title: "Products", columns: ["Product", "Views", "Add to cart", "Orders"], rows: ["Aka Manto Longsleeve", "Divine Sanctum Tee", "Blue Moon Long Sleeve", "Hound of Hades Tee"].map((p) => [p, Math.round(PV * 0.04), Math.round(S * 0.01), Math.round(orders * 0.15)]) },
+      tables: [{ title: "Products", columns: ["Product", "Views", "Add to cart", "Orders"], rows: ["Archival Heavyweight Hoodie 001 (ANNR-001)"].map((p) => [p, Math.round(PV * 0.08), Math.round(S * 0.02), Math.max(1, Math.round(orders * 0.4))]) },
         { title: "Coupons", columns: ["Code", "Uses", "Discount ৳"], rows: [["WELCOME10", Math.round(orders * 0.1), Math.round(orders * 0.1 * 980)]] }],
       note: "Real orders live in Shopify. Connect it through a backend to replace these numbers.",
     }; }

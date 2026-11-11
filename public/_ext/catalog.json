@@ -7,12 +7,16 @@
       "description": "One-of-one archival cut-and-sew piece. Handcrafted from 480 GSM Japanese French Terry with bespoke distressing and custom hardware. Exactly one garment in existence worldwide. Once acquired, this piece is permanently archived.",
       "price": "9,800.00",
       "currency": "BDT",
-      "image": "/cdn/shop/files/AkaMantoLongsleeveFront_1080x.png",
+      "image": "/_ext/annr-template-001.png",
+      "image2": "",
       "category": "hoodies",
+      "campaign": "unique-campaign",
       "type": "Hoodie",
       "sizes": ["L"],
       "showSize": true,
       "measurementUnit": "in",
+      "stock": 1,
+      "isOneOfOne": true,
       "measurements": {
         "chest": 24.5,
         "length": 29,
@@ -22,71 +26,41 @@
     }
   ],
   "collections": [
-    {
-      "handle": "unique-campaign",
-      "title": "Unique Campaign"
-    },
-    {
-      "handle": "all",
-      "title": "All Pieces"
-    },
-    {
-      "handle": "hoodies",
-      "title": "Hoodies"
-    },
-    {
-      "handle": "sweatshirts",
-      "title": "Sweatshirts"
-    },
-    {
-      "handle": "trousers",
-      "title": "Trousers"
-    },
-    {
-      "handle": "sweaters",
-      "title": "Sweaters"
-    },
-    {
-      "handle": "t-shirts",
-      "title": "T-Shirts"
-    },
-    {
-      "handle": "jackets",
-      "title": "Jackets"
-    },
-    {
-      "handle": "knitwear",
-      "title": "Knitwear"
-    },
-    {
-      "handle": "accessories",
-      "title": "Accessories"
-    }
+    { "handle": "unique-campaign", "title": "Unique Campaign" },
+    { "handle": "all", "title": "All Pieces" },
+    { "handle": "hoodies", "title": "Hoodies" },
+    { "handle": "sweatshirts", "title": "Sweatshirts" },
+    { "handle": "trousers", "title": "Trousers" },
+    { "handle": "sweaters", "title": "Sweaters" },
+    { "handle": "t-shirts", "title": "T-Shirts" },
+    { "handle": "jackets", "title": "Jackets" },
+    { "handle": "knitwear", "title": "Knitwear" },
+    { "handle": "accessories", "title": "Accessories" }
   ],
   "pages": [
     {
       "handle": "faq",
       "title": "FAQ",
-      "description": "",
-      "image": "https://shihiko.com/cdn/shop/files/DiscordBanner.png?v=1710539281"
+      "description": "Frequently asked questions about AnnR Unique Campaign 1-of-1 archival garments.",
+      "image": ""
     },
     {
       "handle": "legal-privacy",
       "title": "Legal & Privacy",
-      "description": "AnnR.com | Legal &amp; Privacy DMCA POLICY When a person creates an original work that is fixed in a physical medium, that person automatically owns copyright to the work. Copyright ownership gives the owner the exclusive right to use the work in certain, specific ways. Many types of works are eligible for copyright",
-      "image": "https://shihiko.com/cdn/shop/files/DiscordBanner.png?v=1710539281"
+      "description": "AnnR | Legal & Privacy policy.",
+      "image": ""
     },
     {
       "handle": "return-policy",
       "title": "Return Policy",
-      "description": "AnnR.com By placing an order, you have confirmed that you have read, understood, and accepted the following policies. As of November 2024, AnnR has partnered with Loop Returns to offer fast and simple returns or exchanges for purchases shipped within the United States only.  Customers located in the United States",
-      "image": "https://shihiko.com/cdn/shop/files/DiscordBanner.png?v=1710539281"
+      "description": "AnnR | Return Policy for archival one-of-one garments.",
+      "image": ""
     },
     {
       "handle": "shipping-policy",
       "title": "Shipping Policy",
-      "description": "AnnR.com At AnnR, we strive to provide our customers with the best possible service, including fast and reliable shipping. All shipments are sent via USPS, UPS, DHL, FedEx, or Yun Express. In some cases, final mile delivery may be handled by a different carrier depending on your shipping destination. Orders are s",
-      "image": "https://shihiko.com/cdn/shop/files/DiscordBanner.png?v=1710539281"
+      "description": "AnnR | Domestic & International Shipping Policy.",
+      "image": ""
     }
   ]
 }

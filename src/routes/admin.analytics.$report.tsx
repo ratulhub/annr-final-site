@@ -88,10 +88,10 @@ function StandardReport({ id, f, src }: { id: string; f: Filters; src: Source })
       {empty && <Card title="No data"><p>{src === "local" ? "No events recorded in this browser for this report yet. Browse the store, then come back." : "This report has no data for these filters."}</p></Card>}
       {d.cards.length > 0 && <div className="adm-stats">{d.cards.map((c) => <MetricCard key={c.label} c={c} onOpen={c.report ? () => nav({ to: "/admin/analytics/$report", params: { report: c.report! } }) : undefined} />)}</div>}
       {d.trend && <Card title={d.trend.title}><LineChart series={d.trend.series} /></Card>}
-      {d.bars && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>{d.bars.map((b) => <Card key={b.title} title={b.title}><BarList items={b.items} unit={b.unit} /></Card>)}</div>}
+      {d.bars && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))", gap: 18 }}>{d.bars.map((b) => <Card key={b.title} title={b.title}><BarList items={b.items} unit={b.unit} /></Card>)}</div>}
       {d.tables.map((t) => <DataTable key={t.title} t={t} onRowClick={id === "content" || id === "overview" ? (r) => { const page = String(r[0]); if (page.startsWith("/pages/")) nav({ to: "/admin/pages" }); else if (page.startsWith("/products/")) nav({ to: "/admin/products/$handle", params: { handle: page.split("/")[2]! } }); else nav({ to: "/admin/sections" }); } : undefined} />)}
       {(id === "content" || id === "overview") && <p className="adm-hint">Click a page row to open its editor. Numbers show what happened, not why.</p>}
-      {id === "acquisition" && <Card title="Campaign tracking (UTM)"><p>Add these to links you share so visits are grouped by campaign:</p><code>?utm_source=instagram&amp;utm_medium=social&amp;utm_campaign=orbit-drop</code><p className="adm-hint">The store already records the utm_ values in local page_view events.</p></Card>}
+      {id === "acquisition" && <Card title="Campaign tracking (UTM)"><p>Add these to links you share so visits are grouped by campaign:</p><code>?utm_source=instagram&amp;utm_medium=social&amp;utm_campaign=unique-campaign</code><p className="adm-hint">The store already records the utm_ values in local page_view events.</p></Card>}
       {id === "events" && <EventSchema src={src} f={f} />}
       {id === "performance" && <Thresholds />}
       {id === "visitors" && <Card title="Cohorts & retention"><p style={{ marginTop: 0 }}>Unavailable: retention needs a connected analytics provider that recognises returning visitors across days. Country breakdowns also need a provider with reliable location data.</p></Card>}
@@ -124,7 +124,7 @@ function Funnels({ f, src }: { f: Filters; src: Source }) {
         <select value={s} onChange={(e) => save(steps.map((x, j) => (j === i ? (e.target.value as EventName) : x)))} style={{ width: 220 }}>{EVENT_NAMES.map((n) => <option key={n}>{n}</option>)}</select>
         <button className="adm-btn danger sm" disabled={steps.length <= 2} onClick={() => save(steps.filter((_, j) => j !== i))}>✕</button></div>)}
       <button className="adm-btn ghost sm" disabled={steps.length >= 6} onClick={() => save([...steps, "form_submit"])}>+ Add step</button>
-      <p className="adm-hint">Checkout happens on the live Shopify store, so purchase is not tracked here; the deepest step is add_to_cart.</p>
+      <p className="adm-hint">Checkout happens natively at /checkout with Supabase order verification, where purchase completion is recorded.</p>
     </Card>
     <div className="adm-stats"><MetricCard c={{ label: "Entered", value: res[0]?.count ?? null, help: src === "local" ? "Sessions in this browser" : "Sample sessions" }} /><MetricCard c={{ label: "Completed", value: res[res.length - 1]?.count ?? null, help: "Reached the last step" }} /><MetricCard c={{ label: "Overall conversion", value: overall, unit: "%", help: "Completed ÷ entered" }} /></div>
     <Card title="Funnel"><Funnel steps={res} /></Card>
@@ -178,8 +178,8 @@ function Reports({ f, src, update }: { f: Filters; src: Source; update: (p: Part
     <Card title="Saved filters">
       <div className="adm-row"><input placeholder="Name, e.g. Mobile last 7 days" value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: 280 }} />
         <button className="adm-btn" disabled={!name.trim()} onClick={() => { const l = [...saved.filter((s) => s.name !== name), { name, filters: f }]; savePresets(l); setSaved(l); setName(""); }}>Save current filters</button></div>
-      {saved.length ? <table style={{ marginTop: 10 }}><tbody>{saved.map((s) => <tr key={s.name}><td>{s.name}</td><td>{s.filters.start} → {s.filters.end} · {s.filters.device}</td>
-        <td><button className="adm-btn ghost sm" onClick={() => update(s.filters)}>Apply</button> <button className="adm-btn danger sm" onClick={() => { const l = saved.filter((x) => x.name !== s.name); savePresets(l); setSaved(l); }}>✕</button></td></tr>)}</tbody></table> : <p>No saved filters.</p>}
+      {saved.length ? <div className="adm-table-wrap" style={{ marginTop: 10 }}><table><tbody>{saved.map((s) => <tr key={s.name}><td>{s.name}</td><td>{s.filters.start} → {s.filters.end} · {s.filters.device}</td>
+        <td><button className="adm-btn ghost sm" onClick={() => update(s.filters)}>Apply</button> <button className="adm-btn danger sm" onClick={() => { const l = saved.filter((x) => x.name !== s.name); savePresets(l); setSaved(l); }}>✕</button></td></tr>)}</tbody></table></div> : <p>No saved filters.</p>}
     </Card>
     <Card title="Export"><button className="adm-btn" onClick={exportAll}>Download all report metrics (CSV)</button>
       <p className="adm-hint">Scheduled email reports are a future integration and are not set up.</p></Card>
@@ -189,7 +189,7 @@ function Reports({ f, src, update }: { f: Filters; src: Source; update: (p: Part
 function Settings({ src, setSource }: { src: Source; setSource: (s: Source) => void }) {
   const [n, setN] = useState(0);
   useEffect(() => setN(readEvents().length), []);
-  const providers = [["Google Analytics 4 / Plausible", "Visitors, traffic, events"], ["Google Search Console", "Search clicks, queries"], ["PageSpeed Insights / RUM", "Performance"], ["Sentry or similar", "Errors"], ["Shopify", "Orders & revenue"]];
+  const providers = [["Google Analytics 4 / Plausible", "Visitors, traffic, events"], ["Google Search Console", "Search clicks, queries"], ["PageSpeed Insights / RUM", "Performance"], ["Sentry or similar", "Errors"], ["Supabase", "Orders & revenue"]];
   return <>
     <Card title="Data source">
       <div className="adm-row"><label className="adm-check"><input type="radio" checked={src === "demo"} onChange={() => setSource("demo")} />Demo data (sample numbers)</label>
@@ -198,7 +198,7 @@ function Settings({ src, setSource }: { src: Source; setSource: (s: Source) => v
       <button className="adm-btn danger sm" onClick={() => { if (confirm("Delete all locally recorded events?")) { localStorage.removeItem(EVENTS_KEY); setN(0); } }}>Clear local events</button>
     </Card>
     <Card title="Providers">
-      <table><thead><tr><th>Provider</th><th>Used for</th><th>Status</th></tr></thead><tbody>{providers.map(([p, u]) => <tr key={p}><td>{p}</td><td>{u}</td><td><span className="adm-tag">Not connected</span></td></tr>)}</tbody></table>
+      <div className="adm-table-wrap"><table><thead><tr><th>Provider</th><th>Used for</th><th>Status</th></tr></thead><tbody>{providers.map(([p, u]) => <tr key={p}><td>{p}</td><td>{u}</td><td><span className="adm-tag">Not connected</span></td></tr>)}</tbody></table></div>
       <p className="adm-hint">Connecting needs a backend so keys stay private. No keys are stored in the browser.</p>
     </Card>
   </>;
@@ -212,9 +212,9 @@ function Thresholds() {
   const set = (i: number, j: 2 | 3, v: string) => { const n = Number(v); if (!(n >= 0)) return; const r = rows.map((x, k) => (k === i ? ([...x] as typeof x) : x)); r[i]![j] = n; setRows(r); localStorage.setItem(TH_KEY, JSON.stringify(r)); };
   const bad = rows.some((r) => r[2] >= r[3]);
   return <Card title="Alert thresholds (defaults from web.dev Core Web Vitals)" action={<button className="adm-btn ghost sm" onClick={() => { setRows(TH_DEFAULT); localStorage.removeItem(TH_KEY); }}>Reset</button>}>
-    <table><thead><tr><th>Metric</th><th>Good up to</th><th>Poor above</th><th>Unit</th></tr></thead><tbody>
+    <div className="adm-table-wrap"><table><thead><tr><th>Metric</th><th>Good up to</th><th>Poor above</th><th>Unit</th></tr></thead><tbody>
       {rows.map((r, i) => <tr key={r[0]}><td>{r[0]}</td><td><input type="number" step="any" min={0} value={r[2]} onChange={(e) => set(i, 2, e.target.value)} style={{ width: 90 }} /></td><td><input type="number" step="any" min={0} value={r[3]} onChange={(e) => set(i, 3, e.target.value)} style={{ width: 90 }} /></td><td>{r[1] || "score"}</td></tr>)}
-    </tbody></table>
+    </tbody></table></div>
     {bad && <div className="adm-err">"Good up to" must be lower than "Poor above".</div>}
     <p className="adm-hint">Values between the two are "needs improvement". No Lighthouse or PageSpeed test has been run; local mode shows real measurements from your own browser only.</p>
   </Card>;
@@ -243,7 +243,7 @@ function LinkChecker() {
       <button className="adm-btn" disabled={!!state?.running || !page.startsWith("/")} onClick={run}>{state?.running ? `Checking ${state.done}/${state.total}…` : "Check links"}</button></div>
     {state?.error && <div className="adm-err">Could not load that page: {state.error}</div>}
     {state && !state.running && !state.error && (state.broken.length
-      ? <table><thead><tr><th>Link</th><th>Status</th></tr></thead><tbody>{state.broken.map((b) => <tr key={b.url}><td>{b.url}</td><td>{b.status}</td></tr>)}</tbody></table>
+      ? <div className="adm-table-wrap"><table><thead><tr><th>Link</th><th>Status</th></tr></thead><tbody>{state.broken.map((b) => <tr key={b.url}><td>{b.url}</td><td>{b.status}</td></tr>)}</tbody></table></div>
       : <p>All {state.total} internal links on this page answered OK.</p>)}
     <p className="adm-hint">Checks links inside this website only (up to 200 per page), from your browser, when you press the button.</p>
   </Card>;

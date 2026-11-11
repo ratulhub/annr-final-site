@@ -100,7 +100,7 @@ export type SiteConfig = {
   seo: { titlePattern: string; homeTitle: string; defaultDescription: string; ogImage: string; canonicalBase: string; noindex: boolean; robots: string; structuredData: boolean };
   social: { instagram: string; facebook: string; tiktok: string; discord: string; youtube: string; x: string };
   technical: { maintenance: boolean; maintenanceTitle: string; maintenanceText: string; pageTransition: boolean; cartDrawer: boolean; productLabels: boolean; notFoundTitle: string; notFoundText: string; customCss: string };
-  integrations: { id: string; name: string; kind: string; status: "not connected"; note: string }[];
+  integrations: { id: string; name: string; kind: string; status: "connected" | "not connected"; note: string }[];
   hiddenPages: string[];
   customPages: CustomPage[];
   events: CampaignEvent[];

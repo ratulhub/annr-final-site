@@ -2,12 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAdmin } from "../admin/store";
 import { dataSource } from "../admin/services/dataSource";
+import { readEvents } from "../admin/analytics/provider";
+import { isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/")({ component: Dashboard });
 
-// Demo analytics visits
-const DEMO_VISITS = [42, 58, 51, 73, 66, 88, 79];
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const CARDS_KEY = "shihiko-dashboard-cards";
 type CardCfg = { order: string[]; hidden: string[] };
 
@@ -19,7 +19,7 @@ function Dashboard() {
   // Compute key metrics
   const activeProducts = s.products.filter((p) => p.status === "active").length;
   const stock = s.products.reduce((n, p) => n + p.variants.reduce((m, v) => m + (Number(v.stock) || 0), 0), 0);
-  const low = s.products.filter((p) => p.variants.some((v) => v.stock <= 2));
+  const low = s.products.filter((p) => p.status !== "sold" && p.isOneOfOne === false && p.variants.some((v) => v.stock <= 2));
   const vipCount = s.customers.filter((c) => c.tier === "Silver" || c.tier === "Gold" || (c.tags && c.tags.includes("vip"))).length;
   
   // Calculate total order revenue in BDT
@@ -34,8 +34,8 @@ function Dashboard() {
   const stats: { k: string; v: string | number; sub: string; to: string; chip?: { text: string; tone: "active" | "info" | "warning" | "purple" } }[] = [
     { k: "1-of-1 Archival pieces", v: `${s.products.length} pieces`, sub: `${activeProducts} available · ${s.products.filter(p => p.status === "sold").length} sold`, to: "/admin/products", chip: { text: "Archive", tone: "active" } },
     { k: "Unique Campaign & Drops", v: `${s.campaigns?.length || 1} drops`, sub: `${s.categories?.length || 8} active categories`, to: "/admin/campaigns", chip: { text: "Active", tone: "purple" } },
-    { k: "Total revenue", v: `৳${totalRevenue}`, sub: `${s.orders.length} orders placed`, to: "/admin/orders", chip: { text: "+14.8%", tone: "active" } },
-    { k: "Total customers", v: s.customers.length, sub: `${vipCount} VIP members`, to: "/admin/customers", chip: { text: "Growing", tone: "info" } },
+    { k: "Total revenue", v: `৳${totalRevenue}`, sub: `${s.orders.length} orders placed`, to: "/admin/orders", chip: { text: s.orders.length ? `${s.orders.length} total` : "Live", tone: "active" } },
+    { k: "Total customers", v: s.customers.length, sub: `${vipCount} VIP members`, to: "/admin/customers", chip: { text: `${vipCount} VIP`, tone: "info" } },
     { k: "Security status", v: "Verified", sub: "OWASP ASVS & RLS ready", to: "/admin/security", chip: { text: "Passing", tone: "active" } },
     { k: "Custom pages", v: s.site.customPages.length, sub: `${s.site.hiddenPages.length} hidden`, to: "/admin/website", chip: { text: "Configured", tone: "info" } },
   ];
@@ -89,7 +89,17 @@ function Dashboard() {
     return true;
   });
 
-  const max = Math.max(...DEMO_VISITS);
+  const pageViewEvents = readEvents().filter((e) => e.name === "page_view");
+  const visitSeries = Array.from({ length: 7 }, (_, idx) => {
+    const d = new Date(Date.now() - (6 - idx) * 86400000);
+    const iso = d.toISOString().slice(0, 10);
+    const count = pageViewEvents.filter((ev) => String(ev.at || "").startsWith(iso)).length;
+    return { day: DAY_NAMES[d.getDay()] || "Day", count };
+  });
+  const totalSessions = visitSeries.reduce((sum, item) => sum + item.count, 0);
+  const avgSessions = Math.round(totalSessions / 7);
+  const peakDay = visitSeries.reduce((best, cur) => (cur.count > best.count ? cur : best), visitSeries[0]!);
+  const max = Math.max(1, ...visitSeries.map((v) => v.count));
 
   return (
     <>
@@ -242,15 +252,19 @@ function Dashboard() {
             </Link>
           </div>
           <div className="adm-bars" style={{ marginTop: 16, marginBottom: 24 }}>
-            {DEMO_VISITS.map((v, i) => (
-              <div key={i} style={{ height: `${(v / max) * 100}%` }} title={`${DAYS[i]}: ${v} visitors`}>
-                <span>{DAYS[i]}</span>
+            {visitSeries.map((v, i) => (
+              <div
+                key={i}
+                style={{ height: `${Math.max(4, Math.round((v.count / max) * 100))}%` }}
+                title={`${v.day}: ${v.count} sessions`}
+              >
+                <span>{v.day}</span>
               </div>
             ))}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "var(--p-text-subdued)" }}>
-            <span>Weekly average: <b>65 sessions/day</b></span>
-            <span>Peak: <b>Saturday ({max})</b></span>
+            <span>Weekly average: <b>{avgSessions} sessions/day</b></span>
+            <span>Peak: <b>{peakDay.count > 0 ? `${peakDay.day} (${peakDay.count})` : "No data yet"}</b></span>
           </div>
         </section>
 
@@ -271,7 +285,9 @@ function Dashboard() {
           </div>
           <div className="adm-status">
             <span>Supabase database</span>
-            <span className="adm-tag active">8 migrations ready</span>
+            <span className={`adm-tag ${isSupabaseConfigured() ? "active" : "draft"}`}>
+              {isSupabaseConfigured() ? "Connected" : "Local draft mode"}
+            </span>
           </div>
           <div className="adm-status">
             <span>Maintenance mode</span>
@@ -325,7 +341,7 @@ function Dashboard() {
           </Link>
         </div>
 
-        <div style={{ overflowX: "auto" }}>
+        <div className="adm-table-wrap">
           <table>
             <thead>
               <tr>
@@ -386,7 +402,7 @@ function Dashboard() {
           </Link>
         </div>
         {s.activity.length ? (
-          <div style={{ overflowX: "auto" }}>
+          <div className="adm-table-wrap">
             <table>
               <thead>
                 <tr>
