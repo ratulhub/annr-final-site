@@ -325,43 +325,53 @@ function Dashboard() {
           </Link>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Date</th>
-              <th>Customer</th>
-              <th>Items</th>
-              <th>Total</th>
-              <th>Payment status</th>
-              <th>Fulfillment status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredOrders.slice(-6).reverse().map((o) => (
-              <tr key={o.id}>
-                <td><b>{o.id}</b></td>
-                <td>{o.date}</td>
-                <td>
-                  <div style={{ fontWeight: 500 }}>{o.customer}</div>
-                  <div style={{ fontSize: 12, color: "var(--p-text-subdued)" }}>{o.email}</div>
-                </td>
-                <td>{o.items}</td>
-                <td>৳{o.total}</td>
-                <td>
-                  <span className={`adm-tag ${o.payment.toLowerCase() === "paid" ? "paid" : "pending"}`}>
-                    {o.payment}
-                  </span>
-                </td>
-                <td>
-                  <span className={`adm-tag ${o.status.toLowerCase() === "fulfilled" ? "active" : "unfulfilled"}`}>
-                    {o.status}
-                  </span>
-                </td>
+        <div style={{ overflowX: "auto" }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Payment status</th>
+                <th>Fulfillment status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "28px 16px", color: "var(--p-text-subdued)" }}>
+                    No orders placed yet. Orders created via the storefront checkout will appear here in real time.
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.slice(-6).reverse().map((o) => (
+                  <tr key={o.id}>
+                    <td><b>{o.id}</b></td>
+                    <td>{o.date}</td>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{o.customer}</div>
+                      <div style={{ fontSize: 12, color: "var(--p-text-subdued)" }}>{o.email}</div>
+                    </td>
+                    <td>{o.items}</td>
+                    <td>৳{o.total}</td>
+                    <td>
+                      <span className={`adm-tag ${o.payment.toLowerCase() === "paid" ? "paid" : "pending"}`}>
+                        {o.payment}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`adm-tag ${o.status.toLowerCase() === "fulfilled" ? "active" : "unfulfilled"}`}>
+                        {o.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* Recent Activity Log */}
@@ -376,37 +386,39 @@ function Dashboard() {
           </Link>
         </div>
         {s.activity.length ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Date & Time</th>
-                <th>Section</th>
-                <th>Action</th>
-                <th>Target Item</th>
-                <th>Staff</th>
-              </tr>
-            </thead>
-            <tbody>
-              {s.activity.slice(0, 5).map((a) => (
-                <tr key={a.id}>
-                  <td style={{ fontSize: 12.5, color: "var(--p-text-subdued)" }}>{new Date(a.at).toLocaleString()}</td>
-                  <td>
-                    <span className="adm-tag">{a.section}</span>
-                  </td>
-                  <td>
-                    <span className={`adm-tag ${a.action === "added" ? "active" : a.action === "deleted" ? "danger" : "warning"}`}>
-                      {a.action}
-                    </span>
-                  </td>
-                  <td><b>{a.item}</b> {a.fields && <small style={{ color: "var(--p-text-subdued)" }}>({a.fields})</small>}</td>
-                  <td style={{ fontSize: 12.5 }}>{a.by}</td>
+          <div style={{ overflowX: "auto" }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Section</th>
+                  <th>Action</th>
+                  <th>Target Item</th>
+                  <th>Staff</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {s.activity.slice(0, 5).map((a) => (
+                  <tr key={a.id}>
+                    <td style={{ fontSize: 12.5, color: "var(--p-text-subdued)" }}>{new Date(a.at).toLocaleString()}</td>
+                    <td>
+                      <span className="adm-tag">{a.section}</span>
+                    </td>
+                    <td>
+                      <span className={`adm-tag ${a.action === "added" ? "active" : a.action === "deleted" ? "danger" : "warning"}`}>
+                        {a.action}
+                      </span>
+                    </td>
+                    <td><b>{a.item}</b> {a.fields && <small style={{ color: "var(--p-text-subdued)" }}>({a.fields})</small>}</td>
+                    <td style={{ fontSize: 12.5 }}>{a.by}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
-          <p style={{ color: "var(--p-text-subdued)", margin: "10px 0" }}>
-            No recent changes yet. Modifying products, pages, or campaigns will log activities here.
+          <p style={{ color: "var(--p-text-subdued)", margin: "14px 0", textAlign: "center", padding: "18px 0" }}>
+            No recent audit changes recorded yet. Admin operations, edits, and updates will be logged here.
           </p>
         )}
       </section>

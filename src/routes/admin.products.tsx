@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { publish, setState, uid, useAdmin, type Product } from "../admin/store";
+import { publish, setState, uid, useAdmin, wipeAllDemoData, type Product } from "../admin/store";
 import { BackBtn } from "../admin/ui";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
@@ -217,10 +217,23 @@ function Products() {
             </p>
           </div>
         </div>
-        <div className="adm-row" style={{ gap: 8 }}>
+        <div className="adm-row" style={{ gap: 8, flexWrap: "wrap" }}>
           {syncMsg && (
             <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>{syncMsg}</span>
           )}
+          <button
+            type="button"
+            className="adm-btn ghost"
+            onClick={() => {
+              if (window.confirm("Are you sure you want to wipe all demo products and orders? This leaves 1 clean template product so you can add your real products.")) {
+                wipeAllDemoData();
+              }
+            }}
+            title="Clean out all demo items and keep 1 clean template product"
+            style={{ color: "#d97706" }}
+          >
+            🧹 Wipe Demo (Keep 1 Template)
+          </button>
           <button
             type="button"
             className="adm-btn ghost"

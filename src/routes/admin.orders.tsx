@@ -150,7 +150,22 @@ function Orders() {
             <p className="adm-hint" style={{ margin: "2px 0 0" }}>Manage customer purchases, fulfillment, and revenue</p>
           </div>
         </div>
-        <div className="adm-row">
+        <div className="adm-row" style={{ gap: 8 }}>
+          {s.orders.length > 0 && (
+            <button
+              type="button"
+              className="adm-btn ghost"
+              onClick={() => {
+                if (window.confirm("Are you sure you want to clear all orders?")) {
+                  setState((x) => ({ ...x, orders: [] }));
+                  try { localStorage.removeItem("annr-orders"); } catch {}
+                }
+              }}
+              style={{ color: "#d97706" }}
+            >
+              Clear All Orders
+            </button>
+          )}
           <button className="adm-btn ghost" onClick={exportCSV} title="Export orders as CSV spreadsheet">
             {downloadSuccess ? "CSV exported" : "Export CSV"}
           </button>

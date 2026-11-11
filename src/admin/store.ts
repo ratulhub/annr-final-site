@@ -102,47 +102,53 @@ export type Activity = { id: string; at: string; section: string; action: "added
 const KEY = "shihiko-admin-v1";
 export const uid = () => Math.random().toString(36).slice(2, 9);
 
-function seed(): State {
-  const sizes = ["S", "M", "L", "XL"];
-  return {
-    products: catalog.products.map((p: any) => ({
-      handle: p.handle,
-      code: p.code || `ANNR-${p.handle.toUpperCase()}`,
-      title: p.title,
-      description: p.description,
-      price: p.price,
-      compareAt: "",
-      currency: p.currency,
-      status: "active" as const,
-      vendor: "AnnR",
-      type: p.type || "",
-      category: p.category || "hoodies",
-      campaign: "unique-campaign",
-      tags: "",
-      images: p.image ? [p.image] : [],
-      variants: (p.sizes && p.sizes.length ? p.sizes : sizes).map((s: string) => ({
-        id: uid(),
-        option: s,
-        sku: `${p.handle}-${s}`.toUpperCase(),
-        price: p.price,
-        stock: 1,
-      })),
-      collections: [],
-      seoTitle: p.title,
-      seoDescription: p.description,
-      weight: "0.5",
-      badge: "1 OF 1",
-      featured: false,
-      trackStock: true,
-      allowBackorder: false,
-      sizeChart: "",
-      isOneOfOne: true,
-      size: "M",
-      measurements: { chest: 60, length: 72, shoulder: 50, sleeve: 62 },
-      fabric: "480 GSM French Terry",
-      condition: "10/10 Archival Deadstock",
+export const TEMPLATE_PRODUCT: Product = {
+  handle: "annr-archival-001",
+  code: "ANNR-001",
+  title: "Archival Heavyweight Hoodie 001",
+  description: "One-of-one archival cut-and-sew piece. Handcrafted from 480 GSM Japanese French Terry with bespoke distressing and custom hardware. Exactly one garment in existence worldwide. Once acquired, this piece is permanently archived.",
+  price: "9,800.00",
+  compareAt: "12,500.00",
+  currency: "BDT",
+  status: "active",
+  vendor: "AnnR",
+  type: "Hoodie",
+  category: "hoodies",
+  campaign: "unique-campaign",
+  tags: "unique, 1-of-1, archival, heavyweight",
+  images: [
+    "/cdn/shop/files/AkaMantoLongsleeveFront_1080x.png"
+  ],
+  variants: [
+    {
+      id: "var-001",
+      option: "L",
+      sku: "ANNR-001-L",
+      price: "9,800.00",
       stock: 1,
-    })),
+    }
+  ],
+  collections: ["unique-campaign", "all", "hoodies"],
+  seoTitle: "Archival Heavyweight Hoodie 001 — AnnR 1-of-1",
+  seoDescription: "One-of-one archival piece. Handcrafted in Dhaka. Exactly one piece available worldwide.",
+  weight: "0.8",
+  badge: "1 OF 1",
+  featured: true,
+  trackStock: true,
+  allowBackorder: false,
+  sizeChart: "",
+  isOneOfOne: true,
+  size: "L",
+  measurements: { chest: 62, length: 74, shoulder: 52, sleeve: 64 },
+  fabric: "480 GSM Custom Heavyweight French Terry",
+  condition: "10/10 Archival Deadstock",
+  careInstructions: "Dry Clean or Cold Hand Wash Only",
+  stock: 1,
+};
+
+function seed(): State {
+  return {
+    products: [TEMPLATE_PRODUCT],
     categories: [
       { id: uid(), slug: "hoodies", name: "Hoodies", description: "One-of-one heavyweight archival hoodies crafted from luxury custom fabrics.", imageUrl: "", sortOrder: 1, visible: true },
       { id: uid(), slug: "sweatshirts", name: "Sweatshirts", description: "Unique crewnecks and pullovers with custom cut-and-sew silhouettes.", imageUrl: "", sortOrder: 2, visible: true },
@@ -168,15 +174,9 @@ function seed(): State {
     ],
     collections: catalog.collections.map((c) => ({ handle: c.handle, title: c.title, description: c.description, image: c.image, visible: true, sort: "manual", products: [], seoTitle: c.title, seoDescription: c.description })),
     pages: catalog.pages.map((p) => ({ handle: p.handle, title: p.title, body: p.description, visible: true, seoTitle: p.title, seoDescription: p.description })),
-    orders: [
-      { id: "#1001", date: "2026-10-20", customer: "Arif Hasan", email: "arif@example.com", total: "8,600.00", status: "Unfulfilled", payment: "Paid", items: "Archival One-of-One Piece × 1", address: "Dhaka", note: "" },
-      { id: "#1002", date: "2026-10-22", customer: "Nadia Islam", email: "nadia@example.com", total: "19,600.00", status: "Fulfilled", payment: "Paid", items: "Archival One-of-One Piece × 1", address: "Chattogram", note: "" },
-    ],
-    customers: [
-      { id: uid(), name: "Arif Hasan", email: "arif@example.com", phone: "+8801700000000", orders: 1, points: 86, tier: "Bronze", tags: "", blocked: false },
-      { id: uid(), name: "Nadia Islam", email: "nadia@example.com", phone: "+8801800000000", orders: 1, points: 196, tier: "Silver", tags: "vip", blocked: false },
-    ],
-    discounts: [{ id: uid(), code: "WELCOME10", type: "percentage", value: "10", minOrder: "0", uses: 0, limit: "", active: true, starts: "", ends: "" }],
+    orders: [],
+    customers: [],
+    discounts: [],
     menus: {
       main: [
         { id: uid(), label: "UNIQUE CAMPAIGN", url: "/collections/unique-campaign/index.html" },
@@ -218,10 +218,63 @@ let state: State | null = null;
 const subs = new Set<() => void>();
 function get(): State {
   if (!state) {
-    try { const raw = dataSource.read<State>(KEY); const base = seed(); state = raw ? { ...base, ...raw, site: { ...base.site, ...(raw.site || {}) } } : base; }
-    catch { state = seed(); }
+    try {
+      const raw = dataSource.read<State>(KEY);
+      const base = seed();
+      if (raw) {
+        let prods = Array.isArray(raw.products) ? raw.products : [];
+        const hasLegacyDemo = prods.some((p: any) => p && (p.handle === "aka-manto-longsleeve" || p.handle === "divine-sanctum-tee"));
+        const hasLegacyOrders = Array.isArray(raw.orders) && raw.orders.some((o: any) => o && (o.customer === "Arif Hasan" || o.customer === "Nadia Islam" || (typeof o.items === "string" && o.items.includes("Aka Manto"))));
+        const hasLegacyCusts = Array.isArray(raw.customers) && raw.customers.some((c: any) => c && (c.name === "Arif Hasan" || c.name === "Nadia Islam"));
+
+        if (hasLegacyDemo || prods.length === 0) {
+          prods = [TEMPLATE_PRODUCT];
+        }
+        let ords = Array.isArray(raw.orders) ? raw.orders : [];
+        if (hasLegacyOrders) {
+          ords = [];
+          try { localStorage.removeItem("annr-orders"); } catch {}
+        }
+        let custs = Array.isArray(raw.customers) ? raw.customers : [];
+        if (hasLegacyCusts) {
+          custs = [];
+        }
+
+        state = {
+          ...base,
+          ...raw,
+          products: prods,
+          orders: ords,
+          customers: custs,
+          activity: (hasLegacyOrders || hasLegacyDemo) ? [] : (raw.activity || []),
+          site: { ...base.site, ...(raw.site || {}) },
+        };
+
+        if (hasLegacyDemo || hasLegacyOrders || hasLegacyCusts) {
+          persist(state);
+        }
+      } else {
+        state = base;
+        persist(state);
+      }
+    } catch {
+      state = seed();
+    }
   }
   return state!;
+}
+
+export function wipeAllDemoData() {
+  setState((prev) => ({
+    ...prev,
+    products: [TEMPLATE_PRODUCT],
+    orders: [],
+    customers: [],
+    discounts: [],
+    activity: [],
+  }));
+  try { localStorage.removeItem("annr-orders"); } catch {}
+  publish();
 }
 // Compare two states and describe every change (section, item, fields).
 type Change = Omit<Activity, "id" | "at" | "by">;

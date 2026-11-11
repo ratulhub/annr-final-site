@@ -1,5 +1,18 @@
 {
-  "products": [],
+  "products": [
+    {
+      "handle": "annr-archival-001",
+      "code": "ANNR-001",
+      "title": "Archival Heavyweight Hoodie 001",
+      "description": "One-of-one archival cut-and-sew piece. Handcrafted from 480 GSM Japanese French Terry with bespoke distressing and custom hardware. Exactly one garment in existence worldwide. Once acquired, this piece is permanently archived.",
+      "price": "9,800.00",
+      "currency": "BDT",
+      "image": "/cdn/shop/files/AkaMantoLongsleeveFront_1080x.png",
+      "category": "hoodies",
+      "type": "Hoodie",
+      "sizes": ["L"]
+    }
+  ],
   "collections": [
     {
       "handle": "unique-campaign",

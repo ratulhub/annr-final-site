@@ -71,14 +71,12 @@ function SearchPage() {
       } catch {}
 
       if (!localProducts.length) {
-        localProducts = (
-          (catalog.products || []) as Array<{ handle?: string; title?: string; price?: number; code?: string; size?: string }>
-        ).map((product) => ({
+        localProducts = ((catalog.products || []) as any[]).map((product: any) => ({
           handle: product.handle || "",
           title: product.title || "",
-          price: product.price,
+          price: typeof product.price === "number" ? product.price : parseFloat(String(product.price || "0").replace(/,/g, "")) || 0,
           code: product.code || "",
-          size: product.size || "",
+          size: product.size || (product.sizes && product.sizes[0]) || "",
           status: "active",
         }));
       }

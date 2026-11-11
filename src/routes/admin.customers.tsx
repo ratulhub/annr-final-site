@@ -72,9 +72,25 @@ function Customers() {
             <p className="adm-hint" style={{ margin: "2px 0 0" }}>Manage customer accounts, VIP loyalty tiers, and reward points</p>
           </div>
         </div>
-        <button className="adm-btn primary" onClick={addCustomer}>
-          + Add Customer
-        </button>
+        <div className="adm-row" style={{ gap: 8 }}>
+          {s.customers.length > 0 && (
+            <button
+              type="button"
+              className="adm-btn ghost"
+              onClick={() => {
+                if (window.confirm("Are you sure you want to clear all demo customers?")) {
+                  setState((x) => ({ ...x, customers: [] }));
+                }
+              }}
+              style={{ color: "#d97706" }}
+            >
+              Clear Customers
+            </button>
+          )}
+          <button className="adm-btn primary" onClick={addCustomer}>
+            + Add Customer
+          </button>
+        </div>
       </div>
 
       {/* Customer Insights */}
@@ -135,7 +151,7 @@ function Customers() {
       </div>
 
       {/* Customers Table */}
-      <div className="adm-card adm-table-wrap" style={{ padding: 0 }}>
+      <div className="adm-card adm-table-wrap" style={{ padding: 0, overflowX: "auto" }}>
         <table>
           <thead>
             <tr>
