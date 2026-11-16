@@ -5,13 +5,18 @@ const env =
     ? (import.meta.env as Record<string, string | undefined>)
     : (process.env as Record<string, string | undefined>);
 
-// A project URL and publishable key must be supplied by the deployment. Do not
-// ship a fallback project: missing environment variables must never point the
-// admin at somebody else's database.
-const configuredUrl = env["VITE_SUPABASE_URL"]?.trim() || "";
-const configuredPublishableKey = env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || "";
-const supabaseUrl = configuredUrl || "https://supabase-not-configured.invalid";
-const supabasePublishableKey = configuredPublishableKey || "sb_publishable_not_configured";
+// These are public client connection values for AnnR's own project, not a
+// service-role secret. They are also used by the static storefront to read
+// published catalog data. Cloudflare's build-variable UI can omit Vite values
+// from a Git build, so retain this project-scoped public fallback. Writes still
+// require a real Supabase Auth session and are enforced by database RLS.
+const PUBLIC_PROJECT_URL = "https://aooydxydkyjtulhduexa.supabase.co";
+const PUBLIC_PROJECT_KEY = "sb_publishable_rWZ3_sO_15nX-jMpRMrnng_CrRhuJK5";
+const configuredUrl = env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_PROJECT_URL;
+const configuredPublishableKey =
+  env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || PUBLIC_PROJECT_KEY;
+const supabaseUrl = configuredUrl;
+const supabasePublishableKey = configuredPublishableKey;
 
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {
