@@ -1036,6 +1036,7 @@ function LoyaltyAdmin() {
 
           {editingMember && (
             <div
+              className="adm-modal-overlay"
               style={{
                 position: "fixed",
                 inset: 0,
@@ -1048,6 +1049,7 @@ function LoyaltyAdmin() {
               }}
             >
               <div
+                className="adm-modal-panel"
                 style={{
                   background: "#fff",
                   padding: 24,
@@ -1535,6 +1537,7 @@ function LoyaltyAdmin() {
 
             {editingCampaign && (
               <div
+                className="adm-modal-overlay"
                 style={{
                   position: "fixed",
                   inset: 0,
@@ -1547,6 +1550,7 @@ function LoyaltyAdmin() {
                 }}
               >
                 <div
+                  className="adm-modal-panel"
                   style={{
                     background: "#fff",
                     padding: 24,
@@ -1786,6 +1790,7 @@ function LoyaltyAdmin() {
 
           {editingTier && (
             <div
+              className="adm-modal-overlay"
               style={{
                 position: "fixed",
                 inset: 0,
@@ -1797,7 +1802,7 @@ function LoyaltyAdmin() {
                 padding: 16,
               }}
             >
-              <div style={{ background: "#fff", padding: 24, borderRadius: 8, maxWidth: 520, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
+              <div className="adm-modal-panel" style={{ background: "#fff", padding: 24, borderRadius: 8, maxWidth: 520, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
                 <h2 style={{ marginTop: 0 }}>Configure VIP Tier: {editingTier.name}</h2>
                 <div className="adm-grid" style={{ marginBottom: 16 }}>
                   <label className="adm-field">
@@ -1965,6 +1970,7 @@ function LoyaltyAdmin() {
 
           {selectedRequest && (
             <div
+              className="adm-modal-overlay"
               style={{
                 position: "fixed",
                 inset: 0,
@@ -1977,6 +1983,7 @@ function LoyaltyAdmin() {
               }}
             >
               <div
+                className="adm-modal-panel"
                 style={{
                   background: "#fff",
                   padding: 24,

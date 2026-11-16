@@ -241,6 +241,29 @@ body.disable-scroll, html.disable-scroll {
   overflow-y: visible;
 }
 
+/* Loyalty account and points dialogs can be longer than a phone viewport.
+   The overlay and panel each get a deliberate touch scroll surface so content
+   below the fold remains reachable instead of trapping the page. */
+.adm-modal-overlay {
+  align-items: flex-start !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.adm-modal-panel {
+  flex: 0 0 auto;
+  max-height: calc(100dvh - 32px) !important;
+  margin: auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
 /* Header: Clean Shopify Top Bar */
 .adm-header {
   display: flex;
