@@ -12,10 +12,10 @@ begin;
 
 do $$
 declare
-  owner_email constant text := 'REPLACE_WITH_YOUR_SUPABASE_ADMIN_EMAIL';
+  owner_email constant text := 'arahimratul2004@gmail.com';
   owner_id uuid;
 begin
-  if owner_email = 'REPLACE_WITH_YOUR_SUPABASE_ADMIN_EMAIL' then
+  if owner_email = 'arahimratul2004@gmail.com' then
     raise exception 'Set owner_email to the exact email of an existing Supabase Auth user before running this script';
   end if;
 

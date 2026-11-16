@@ -185,7 +185,7 @@ function Edit() {
 
   const runDbSync = async (product: Product) => {
     if (!isSupabaseConfigured()) {
-      setDbStatus("✓ Saved locally");
+      setDbStatus("⚠ Saved locally — Supabase build variables are missing in this Cloudflare deployment");
       return;
     }
     setDbStatus("Saving to live DB...");

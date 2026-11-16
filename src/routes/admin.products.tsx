@@ -623,7 +623,11 @@ function Products() {
                               }
                               setState((x) => ({ ...x, products: x.products.filter((y) => y.handle !== p.handle) }));
                               setTimeout(() => { try { publish(); } catch {} }, 30);
-                              setSyncMsg(isSupabaseConfigured() ? "✓ Archived in Supabase" : "✓ Removed locally");
+                              setSyncMsg(
+                                isSupabaseConfigured()
+                                  ? "✓ Archived in Supabase"
+                                  : "⚠ Removed locally — Supabase build variables are missing in this Cloudflare deployment",
+                              );
                             }
                           }}
                         >
