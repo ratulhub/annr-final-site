@@ -51,7 +51,7 @@ function BlockView({ b, products }: { b: Block; products: MiniProduct[] }) {
       const hs = String(b.handles ?? "").split(",").map((h) => h.trim()).filter((h) => SAFE_HANDLE.test(h));
       const list = (hs.length ? hs.map((h) => products.find((p) => p.handle === h)).filter(Boolean) as MiniProduct[] : products).filter((p) => p.status === "active" && SAFE_HANDLE.test(p.handle)).slice(0, limit);
       return <div style={{ marginBottom: 24 }}>{b.title && <h3 style={{ ...H, fontSize: 14 }}>{String(b.title).slice(0, 120)}</h3>}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>{list.map((p) => <a key={p.handle} href={`/products/${encodeURIComponent(p.handle)}/index.html`} style={{ color: "#000", textDecoration: "none" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>{list.map((p) => <a key={p.handle} href={`/products/${encodeURIComponent(p.handle)}`} style={{ color: "#000", textDecoration: "none" }}>
           {p.image && fix(p.image) && <img src={fix(p.image)} alt={String(p.title ?? "").slice(0, 200)} style={{ width: "100%", aspectRatio: "3/4", objectFit: "cover", background: "#f2f2f2" }} />}
           <div style={{ fontSize: 11, textTransform: "uppercase", marginTop: 6 }}>{String(p.title ?? "").slice(0, 200)}</div><div style={{ fontSize: 11 }}>Tk {String(p.price ?? "").replace(/\.00$/, "")}</div></a>)}</div></div>;
     }

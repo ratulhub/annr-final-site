@@ -392,13 +392,11 @@ async function route(request: Request): Promise<Response> {
           headers: { location: `/products/annr-archival-001/index.html${url.search}` },
         });
       }
-      if (!url.pathname.endsWith("/index.html")) {
-        return new Response(null, {
-          status: 302,
-          headers: { location: `/products/${handle}/index.html${url.search}` },
-        });
-      }
-      const existing = await fetchStaticHtml(url, url.pathname);
+      // A newly-created product has no physical /index.html file. Cloudflare
+      // serves missing static files as a 404 before this route can recover, so
+      // clean product URLs must render the existing product template directly.
+      const staticPath = `/products/${handle}/index.html`;
+      const existing = await fetchStaticHtml(url, staticPath);
       if (existing) return existing;
       const fallbackProd = await fetchStaticHtml(url, "/products/annr-archival-001/index.html");
       if (fallbackProd) return fallbackProd;

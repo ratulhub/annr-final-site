@@ -343,7 +343,7 @@ function Edit() {
           >
             Publish to Storefront
           </button>
-          <a className="adm-btn ghost" href={`/products/${p.handle}/index.html`} target="_blank" rel="noreferrer">View</a>
+          <a className="adm-btn ghost" href={`/products/${encodeURIComponent(p.handle)}`} target="_blank" rel="noreferrer">View</a>
           <button
             type="button"
             className="adm-btn ghost"

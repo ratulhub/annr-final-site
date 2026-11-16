@@ -185,7 +185,7 @@ function SearchPage() {
             return (
               <a
                 key={product.handle}
-                href={`/products/${product.handle}/index.html`}
+                href={`/products/${encodeURIComponent(product.handle)}`}
                 className="group relative flex flex-col justify-between rounded-lg border bg-card p-5 transition-all hover:border-foreground"
               >
                 <div>

@@ -118,13 +118,13 @@
 
     return "<div class='lazy-item product-card' data-handle='" + esc(p.handle) + "'>" +
       "<div class='product-card-image' style='position:relative'>" + badgeHtml + soldOverlay +
-        "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(title) + "'>" +
+        "<a href='/products/" + esc(p.handle) + "' class='product-card-image-wrapper' aria-label='" + esc(title) + "'>" +
           "<img src='" + esc(safeImg(img)) + "' alt='" + esc(title) + "' width='1200' height='1200' loading='lazy'>" +
           (img2 && img2 !== img ? "<img src='" + esc(safeImg(img2)) + "' alt='" + esc(title) + "' width='1200' height='1200' loading='lazy'>" : "") +
         "</a>" +
       "</div>" +
       codeHtml +
-      "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(title) + "</a>" +
+      "<a href='/products/" + esc(p.handle) + "' class='product-card-title'>" + esc(title) + "</a>" +
       "<div class='product-card-price'>" +
         "<span class='money'>Tk " + esc(pr) + "<span class='money-currency-code'>BDT</span></span>" +
         cmpHtml +
@@ -619,10 +619,10 @@
               var pr = String(p.price || "0").replace(/\.00$/, "");
               var img = (p.images && p.images[0]) || p.image || "";
               return "<div class='product-card'>" +
-                "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-image-wrapper' aria-label='" + esc(p.title) + "'>" +
+                "<a href='/products/" + esc(p.handle) + "' class='product-card-image-wrapper' aria-label='" + esc(p.title) + "'>" +
                   "<img src='" + esc(safeImg(img)) + "' alt='" + esc(p.title) + "' loading='lazy'>" +
                 "</a>" +
-                "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(p.title) + "</a>" +
+                "<a href='/products/" + esc(p.handle) + "' class='product-card-title'>" + esc(p.title) + "</a>" +
                 "<div class='product-card-price'>Tk " + esc(pr) + " BDT</div>" +
               "</div>";
             }).join("");
