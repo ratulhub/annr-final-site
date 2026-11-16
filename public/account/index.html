@@ -67,6 +67,8 @@ try {
      navigation. Account content must always retain its document scroll. */
   html, body.vip-page {
     height: auto !important;
+    position: static !important;
+    inset: auto !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
@@ -1858,8 +1860,12 @@ document.addEventListener("click", function(e) {
     if (body.classList.contains("no-scroll")) body.classList.remove("no-scroll");
     if (root.classList.contains("no-scroll")) root.classList.remove("no-scroll");
     if (root.style.height !== "auto") root.style.setProperty("height", "auto", "important");
+    if (root.style.position !== "static") root.style.setProperty("position", "static", "important");
+    if (root.style.inset !== "auto") root.style.setProperty("inset", "auto", "important");
     if (root.style.overflowY !== "auto") root.style.setProperty("overflow-y", "auto", "important");
     if (body.style.height !== "auto") body.style.setProperty("height", "auto", "important");
+    if (body.style.position !== "static") body.style.setProperty("position", "static", "important");
+    if (body.style.inset !== "auto") body.style.setProperty("inset", "auto", "important");
     if (body.style.overflowY !== "auto") body.style.setProperty("overflow-y", "auto", "important");
     const hub = document.getElementById("vip-inpage-hub");
     if (hub && hub.style.overflow !== "visible") hub.style.setProperty("overflow", "visible", "important");
