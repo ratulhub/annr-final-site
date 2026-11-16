@@ -1,0 +1,3 @@
+-- Manual operator bootstrap; see database/sql/19_admin_bootstrap.sql.
+-- This migration intentionally has no automatic role grant. Assigning the
+-- first production administrator requires a reviewed, explicit SQL Editor run.

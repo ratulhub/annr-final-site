@@ -289,16 +289,30 @@ function Edit() {
     }
     const oldHandle = p.handle;
     const renamed: Product = { ...p, handle: clean };
+    if (isSupabaseConfigured()) {
+      // Create the replacement first.  Archiving the old handle before the
+      // replacement was saved could make a live product disappear when a
+      // network/RLS error occurred during a rename.
+      setDbStatus("Renaming in live DB...");
+      const created = await syncProductToSupabase(renamed);
+      if (!created.ok) {
+        setDbStatus(`⚠ Rename was not saved to the live DB: ${created.error || "check authentication"}`);
+        setHandleDraft(oldHandle);
+        return;
+      }
+      const archived = await deleteProductFromSupabase(oldHandle);
+      if (!archived.ok) {
+        setDbStatus(`⚠ New handle is live, but the old handle could not be archived: ${archived.error || "check authentication"}`);
+        return;
+      }
+    }
     latestProductRef.current = renamed;
     setState((x) => ({
       ...x,
       products: x.products.map((y) => (y.handle === oldHandle ? renamed : y)),
     }));
     try { publish(); } catch {}
-    if (isSupabaseConfigured()) {
-      await deleteProductFromSupabase(oldHandle);
-      await runDbSync(renamed);
-    }
+    setDbStatus(isSupabaseConfigured() ? "✓ Renamed in live DB & Storefront" : "✓ Renamed locally");
     nav({ to: "/admin/products/$handle", params: { handle: clean }, replace: true });
   };
 
@@ -349,11 +363,18 @@ function Edit() {
           <button
             type="button"
             className="adm-btn danger"
-            onClick={() => {
+            onClick={async () => {
               if (confirm("Delete this product?")) {
+                if (isSupabaseConfigured()) {
+                  setDbStatus("Archiving in live DB...");
+                  const result = await deleteProductFromSupabase(handle);
+                  if (!result.ok) {
+                    setDbStatus(`⚠ Product was not archived in the live DB: ${result.error || "check authentication"}`);
+                    return;
+                  }
+                }
                 setState((x) => ({ ...x, products: x.products.filter((y) => y.handle !== handle) }));
                 setTimeout(() => { try { publish(); } catch {} }, 30);
-                void deleteProductFromSupabase(handle);
                 nav({ to: "/admin/products" });
               }
             }}

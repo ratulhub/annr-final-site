@@ -611,13 +611,19 @@ function Products() {
                         <button
                           type="button"
                           className="adm-btn danger sm"
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm(`Delete product "${p.title}"?`)) {
+                              if (isSupabaseConfigured()) {
+                                setSyncMsg("Archiving product in Supabase...");
+                                const result = await deleteProductFromSupabase(p.handle);
+                                if (!result.ok) {
+                                  setSyncMsg(`Error deleting in DB: ${result.error || "check authentication"}`);
+                                  return;
+                                }
+                              }
                               setState((x) => ({ ...x, products: x.products.filter((y) => y.handle !== p.handle) }));
                               setTimeout(() => { try { publish(); } catch {} }, 30);
-                              void deleteProductFromSupabase(p.handle).then((r) => {
-                                if (!r.ok && r.error) setSyncMsg(`Error deleting in DB: ${r.error}`);
-                              });
+                              setSyncMsg(isSupabaseConfigured() ? "✓ Archived in Supabase" : "✓ Removed locally");
                             }
                           }}
                         >
