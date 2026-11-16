@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { discardDraft, getHistory, getPublished, publish, restoreVersion, siteConfig, unpublishAll, useAdmin } from "../admin/store";
+import { useState } from "react";
+import { discardDraft, getHistory, getPublished, publish, publishToSupabase, restoreVersion, siteConfig, unpublishAll, unpublishFromSupabase, useAdmin } from "../admin/store";
 import { confirmReauth, getSession, logAuthEvent } from "../admin/security/auth";
 import { can } from "../admin/security/permissions";
 import { BackBtn, Card } from "../admin/ui";
 import { DevicePreview } from "../admin/site/fields";
+import { isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/publish")({ component: PublishPage });
 
@@ -18,6 +20,7 @@ export function useDirty() {
 
 function PublishPage() {
   useAdmin();
+  const [liveStatus, setLiveStatus] = useState("");
   const pub = getPublished();
   const dirty = useDirty();
   const hist = getHistory();
@@ -30,11 +33,12 @@ function PublishPage() {
           <h1>Preview & publish</h1>
         </div>
         <div className="adm-row">
-          {pub && <button className="adm-btn danger" disabled={!mayPublish} onClick={async () => { if (!mayPublish) return; if (confirm("Remove all published admin overrides and return the store to the original site?") && await confirmReauth("unpublish all overrides")) { unpublishAll(); logAuthEvent("site_unpublish"); } }}>Revert live store to original</button>}
+          {pub && <button className="adm-btn danger" disabled={!mayPublish} onClick={async () => { if (!mayPublish) return; if (confirm("Remove all published admin overrides and return the store to the original site?") && await confirmReauth("unpublish all overrides")) { unpublishAll(); if (isSupabaseConfigured()) { const result = await unpublishFromSupabase(); setLiveStatus(result.ok ? "Live configuration unpublished." : `Live unpublish failed: ${result.error}`); } logAuthEvent("site_unpublish"); } }}>Revert live store to original</button>}
           <button className="adm-btn ghost" disabled={!dirty || !pub || !mayPublish} onClick={() => { if (!mayPublish) return; if (confirm("Throw away all changes since the last publish?")) { discardDraft(); logAuthEvent("site_discard"); } }}>Discard draft</button>
-          <button className="adm-btn" disabled={!dirty || !mayPublish} onClick={() => { if (!mayPublish) return; publish(); logAuthEvent("site_publish"); }}>Publish to store</button>
+          <button className="adm-btn" disabled={!dirty || !mayPublish} onClick={async () => { if (!mayPublish || !await confirmReauth("publish the live store")) return; publish(); if (isSupabaseConfigured()) { const result = await publishToSupabase(); setLiveStatus(result.ok ? "Published to Supabase." : `Published locally only: ${result.error}`); } else { setLiveStatus("Published in this browser only. Configure Supabase to publish for all visitors."); } logAuthEvent("site_publish"); }}>Publish to store</button>
         </div>
       </div>
+      {liveStatus && <div className={liveStatus.includes("failed") || liveStatus.includes("only") ? "adm-banner warning" : "adm-banner success"} style={{ marginBottom: 16 }}>{liveStatus}</div>}
       <div className={`adm-banner ${dirty ? "warning" : "success"}`} style={{ marginBottom: 16 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 600, fontSize: 14 }}>

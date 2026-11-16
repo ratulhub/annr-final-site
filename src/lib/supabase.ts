@@ -5,10 +5,13 @@ const env =
     ? (import.meta.env as Record<string, string | undefined>)
     : (process.env as Record<string, string | undefined>);
 
-const supabaseUrl =
-  env["VITE_SUPABASE_URL"] || "https://aooydxydkyjtulhduexa.supabase.co";
-const supabasePublishableKey =
-  env["VITE_SUPABASE_PUBLISHABLE_KEY"] || "sb_publishable_rWZ3_sO_15nX-jMpRMrnng_CrRhuJK5";
+// A project URL and publishable key must be supplied by the deployment. Do not
+// ship a fallback project: missing environment variables must never point the
+// admin at somebody else's database.
+const configuredUrl = env["VITE_SUPABASE_URL"]?.trim() || "";
+const configuredPublishableKey = env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || "";
+const supabaseUrl = configuredUrl || "https://supabase-not-configured.invalid";
+const supabasePublishableKey = configuredPublishableKey || "sb_publishable_not_configured";
 
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {
@@ -19,10 +22,17 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
 });
 
 export function isSupabaseConfigured(): boolean {
+  let validUrl = false;
+  try {
+    const parsed = new URL(configuredUrl);
+    validUrl = parsed.protocol === "https:" && parsed.hostname.endsWith(".supabase.co");
+  } catch {
+    validUrl = false;
+  }
   return (
-    Boolean(supabaseUrl) &&
-    Boolean(supabasePublishableKey) &&
-    !supabaseUrl.includes("REPLACE") &&
-    !supabasePublishableKey.includes("REPLACE")
+    validUrl &&
+    Boolean(configuredPublishableKey) &&
+    !/REPLACE|YOUR-PROJECT/i.test(configuredUrl + configuredPublishableKey) &&
+    /^sb_publishable_[A-Za-z0-9_-]+$/.test(configuredPublishableKey)
   );
 }

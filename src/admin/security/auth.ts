@@ -166,7 +166,6 @@ export async function login(email: string, password: string, expectedHash = EXPE
     }
   } catch {}
 
-  const isExactOwner = e === DEMO_EMAIL;
   const usingCustomTestHash = expectedHash !== EXPECTED;
 
   // 1. Live database authentication with Supabase (unless unit test explicitly passed a custom hash)
@@ -179,7 +178,7 @@ export async function login(email: string, password: string, expectedHash = EXPE
       });
 
       if (!error && data?.user) {
-        let role: Role | null = isExactOwner ? "super_admin" : null;
+        let role: Role | null = null;
 
         try {
           const { data: roleRows, error: roleErr } = await supabase
@@ -190,23 +189,10 @@ export async function login(email: string, password: string, expectedHash = EXPE
 
           if (!roleErr && Array.isArray(roleRows) && roleRows.length > 0) {
             const dbRole = highestRole(roleRows.map((r: any) => r?.role));
-            if (dbRole) role = isExactOwner && ROLE_PRIORITY[dbRole] < ROLE_PRIORITY.super_admin ? "super_admin" : dbRole;
-          } else if (roleErr && localAdminUser?.role && isValidRole(localAdminUser.role)) {
-            role = localAdminUser.role;
-          }
-
-          if (isExactOwner && (!roleRows || !roleRows.some((r: any) => r?.role === "super_admin"))) {
-            try {
-              await supabase.from("user_roles").upsert(
-                { user_id: data.user.id, role: "super_admin", granted_at: new Date().toISOString() },
-                { onConflict: "user_id,role" },
-              );
-            } catch {}
+            if (dbRole) role = dbRole;
           }
         } catch {
-          if (!isExactOwner && localAdminUser?.role && isValidRole(localAdminUser.role)) {
-            role = localAdminUser.role;
-          }
+          // A failed role lookup must not turn a signed-in customer into an admin.
         }
 
         // Deny admin session to authenticated regular VIP customers who hold no staff role
@@ -231,15 +217,17 @@ export async function login(email: string, password: string, expectedHash = EXPE
         return { ok: true };
       }
 
-      // Valid Supabase server explicitly rejected the credentials
-      if (error && !/fetch|network|timeout/i.test(error.message || "")) {
-        localStorage.setItem(LOCK_KEY, JSON.stringify(registerFailure(lock, now)));
-        logAuthEvent("login_failed");
-        return { ok: false, error: GENERIC };
-      }
-      supabaseOffline = true;
+      // Once production auth is configured, never fall back to browser-held
+      // credentials when the provider or network is unavailable.
+      localStorage.setItem(LOCK_KEY, JSON.stringify(registerFailure(lock, now)));
+      logAuthEvent(error ? "login_failed" : "login_denied_non_staff");
+      return { ok: false, error: GENERIC };
     } catch {
-      supabaseOffline = true;
+      // Treat a transport failure as a failed production login. Local fallback
+      // is permitted only when Supabase has not been configured at all.
+      localStorage.setItem(LOCK_KEY, JSON.stringify(registerFailure(lock, now)));
+      logAuthEvent("login_failed");
+      return { ok: false, error: GENERIC };
     }
   } else {
     supabaseOffline = true;
@@ -248,14 +236,14 @@ export async function login(email: string, password: string, expectedHash = EXPE
   // 2. Cryptographic SHA-256 verification fallback (only when Supabase is offline/unconfigured or test hash provided)
   if (supabaseOffline || usingCustomTestHash) {
     const candidateHash = await sha256(`${e}:${password.slice(0, 200)}`);
-    const matchesExpected = candidateHash === expectedHash && (isExactOwner || usingCustomTestHash);
+    const matchesExpected = candidateHash === expectedHash && (e === DEMO_EMAIL || usingCustomTestHash);
     const matchesStaffHash = Boolean(localAdminUser?.passwordHash && candidateHash === localAdminUser.passwordHash);
 
     if (matchesExpected || matchesStaffHash) {
       const role: Role | null =
         localAdminUser?.role && isValidRole(localAdminUser.role)
           ? localAdminUser.role
-          : isExactOwner || usingCustomTestHash
+          : e === DEMO_EMAIL || usingCustomTestHash
             ? "super_admin"
             : null;
       if (role) {
@@ -297,12 +285,11 @@ export async function reauthenticate(password: string, expectedHash = EXPECTED):
         logAuthEvent("reauth_success");
         return true;
       }
-      if (error && !/fetch|network|timeout/i.test(error.message || "")) {
-        logAuthEvent("reauth_failed");
-        return false;
-      }
+      logAuthEvent("reauth_failed");
+      return false;
     } catch {
-      // Network unreachable — fall through to SHA-256 check below
+      logAuthEvent("reauth_failed");
+      return false;
     }
   }
 

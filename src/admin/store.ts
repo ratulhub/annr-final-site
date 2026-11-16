@@ -720,10 +720,15 @@ export async function syncProductToSupabase(
 }
 
 export async function deleteProductFromSupabase(handle: string): Promise<{ ok: boolean; error?: string }> {
-  if (!isSupabaseConfigured()) return { ok: true };
+  if (!isSupabaseConfigured()) return { ok: false, error: "Supabase is not configured" };
   if (!handle) return { ok: false, error: "Missing product handle" };
   try {
-    const { error } = await supabase.from("products").delete().eq("handle", handle);
+    // Keep order and audit-history references intact: removing a product from
+    // the admin archives it in the live database instead of hard-deleting it.
+    const { error } = await supabase
+      .from("products")
+      .update({ status: "archived", stock: 0, reserved_until: null })
+      .eq("handle", handle);
     if (error) return { ok: false, error: error.message };
     return { ok: true };
   } catch (err) {
@@ -732,6 +737,24 @@ export async function deleteProductFromSupabase(handle: string): Promise<{ ok: b
 }
 export const getPublished = () => dataSource.read<Published>(PUB_KEY);
 export const getHistory = () => dataSource.read<{ at: string; state: State }[]>(HIST_KEY) || [];
+export async function publishToSupabase(config: Published = siteConfig(get())): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured()) return { ok: false, error: "Supabase is not configured" };
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) return { ok: false, error: "Sign in again before publishing." };
+  const { error } = await supabase.rpc("publish_site_config", {
+    _config: config,
+    _note: `Published by ${getSessionSafe()?.email || "admin"}`.slice(0, 200),
+  });
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+export async function unpublishFromSupabase(): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured()) return { ok: false, error: "Supabase is not configured" };
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) return { ok: false, error: "Sign in again before unpublishing." };
+  const { error } = await supabase.rpc("unpublish_site_config");
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
 export function publish() {
   const s = get();
   const hist = getHistory();
@@ -749,21 +772,6 @@ export function publish() {
     }
   } catch {}
 
-  // Also publish to Supabase if configured
-  if (isSupabaseConfigured()) {
-    (async () => {
-      try {
-        await supabase.from("site_config_versions").update({ is_published: false }).eq("is_published", true);
-        await supabase.from("site_config_versions").insert({
-          config: pubCfg,
-          is_published: true,
-          note: `Published by ${getSessionSafe()?.email || "admin"}`,
-        });
-      } catch (err) {
-        console.warn("Notice: Supabase publish synced locally (DB pending table migration)", err);
-      }
-    })();
-  }
 }
 // Throw away unpublished edits: go back to the last published version (or original).
 export function discardDraft() {
