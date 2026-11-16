@@ -109,7 +109,7 @@ declare u text;
 begin
   if new.images is not null then
     foreach u in array new.images loop
-      if u is null or u !~ '^(https://|/)[^\s"''<>]{1,1000}$' then
+      if u is null or char_length(u) > 1000 or u !~ '^(https://|/)[^[:space:]"''<>]+$' then
         raise exception 'invalid image url' using errcode = '22023';
       end if;
     end loop;

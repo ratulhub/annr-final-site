@@ -83,7 +83,7 @@ grant execute on function public.admin_list_staff() to authenticated;
 
 -- 4. Add image_url column on categories for dynamic storefront category banners
 alter table public.categories add column if not exists image_url text
-  check (image_url is null or image_url ~ '^(https://|/)[^\s"''<>]{1,1000}$');
+  check (image_url is null or (char_length(image_url) <= 1000 and image_url ~ '^(https://|/)[^[:space:]"''<>]+$'));
 
 -- 5. Update search_products RPC to expose show_size and measurement_unit
 drop function if exists public.search_products(text, int);
