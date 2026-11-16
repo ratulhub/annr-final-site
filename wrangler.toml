@@ -6,6 +6,9 @@ compatibility_flags = ["nodejs_compat"]
 [assets]
 directory = ".output/public"
 binding = "ASSETS"
+# New admin products are rendered through the existing product-page template;
+# they do not have their own physical index.html asset.
+run_worker_first = ["/products/annr-unique-*"]
 
 [observability]
 enabled = true

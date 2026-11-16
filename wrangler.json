@@ -8,7 +8,10 @@
   ],
   "assets": {
     "binding": "ASSETS",
-    "directory": ".output/public"
+    "directory": ".output/public",
+    "run_worker_first": [
+      "/products/annr-unique-*"
+    ]
   },
   "observability": {
     "enabled": true
