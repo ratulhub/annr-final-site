@@ -15,8 +15,8 @@ const PUBLIC_PROJECT_KEY = "sb_publishable_rWZ3_sO_15nX-jMpRMrnng_CrRhuJK5";
 const configuredUrl = env["VITE_SUPABASE_URL"]?.trim() || PUBLIC_PROJECT_URL;
 const configuredPublishableKey =
   env["VITE_SUPABASE_PUBLISHABLE_KEY"]?.trim() || PUBLIC_PROJECT_KEY;
-const supabaseUrl = configuredUrl;
-const supabasePublishableKey = configuredPublishableKey;
+export const supabaseUrl = configuredUrl;
+export const supabasePublishableKey = configuredPublishableKey;
 
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {

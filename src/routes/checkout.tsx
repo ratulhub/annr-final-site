@@ -14,7 +14,7 @@ import {
   type LoyaltySettings,
   type VipMember,
 } from "../lib/loyalty";
-import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import { supabase, isSupabaseConfigured, supabaseUrl, supabasePublishableKey } from "../lib/supabase";
 
 const ANNR_CHECKOUT_FONTS = [
   { rel: "stylesheet", href: "/cdn/shop/t/75/assets/Druk-Wide.css" },
@@ -52,6 +52,157 @@ interface CartItem {
 }
 
 const FREE_SHIPPING_THRESHOLD_BDT = 5000;
+const ANNR_WHATSAPP_NUMBER = "8801786500883";
+const ANNR_WHATSAPP_DISPLAY = "+880 1786-500883";
+const WHATSAPP_RECEIPT_STORAGE_KEY = "annr_last_order_receipt";
+
+function formatDhakaTimestamp(date: Date): string {
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Dhaka",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+  } catch {
+    return date.toISOString();
+  }
+}
+
+function formatPaymentMethodLabel(method: string): string {
+  if (method === "bkash") return "bKash";
+  if (method === "nagad") return "Nagad";
+  if (method === "rocket") return "Rocket";
+  return "Cash on Delivery (COD)";
+}
+
+function buildWhatsAppOrderMessage(params: {
+  orderNumber: number;
+  items: CartItem[];
+  customerName: string;
+  phone: string;
+  email: string;
+  division: string;
+  district: string;
+  upazila: string;
+  fullAddress: string;
+  customerNotes: string;
+  paymentMethod: string;
+  trxId: string;
+  subtotal: number;
+  shippingFee: number;
+  couponCode?: string | undefined;
+  couponDiscountBdt: number;
+  pointsRedeemed: number;
+  pointsDiscountBdt: number;
+  total: number;
+  vipTier?: string | undefined;
+}): string {
+  const origin =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "https://fashion.annr.site";
+
+  const lines: string[] = [
+    "*ANNR - NEW 1-OF-1 ORDER*",
+    "==============================",
+    `*Order Ref:* #${params.orderNumber}`,
+    `*Date (BDT):* ${formatDhakaTimestamp(new Date())}`,
+    "",
+    "*ORDERED PIECE(S)*",
+    "------------------------------",
+  ];
+
+  params.items.forEach((item, idx) => {
+    const cleanTitle = String(item.title || "Archival Piece").trim().toUpperCase();
+    lines.push(`${idx + 1}. *${cleanTitle}*`);
+    if (item.code) lines.push(`   Code: ${item.code}`);
+    lines.push("   Edition: 1-of-1 Archival Piece");
+    if (item.showSize !== false && item.size && item.size !== "NONE") {
+      lines.push(`   Size: ${item.size}`);
+    } else {
+      lines.push("   Sizing: Exact Flat Measurements");
+    }
+    lines.push(`   Qty: 1`);
+    lines.push(`   Price: Tk ${(item.price * item.quantity).toLocaleString()} BDT`);
+    if (item.handle) {
+      lines.push(`   Link: ${origin}/products/${item.handle}/index.html`);
+    }
+  });
+
+  lines.push(
+    "",
+    "*CUSTOMER CONTACT*",
+    "------------------------------",
+    `Name: ${params.customerName}`,
+    `Mobile: ${params.phone}`,
+    `Email: ${params.email}`,
+  );
+  if (params.vipTier) {
+    lines.push(`VIP Status: ${params.vipTier} Member`);
+  }
+
+  lines.push(
+    "",
+    "*DELIVERY ADDRESS (BANGLADESH)*",
+    "------------------------------",
+    `Address: ${params.fullAddress}`,
+  );
+  if (params.upazila) lines.push(`Thana / Area: ${params.upazila}`);
+  lines.push(`District: ${params.district}`, `Division: ${params.division}`);
+  if (params.customerNotes) lines.push(`Delivery Note: ${params.customerNotes}`);
+
+  lines.push(
+    "",
+    "*PAYMENT & TOTALS*",
+    "------------------------------",
+    `Payment Method: ${formatPaymentMethodLabel(params.paymentMethod)}`,
+  );
+  if (params.paymentMethod !== "cod") {
+    lines.push(`TrxID: ${params.trxId ? params.trxId : "Will confirm in WhatsApp"}`);
+  }
+  lines.push(`Subtotal: Tk ${params.subtotal.toLocaleString()} BDT`);
+  if (params.couponCode && params.couponDiscountBdt > 0) {
+    lines.push(`Promo / Referral (${params.couponCode}): -Tk ${params.couponDiscountBdt.toLocaleString()} BDT`);
+  }
+  if (params.pointsRedeemed > 0 && params.pointsDiscountBdt > 0) {
+    lines.push(`VIP Points (${params.pointsRedeemed} PTS): -Tk ${params.pointsDiscountBdt.toLocaleString()} BDT`);
+  }
+  lines.push(
+    `Shipping (${params.district}): ${params.shippingFee === 0 ? "FREE" : `Tk ${params.shippingFee} BDT`}`,
+    `*TOTAL PAYABLE: Tk ${params.total.toLocaleString()} BDT*`,
+    "==============================",
+    "Please confirm my 1-of-1 order and delivery schedule. Thank you!",
+  );
+
+  return lines.join("\n");
+}
+
+function buildWhatsAppLinks(message: string): { waUrl: string; waAppUrl: string } {
+  const encoded = encodeURIComponent(message);
+  return {
+    waUrl: `https://api.whatsapp.com/send?phone=${ANNR_WHATSAPP_NUMBER}&text=${encoded}`,
+    waAppUrl: `whatsapp://send?phone=${ANNR_WHATSAPP_NUMBER}&text=${encoded}`,
+  };
+}
+
+function WhatsAppIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2Zm5.82 14.01c-.24.69-1.41 1.31-1.95 1.39-.5.08-1.13.11-1.83-.11-.42-.13-.96-.31-1.66-.61-2.92-1.26-4.82-4.2-4.97-4.39-.14-.19-1.19-1.58-1.19-3.02 0-1.44.75-2.15 1.02-2.44.27-.29.59-.36.79-.36.2 0 .39 0 .56.01.18.01.42-.07.66.5.24.59.83 2.04.9 2.19.07.15.12.32.02.51-.1.19-.15.32-.29.49-.15.17-.31.38-.44.51-.15.15-.3.31-.13.61.17.3.76 1.26 1.64 2.04 1.13 1.01 2.08 1.32 2.38 1.47.3.15.47.12.64-.07.17-.2.74-.86.94-1.16.2-.29.39-.24.66-.15.27.1 1.71.81 2 .95.29.15.49.22.56.34.07.13.07.72-.17 1.4Z" />
+    </svg>
+  );
+}
 
 const CHECKOUT_STYLES = `
   html, body {
@@ -333,25 +484,101 @@ const CHECKOUT_STYLES = `
   }
   .annr-chk-submit {
     width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     background: #0a0a0a;
     color: #ffffff;
     border: 1px solid #0a0a0a;
     border-radius: 2px;
-    padding: 18px 24px;
+    padding: 18px 20px;
+    min-height: 56px;
     font-family: 'NB Architekt Std', sans-serif;
     font-size: 13px;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 1.8px;
     text-transform: uppercase;
     cursor: pointer;
+    text-decoration: none;
     transition: background 0.2s ease, transform 0.15s ease;
   }
   .annr-chk-submit:hover:not(:disabled) {
-    background: #262626;
+    background: #202020;
   }
   .annr-chk-submit:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+  }
+  .annr-chk-wa-caption {
+    margin: 10px 0 0;
+    text-align: center;
+    font-family: 'FK Grotesk SemiMono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.9px;
+    color: #666666;
+    line-height: 1.5;
+  }
+  .annr-chk-wa-primary {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #0a0a0a;
+    color: #ffffff;
+    border: 1px solid #0a0a0a;
+    border-radius: 2px;
+    padding: 16px 18px;
+    font-family: 'NB Architekt Std', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  .annr-chk-wa-primary:hover { background: #222222; }
+  .annr-chk-wa-secondary {
+    flex: 1;
+    min-width: 150px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: #ffffff;
+    color: #0a0a0a;
+    border: 1px solid #d4d4d0;
+    border-radius: 2px;
+    padding: 11px 12px;
+    font-family: 'FK Grotesk SemiMono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .annr-chk-wa-secondary:hover {
+    border-color: #0a0a0a;
+    background: #faf9f7;
+  }
+  .annr-chk-wa-preview {
+    margin: 18px 0 22px;
+    padding: 14px 16px;
+    background: #faf9f6;
+    border: 1px solid #e6e6e2;
+    text-align: left;
+    font-family: 'FK Grotesk SemiMono', ui-monospace, SFMono-Regular, monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    color: #262626;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 220px;
+    overflow-y: auto;
   }
   .annr-chk-error {
     background: #fef2f2;
@@ -488,18 +715,46 @@ const CHECKOUT_STYLES = `
       order: -1;
       border-left: none;
       border-bottom: 1px solid #e6e6e2;
-      padding: 24px 18px;
+      padding: 20px 16px;
     }
     .annr-chk-aside-sticky { position: static; }
     .annr-chk-main {
-      padding: 28px 18px 56px;
+      padding: 24px 16px 52px;
     }
     .annr-chk-header-inner {
-      padding: 0 16px;
-      height: 64px;
+      padding: 0 14px;
+      height: 60px;
+      gap: 8px;
+    }
+    .annr-chk-logo img {
+      height: 30px;
+    }
+    .annr-chk-back {
+      font-size: 10px;
+      letter-spacing: 1px;
     }
     .annr-chk-secure span.hide-sm { display: none; }
     .annr-chk-grid-2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 767px) {
+    .annr-chk-field input,
+    .annr-chk-field select,
+    .annr-chk-field textarea,
+    .annr-chk-coupon-row input {
+      font-size: 16px;
+      padding: 12px 13px;
+    }
+    .annr-chk-section-title {
+      font-size: 12.5px;
+    }
+    .annr-chk-submit {
+      font-size: 12px;
+      letter-spacing: 1.4px;
+      padding: 16px 14px;
+    }
+    .annr-chk-receipt-card {
+      padding: 26px 18px !important;
+    }
   }
 `;
 
@@ -539,6 +794,7 @@ function CheckoutPage() {
 
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<any | null>(null);
+  const [copiedWaText, setCopiedWaText] = useState(false);
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
@@ -556,6 +812,25 @@ function CheckoutPage() {
     // Enforce unique piece rule: quantity is locked to 1
     loadedItems = loadedItems.map((item) => ({ ...item, quantity: 1 }));
     setItems(loadedItems);
+
+    // If user just returned from WhatsApp with an empty bag, restore their recent order receipt (<15m)
+    if (loadedItems.length === 0) {
+      try {
+        const rawReceipt = sessionStorage.getItem(WHATSAPP_RECEIPT_STORAGE_KEY);
+        if (rawReceipt) {
+          const parsedReceipt = JSON.parse(rawReceipt);
+          if (parsedReceipt?.savedAt && Date.now() - Number(parsedReceipt.savedAt) < 15 * 60 * 1000) {
+            setOrderSuccess(parsedReceipt);
+            if (parsedReceipt.customerName) setCustomerName(parsedReceipt.customerName);
+            if (parsedReceipt.email) setEmail(parsedReceipt.email);
+            if (parsedReceipt.district) setDistrict(parsedReceipt.district);
+            if (parsedReceipt.division) setDivision(parsedReceipt.division);
+            if (parsedReceipt.paymentMethod) setPaymentMethod(parsedReceipt.paymentMethod);
+            if (parsedReceipt.trxId) setTrxId(parsedReceipt.trxId);
+          }
+        }
+      } catch {}
+    }
 
     getLoyaltySettings().then((s) => setLoyaltySettings(s));
 
@@ -715,225 +990,332 @@ function CheckoutPage() {
     }
   };
 
-  const handlePlaceOrder = async (e: React.FormEvent) => {
+  const handleCopyWaMessage = async (msg: string) => {
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        await navigator.clipboard.writeText(msg);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = msg;
+        ta.setAttribute("readonly", "true");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      setCopiedWaText(true);
+      setTimeout(() => setCopiedWaText(false), 2600);
+    } catch {}
+  };
+
+  const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
 
-    if (!customerName.trim()) {
-      setFormError("Please enter your full name.");
+    const cleanName = customerName.trim();
+    const cleanEmail = email.trim();
+    const cleanPhone = phone.trim();
+    const cleanAddress = fullAddress.trim();
+    const cleanUpazila = upazila.trim();
+    const cleanNotes = customerNotes.trim();
+    const cleanTrxId = trxId.trim();
+
+    if (items.length === 0) {
+      setFormError("Your bag is empty. Please select an archival piece first.");
       return;
     }
-    if (!email.trim() || !email.includes("@")) {
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       setFormError("Please enter a valid email address.");
       return;
     }
-    if (!isValidBdPhone(phone)) {
+    if (!isValidBdPhone(cleanPhone)) {
       setFormError("Please enter a valid Bangladeshi mobile number (e.g. 017XXXXXXXX).");
       return;
     }
-    if (!fullAddress.trim()) {
-      setFormError("Please enter your street delivery address.");
+    if (!cleanName) {
+      setFormError("Please enter your full name.");
       return;
     }
-    if (paymentMethod !== "cod" && !trxId.trim()) {
-      setFormError(`Please enter your ${paymentMethod.toUpperCase()} Transaction ID (TrxID).`);
+    if (!cleanAddress) {
+      setFormError("Please enter your full street delivery address.");
       return;
     }
 
-    if (appliedCoupon?.code) {
-      const checkSelf = await validateReferralCoupon(appliedCoupon.code, subtotal, email);
-      if (!checkSelf.valid) {
-        setFormError(checkSelf.error || "Coupon validation failed.");
-        return;
-      }
+    // Synchronous self-referral guard so we never break the iOS/Android user-gesture token before WhatsApp launch
+    if (
+      appliedCoupon?.code &&
+      vipMember?.referral_code &&
+      vipMember.referral_code.toUpperCase().trim() === appliedCoupon.code.toUpperCase().trim()
+    ) {
+      setFormError("You cannot use your own VIP referral code on your own order.");
+      return;
     }
 
     setOrderSubmitting(true);
-    try {
-      let remoteOrderResult: any = null;
 
-      if (isSupabaseConfigured()) {
-        try {
-          const { data, error } = await supabase.rpc("place_store_order", {
-            p_customer_name: customerName.trim(),
-            p_email: email.trim(),
-            p_phone: phone.trim(),
+    const orderNum = Math.floor(100000 + Math.random() * 899999);
+    const ptsReward = appliedCoupon?.pointsReward ?? Number(loyaltySettings.points_per_referral || 100);
+    const effectiveRedeemedPts =
+      pointsDiscountBdt > 0 ? Math.min(pointsToRedeem, redemptionCap.maxPoints) : 0;
+    const combinedAddress = (cleanUpazila ? `${cleanUpazila}, ` : "") + cleanAddress;
+
+    const waMessage = buildWhatsAppOrderMessage({
+      orderNumber: orderNum,
+      items,
+      customerName: cleanName,
+      phone: cleanPhone,
+      email: cleanEmail,
+      division,
+      district,
+      upazila: cleanUpazila,
+      fullAddress: cleanAddress,
+      customerNotes: cleanNotes,
+      paymentMethod,
+      trxId: cleanTrxId,
+      subtotal,
+      shippingFee,
+      couponCode: appliedCoupon?.code,
+      couponDiscountBdt,
+      pointsRedeemed: effectiveRedeemedPts,
+      pointsDiscountBdt,
+      total,
+      vipTier: vipMember?.tier,
+    });
+    const { waUrl, waAppUrl } = buildWhatsAppLinks(waMessage);
+
+    const orderRecord = {
+      id: `#${orderNum}`,
+      order_number: orderNum,
+      customer_name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      division,
+      district,
+      full_address: combinedAddress,
+      items,
+      total: total.toFixed(2),
+      subtotal,
+      shipping: shippingFee,
+      discount: totalDiscountBdt,
+      coupon_discount_bdt: couponDiscountBdt,
+      points_redeemed: effectiveRedeemedPts,
+      points_discount_bdt: pointsDiscountBdt,
+      points_earned: projectedTotalEarnedPoints,
+      payment_method: paymentMethod,
+      trx_id: cleanTrxId || undefined,
+      coupon_code: appliedCoupon?.code,
+      referral_points: appliedCoupon ? ptsReward : 0,
+      status: "Unfulfilled",
+      payment: paymentMethod === "cod" ? "Pending (COD)" : cleanTrxId ? "Paid" : "Pending (WhatsApp)",
+      created_at: new Date().toISOString(),
+    };
+
+    // Synchronous local persistence so cart/orders/receipt survive immediate mobile handoff to WhatsApp
+    try {
+      const rawOrders = localStorage.getItem("annr-orders");
+      const orders = rawOrders ? JSON.parse(rawOrders) : [];
+      orders.unshift(orderRecord);
+      localStorage.setItem("annr-orders", JSON.stringify(orders.slice(0, 500)));
+
+      if (appliedCoupon?.code && ptsReward > 0) {
+        creditVipReferrerLocally({
+          referralCode: appliedCoupon.code,
+          pointsReward: ptsReward,
+          buyerName: cleanName,
+          buyerEmail: cleanEmail,
+          buyerPhone: cleanPhone,
+          orderNumber: orderNum,
+          orderTotal: total,
+          discountGiven: couponDiscountBdt,
+          eventType: "order",
+        });
+      }
+
+      localStorage.removeItem("annr-cart");
+      localStorage.removeItem("shihiko-cart");
+      localStorage.removeItem("annr_cart_coupon");
+      localStorage.removeItem("annr_reservation");
+
+      const isSoldMatch = (p: any) =>
+        items.some((it) => it.id === p.id || (p.handle && (it.id === p.handle || it.handle === p.handle)) || it.title === p.title);
+      const rawAdm = localStorage.getItem("shihiko-admin-v1");
+      if (rawAdm) {
+        const adm = JSON.parse(rawAdm);
+        if (Array.isArray(adm.products)) {
+          adm.products = adm.products.map((p: any) => (isSoldMatch(p) ? { ...p, status: "sold", stock: 0, soldAt: new Date().toISOString() } : p));
+          localStorage.setItem("shihiko-admin-v1", JSON.stringify(adm));
+        }
+      }
+      const rawLive = localStorage.getItem("annr_live_products");
+      if (rawLive) {
+        const live = JSON.parse(rawLive);
+        if (Array.isArray(live)) {
+          localStorage.setItem(
+            "annr_live_products",
+            JSON.stringify(live.map((p: any) => (isSoldMatch(p) ? { ...p, status: "sold", stock: 0 } : p))),
+          );
+        }
+      }
+    } catch {}
+
+    const receiptPayload = {
+      ok: true,
+      order_number: orderNum,
+      subtotal,
+      shipping: shippingFee,
+      discount: totalDiscountBdt,
+      coupon_discount: couponDiscountBdt,
+      points_redeemed: effectiveRedeemedPts,
+      points_discount: pointsDiscountBdt,
+      points_earned: projectedTotalEarnedPoints,
+      total,
+      customerName: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      district,
+      division,
+      paymentMethod,
+      trxId: cleanTrxId,
+      waMessage,
+      waUrl,
+      waAppUrl,
+      savedAt: Date.now(),
+    };
+
+    try {
+      sessionStorage.setItem(WHATSAPP_RECEIPT_STORAGE_KEY, JSON.stringify(receiptPayload));
+    } catch {}
+
+    setOrderSuccess(receiptPayload);
+    setOrderSubmitting(false);
+
+    // Non-blocking background persistence with keepalive so requests complete even when mobile switches to WhatsApp
+    if (isSupabaseConfigured()) {
+      const rpcHeaders = {
+        apikey: supabasePublishableKey,
+        Authorization: `Bearer ${supabasePublishableKey}`,
+        "Content-Type": "application/json",
+      };
+      try {
+        void fetch(`${supabaseUrl}/rest/v1/rpc/place_store_order`, {
+          method: "POST",
+          keepalive: true,
+          headers: rpcHeaders,
+          body: JSON.stringify({
+            p_customer_name: cleanName,
+            p_email: cleanEmail,
+            p_phone: cleanPhone,
             p_division: division,
             p_district: district,
-            p_full_address: (upazila ? `${upazila}, ` : "") + fullAddress.trim(),
+            p_full_address: combinedAddress,
             p_items: items,
             p_payment_method: paymentMethod,
-            p_trx_id: trxId.trim() || null,
+            p_trx_id: cleanTrxId || null,
             p_coupon_code: appliedCoupon ? appliedCoupon.code : null,
-            p_customer_notes: customerNotes.trim() || null,
-          });
+            p_customer_notes: cleanNotes || null,
+          }),
+        }).catch(() => {});
 
-          if (!error && data?.ok) {
-            remoteOrderResult = data;
-          } else if (error && error.message && error.message.includes("own referral coupon")) {
-            setFormError(error.message);
-            return;
+        for (const it of items) {
+          if (it.id && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(it.id)) {
+            void fetch(`${supabaseUrl}/rest/v1/rpc/mark_product_sold`, {
+              method: "POST",
+              keepalive: true,
+              headers: rpcHeaders,
+              body: JSON.stringify({ p_product_id: it.id }),
+            }).catch(() => {});
           }
-        } catch {
-          // Fall through to local order & referral sync
         }
+      } catch {
+        void supabase
+          .rpc("place_store_order", {
+            p_customer_name: cleanName,
+            p_email: cleanEmail,
+            p_phone: cleanPhone,
+            p_division: division,
+            p_district: district,
+            p_full_address: combinedAddress,
+            p_items: items,
+            p_payment_method: paymentMethod,
+            p_trx_id: cleanTrxId || null,
+            p_coupon_code: appliedCoupon ? appliedCoupon.code : null,
+            p_customer_notes: cleanNotes || null,
+          })
+          .then(() => {}, () => {});
       }
+    }
 
-      const orderNum = remoteOrderResult?.order_number || Math.floor(10000 + Math.random() * 89999);
-      const ptsReward = appliedCoupon?.pointsReward ?? Number(loyaltySettings.points_per_referral || 100);
-      const effectiveRedeemedPts =
-        pointsDiscountBdt > 0 ? Math.min(pointsToRedeem, redemptionCap.maxPoints) : 0;
-
-      if (effectiveRedeemedPts > 0 && vipMember?.email) {
-        const redeemRes = await redeemMemberPointsForOrder({
-          memberEmail: vipMember.email,
-          pointsToRedeem: effectiveRedeemedPts,
-          orderNumber: orderNum,
-          orderSubtotal: subtotal,
-        });
-        if (!redeemRes.ok) {
-          setFormError(redeemRes.error || "Could not redeem ANNR Points.");
-          setOrderSubmitting(false);
-          return;
-        }
-      }
-
-      const earnedRes = await awardOrderLoyaltyPoints({
-        buyerEmail: email.trim(),
-        buyerName: customerName.trim(),
-        orderNumber: orderNum,
-        orderTotalBdt: total,
-      });
-
-      const orderRecord = {
-        id: `#${orderNum}`,
-        order_number: orderNum,
-        customer_name: customerName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        division,
-        district,
-        full_address: (upazila ? `${upazila}, ` : "") + fullAddress.trim(),
-        items,
-        total: total.toFixed(2),
-        subtotal,
-        shipping: shippingFee,
-        discount: totalDiscountBdt,
-        coupon_discount_bdt: couponDiscountBdt,
-        points_redeemed: effectiveRedeemedPts,
-        points_discount_bdt: pointsDiscountBdt,
-        points_earned: earnedRes.pointsEarned + earnedRes.campaignBonus,
-        payment_method: paymentMethod,
-        trx_id: trxId.trim() || undefined,
-        coupon_code: appliedCoupon?.code,
-        referral_points: appliedCoupon ? ptsReward : 0,
-        status: "Unfulfilled",
-        payment: paymentMethod === "cod" ? "Pending (COD)" : "Paid",
-        created_at: new Date().toISOString(),
-      };
-
+    // Background VIP loyalty points redemption & award
+    void (async () => {
       try {
-        const rawOrders = localStorage.getItem("annr-orders");
-        const orders = rawOrders ? JSON.parse(rawOrders) : [];
-        orders.unshift(orderRecord);
-        localStorage.setItem("annr-orders", JSON.stringify(orders.slice(0, 500)));
-
-        if (appliedCoupon?.code && ptsReward > 0) {
-          creditVipReferrerLocally({
-            referralCode: appliedCoupon.code,
-            pointsReward: ptsReward,
-            buyerName: customerName.trim(),
-            buyerEmail: email.trim(),
-            buyerPhone: phone.trim(),
+        if (effectiveRedeemedPts > 0 && vipMember?.email) {
+          await redeemMemberPointsForOrder({
+            memberEmail: vipMember.email,
+            pointsToRedeem: effectiveRedeemedPts,
             orderNumber: orderNum,
-            orderTotal: total,
-            discountGiven: couponDiscountBdt,
-            eventType: "order",
+            orderSubtotal: subtotal,
           });
         }
-
-        localStorage.removeItem("annr-cart");
-        localStorage.removeItem("shihiko-cart");
-        localStorage.removeItem("annr_cart_coupon");
-        localStorage.removeItem("annr_reservation");
-
-        try {
-          const isSoldMatch = (p: any) =>
-            items.some((it) => it.id === p.id || (p.handle && (it.id === p.handle || it.handle === p.handle)) || it.title === p.title);
-          const rawAdm = localStorage.getItem("shihiko-admin-v1");
-          if (rawAdm) {
-            const adm = JSON.parse(rawAdm);
-            if (Array.isArray(adm.products)) {
-              adm.products = adm.products.map((p: any) => (isSoldMatch(p) ? { ...p, status: "sold", stock: 0, soldAt: new Date().toISOString() } : p));
-              localStorage.setItem("shihiko-admin-v1", JSON.stringify(adm));
-            }
-          }
-          const rawLive = localStorage.getItem("annr_live_products");
-          if (rawLive) {
-            const live = JSON.parse(rawLive);
-            if (Array.isArray(live)) {
-              localStorage.setItem(
-                "annr_live_products",
-                JSON.stringify(live.map((p: any) => (isSoldMatch(p) ? { ...p, status: "sold", stock: 0 } : p))),
-              );
-            }
-          }
-        } catch {}
-
-        if (isSupabaseConfigured()) {
-          for (const it of items) {
-            if (it.id && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(it.id)) {
-              void (async () => {
-                try {
-                  await supabase.rpc("mark_product_sold", { p_product_id: it.id });
-                } catch {}
-              })();
-            }
-          }
-        }
+        await awardOrderLoyaltyPoints({
+          buyerEmail: cleanEmail,
+          buyerName: cleanName,
+          orderNumber: orderNum,
+          orderTotalBdt: total,
+        });
       } catch {}
+    })();
 
-      setOrderSuccess({
-        ok: true,
-        order_number: orderNum,
-        subtotal,
-        shipping: shippingFee,
-        discount: totalDiscountBdt,
-        coupon_discount: couponDiscountBdt,
-        points_redeemed: effectiveRedeemedPts,
-        points_discount: pointsDiscountBdt,
-        points_earned: earnedRes.pointsEarned + earnedRes.campaignBonus,
-        total,
-      });
-    } catch (err: any) {
-      setFormError(err?.message || "Order submission failed.");
-    } finally {
-      setOrderSubmitting(false);
+    // Launch WhatsApp SYNCHRONOUSLY inside user gesture so iOS Safari, Android Chrome, Samsung Internet,
+    // WhatsApp Messenger, WhatsApp Business, in-app WebViews & Desktop open directly with zero popup block.
+    try {
+      const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(ua);
+      if (isMobile) {
+        window.location.assign(waUrl);
+      } else {
+        const popup = window.open(waUrl, "_blank", "noopener,noreferrer");
+        if (!popup) {
+          window.location.assign(waUrl);
+        }
+      }
+    } catch {
+      try {
+        window.location.href = waUrl;
+      } catch {}
     }
   };
 
   if (orderSuccess) {
+    const clearSavedReceipt = () => {
+      try {
+        sessionStorage.removeItem(WHATSAPP_RECEIPT_STORAGE_KEY);
+      } catch {}
+    };
+
     return (
       <div className="annr-chk-root" style={{ background: "#f7f6f3" }}>
         <style>{CHECKOUT_STYLES}</style>
         <header className="annr-chk-header">
           <div className="annr-chk-header-inner">
-            <a href="/home.html" className="annr-chk-back">← Return to Store</a>
-            <a href="/home.html" className="annr-chk-logo" aria-label="AnnR Home">
+            <a href="/home.html" onClick={clearSavedReceipt} className="annr-chk-back">← Return to Store</a>
+            <a href="/home.html" onClick={clearSavedReceipt} className="annr-chk-logo" aria-label="AnnR Home">
               <img src="/cdn/shop/t/75/assets/image_logo.svg" alt="AnnR" />
             </a>
-            <div className="annr-chk-secure">ORDER CONFIRMED</div>
+            <div className="annr-chk-secure">ORDER READY</div>
           </div>
         </header>
 
-        <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 20px" }}>
+        <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "36px 16px 56px" }}>
           <div
+            className="annr-chk-receipt-card"
             style={{
-              maxWidth: 560,
+              maxWidth: 580,
               width: "100%",
               background: "#ffffff",
               border: "1px solid #0a0a0a",
-              padding: "40px 36px",
+              padding: "36px 32px",
               textAlign: "center",
             }}
           >
@@ -942,15 +1324,14 @@ function CheckoutPage() {
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 44,
-                height: 44,
+                width: 46,
+                height: 46,
                 background: "#0a0a0a",
-                color: "#ffffff",
-                marginBottom: 18,
-                fontSize: 18,
+                color: "#25D366",
+                marginBottom: 16,
               }}
             >
-              ✓
+              <WhatsAppIcon size={24} />
             </div>
             <div
               style={{
@@ -962,13 +1343,13 @@ function CheckoutPage() {
                 marginBottom: 8,
               }}
             >
-              ARCHIVAL ACQUISITION CONFIRMED
+              STRUCTURED WHATSAPP ORDER READY
             </div>
             <h1
               style={{
                 margin: "0 0 8px",
                 fontFamily: "'Druk Wide', 'NB Architekt Std', sans-serif",
-                fontSize: 22,
+                fontSize: 21,
                 fontWeight: 900,
                 letterSpacing: 0.4,
                 textTransform: "uppercase",
@@ -976,35 +1357,71 @@ function CheckoutPage() {
             >
               ORDER #{orderSuccess.order_number}
             </h1>
-            <p style={{ margin: "0 0 28px", fontSize: 13, color: "#525252", fontFamily: "-apple-system, sans-serif" }}>
-              Confirmation recorded for <strong>{email}</strong>. Your 1-of-1 piece has been sealed in the AnnR collector vault.
+            <p style={{ margin: "0 0 22px", fontSize: 13, color: "#525252", fontFamily: "-apple-system, sans-serif", lineHeight: 1.5 }}>
+              Your structured order has been prepared for AnnR WhatsApp (<strong>{ANNR_WHATSAPP_DISPLAY}</strong>). Tap below if WhatsApp did not open automatically.
             </p>
+
+            {/* Primary & Cross-App WhatsApp Launch Actions */}
+            {orderSuccess.waUrl && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 22 }}>
+                <a
+                  href={orderSuccess.waUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="annr-chk-wa-primary"
+                >
+                  <span style={{ color: "#25D366", display: "inline-flex" }}>
+                    <WhatsAppIcon size={18} />
+                  </span>
+                  <span>Send on WhatsApp ({ANNR_WHATSAPP_DISPLAY}) →</span>
+                </a>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {orderSuccess.waAppUrl && (
+                    <a href={orderSuccess.waAppUrl} className="annr-chk-wa-secondary">
+                      Open WhatsApp App Directly
+                    </a>
+                  )}
+                  {orderSuccess.waMessage && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopyWaMessage(orderSuccess.waMessage)}
+                      className="annr-chk-wa-secondary"
+                    >
+                      {copiedWaText ? "✓ Copied Order Text" : "Copy Order Text"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div
               style={{
                 background: "#f7f6f3",
                 border: "1px solid #e6e6e2",
-                padding: "18px 20px",
+                padding: "16px 18px",
                 textAlign: "left",
                 fontSize: 12,
                 display: "flex",
                 flexDirection: "column",
-                gap: 10,
-                marginBottom: 28,
+                gap: 9,
+                marginBottom: 16,
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#666", fontFamily: "'FK Grotesk SemiMono', monospace", fontSize: 11 }}>RECIPIENT</span>
-                <strong style={{ color: "#0a0a0a" }}>{customerName}</strong>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ color: "#666", fontFamily: "'FK Grotesk SemiMono', monospace", fontSize: 10.5 }}>RECIPIENT</span>
+                <strong style={{ color: "#0a0a0a", textAlign: "right" }}>{orderSuccess.customerName || customerName}</strong>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#666", fontFamily: "'FK Grotesk SemiMono', monospace", fontSize: 11 }}>DESTINATION</span>
-                <strong style={{ color: "#0a0a0a" }}>{district}, {division}</strong>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ color: "#666", fontFamily: "'FK Grotesk SemiMono', monospace", fontSize: 10.5 }}>DESTINATION</span>
+                <strong style={{ color: "#0a0a0a", textAlign: "right" }}>
+                  {orderSuccess.district || district}, {orderSuccess.division || division}
+                </strong>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#666", fontFamily: "'FK Grotesk SemiMono', monospace", fontSize: 11 }}>PAYMENT</span>
-                <strong style={{ color: "#0a0a0a", textTransform: "uppercase" }}>
-                  {paymentMethod} {trxId ? `(${trxId})` : ""}
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ color: "#666", fontFamily: "'FK Grotesk SemiMono', monospace", fontSize: 10.5 }}>PAYMENT</span>
+                <strong style={{ color: "#0a0a0a", textTransform: "uppercase", textAlign: "right" }}>
+                  {formatPaymentMethodLabel(orderSuccess.paymentMethod || paymentMethod)}
+                  {orderSuccess.trxId || trxId ? ` (${orderSuccess.trxId || trxId})` : ""}
                 </strong>
               </div>
               {orderSuccess.points_redeemed > 0 && (
@@ -1022,11 +1439,11 @@ function CheckoutPage() {
               <div
                 style={{
                   borderTop: "1px solid #0a0a0a",
-                  paddingTop: 12,
+                  paddingTop: 11,
                   marginTop: 4,
                   display: "flex",
                   justifyContent: "space-between",
-                  fontSize: 15,
+                  fontSize: 14.5,
                   fontWeight: 700,
                 }}
               >
@@ -1035,21 +1452,41 @@ function CheckoutPage() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {orderSuccess.waMessage && (
+              <details style={{ textAlign: "left", marginBottom: 22 }}>
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    fontFamily: "'FK Grotesk SemiMono', monospace",
+                    fontSize: 10.5,
+                    letterSpacing: 1.2,
+                    textTransform: "uppercase",
+                    color: "#525252",
+                    padding: "6px 0",
+                  }}
+                >
+                  View Structured WhatsApp Message
+                </summary>
+                <pre className="annr-chk-wa-preview">{orderSuccess.waMessage}</pre>
+              </details>
+            )}
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <a
                 href="/account/login/index.html"
+                onClick={clearSavedReceipt}
                 style={{
                   flex: 1,
-                  minWidth: 160,
+                  minWidth: 150,
                   display: "block",
                   background: "#ffffff",
                   color: "#0a0a0a",
                   border: "1px solid #0a0a0a",
                   textDecoration: "none",
-                  padding: "14px 16px",
+                  padding: "13px 14px",
                   fontWeight: 700,
                   fontSize: 11,
-                  letterSpacing: 1.5,
+                  letterSpacing: 1.4,
                   textTransform: "uppercase",
                 }}
               >
@@ -1057,18 +1494,19 @@ function CheckoutPage() {
               </a>
               <a
                 href="/home.html"
+                onClick={clearSavedReceipt}
                 style={{
                   flex: 1,
-                  minWidth: 160,
+                  minWidth: 150,
                   display: "block",
                   background: "#0a0a0a",
                   color: "#ffffff",
                   border: "1px solid #0a0a0a",
                   textDecoration: "none",
-                  padding: "14px 16px",
+                  padding: "13px 14px",
                   fontWeight: 700,
                   fontSize: 11,
-                  letterSpacing: 1.5,
+                  letterSpacing: 1.4,
                   textTransform: "uppercase",
                 }}
               >
@@ -1110,9 +1548,9 @@ function CheckoutPage() {
           <nav className="annr-chk-crumb" aria-label="Checkout progress">
             <a href="/collections/unique-campaign/index.html" style={{ color: "inherit", textDecoration: "none" }}>Archive</a>
             <span>/</span>
-            <span className="active">Information &amp; Delivery</span>
+            <span className="active">Contact &amp; Delivery</span>
             <span>/</span>
-            <span className="active">Payment</span>
+            <span className="active">Continue to WhatsApp</span>
           </nav>
 
           {formError && (
@@ -1313,17 +1751,17 @@ function CheckoutPage() {
 
                 {paymentMethod !== "cod" && (
                   <div className="annr-chk-mfs-box">
-                    <div style={{ fontSize: 12.5, color: "#262626", marginBottom: 10, fontFamily: "-apple-system, sans-serif" }}>
-                      Send <strong>Tk {total.toLocaleString()} BDT</strong> to AnnR {paymentMethod.toUpperCase()} Wallet:{" "}
-                      <strong style={{ fontFamily: "'FK Grotesk SemiMono', monospace", letterSpacing: 1 }}>01700000000</strong>
+                    <div style={{ fontSize: 12.5, color: "#262626", marginBottom: 10, fontFamily: "-apple-system, sans-serif", lineHeight: 1.45 }}>
+                      Send <strong>Tk {total.toLocaleString()} BDT</strong> via {formatPaymentMethodLabel(paymentMethod)} to{" "}
+                      <strong style={{ fontFamily: "'FK Grotesk SemiMono', monospace", letterSpacing: 0.8 }}>{ANNR_WHATSAPP_DISPLAY}</strong>{" "}
+                      or confirm payment directly in WhatsApp after clicking Continue.
                     </div>
                     <div className="annr-chk-field">
-                      <label htmlFor="chk-trx">Transaction ID (TrxID) *</label>
+                      <label htmlFor="chk-trx">Transaction ID (TrxID — Optional)</label>
                       <input
                         id="chk-trx"
                         type="text"
-                        required
-                        placeholder="e.g. 9B8A7C6D5E"
+                        placeholder="Optional — or share screenshot in WhatsApp"
                         value={trxId}
                         onChange={(e) => setTrxId(e.target.value.toUpperCase())}
                         style={{ fontFamily: "'FK Grotesk SemiMono', monospace", letterSpacing: 1 }}
@@ -1339,8 +1777,18 @@ function CheckoutPage() {
               className="annr-chk-submit"
               disabled={orderSubmitting || items.length === 0}
             >
-              {orderSubmitting ? "Processing Archival Order…" : `Complete Order · Tk ${total.toLocaleString()} BDT`}
+              <span style={{ color: "#25D366", display: "inline-flex" }}>
+                <WhatsAppIcon size={18} />
+              </span>
+              <span>
+                {orderSubmitting
+                  ? "Opening WhatsApp Order…"
+                  : `Continue to WhatsApp · Tk ${total.toLocaleString()} BDT →`}
+              </span>
             </button>
+            <p className="annr-chk-wa-caption">
+              Sends all structured order, contact &amp; delivery details directly to AnnR WhatsApp ({ANNR_WHATSAPP_DISPLAY})
+            </p>
           </form>
 
           <footer className="annr-chk-footer">

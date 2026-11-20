@@ -88,10 +88,17 @@
       ".annr-lightbox-btn { position: fixed; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.22); cursor: pointer; font-family: 'FK Grotesk SemiMono', monospace; font-size: 14px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }\n" +
       ".annr-lightbox-btn:hover { background: #ffffff; color: #0a0a0a; }\n" +
       "@media only screen and (max-width: 767px) {\n" +
-      "  .annr-exact-size-card { padding: 14px 16px; }\n" +
+      "  .annr-exact-size-card { padding: 14px 16px; gap: 10px; }\n" +
+      "  .annr-size-primary { flex-direction: column; gap: 5px; align-items: flex-start; }\n" +
+      "  .annr-size-value { font-size: 20px; }\n" +
       "  .annr-size-meta { align-items: flex-start; text-align: left; }\n" +
-      "  .annr-campaign-hero { padding: 18px 14px 16px; }\n" +
-      "  .annr-grid-controls { padding: 10px 14px; }\n" +
+      "  .annr-measurements-panel { padding: 14px; }\n" +
+      "  .annr-measurements-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px; }\n" +
+      "  .annr-campaign-hero { padding: 16px 16px 14px; margin-bottom: 12px; gap: 8px; }\n" +
+      "  .annr-campaign-hero h1 { font-size: 20px; }\n" +
+      "  .annr-campaign-hero p.lead { font-size: 11px; }\n" +
+      "  .annr-grid-controls { padding: 10px 16px; margin-bottom: 16px; gap: 10px; }\n" +
+      "  .annr-sort-select { padding: 6px 8px; font-size: 9.5px; }\n" +
       "  .product-gallery-carousel .product-gallery-nav { width: 32px !important; height: 32px !important; }\n" +
       "}\n";
     document.head.appendChild(st);
@@ -387,6 +394,33 @@
     var showcase = document.querySelector("product-carousel-showcase");
     if (!showcase) return;
 
+    // Keep showcase locked to Product View while Model View toggle is hidden
+    showcase.setAttribute("data-view", "products");
+
+    // Smooth mobile & desktop scroll header backdrop on Home Page so transparent header never clashes with hero CTA
+    if (!window.__annrHomeHeaderScrollBound) {
+      window.__annrHomeHeaderScrollBound = true;
+      var syncHomeHeaderBackdrop = function () {
+        var hg = document.querySelector(".header-group");
+        var sh = document.querySelector("shihiko-header");
+        if (!hg) return;
+        var y = window.scrollY || window.pageYOffset || 0;
+        var pastHero = sh ? sh.classList.contains("header-new-past-hero") : (y > 560);
+        if (pastHero) {
+          hg.classList.add("annr-header-solid");
+          hg.classList.remove("annr-header-hero-glass");
+        } else if (y > 20) {
+          hg.classList.add("annr-header-hero-glass");
+          hg.classList.remove("annr-header-solid");
+        } else {
+          hg.classList.remove("annr-header-hero-glass");
+          hg.classList.remove("annr-header-solid");
+        }
+      };
+      window.addEventListener("scroll", syncHomeHeaderBackdrop, { passive: true });
+      syncHomeHeaderBackdrop();
+    }
+
     fetchLiveProducts(function (products) {
       updateHeaderSearchTrending(products);
       var featured = (Array.isArray(products) ? products : []).filter(function (p) {
@@ -483,6 +517,7 @@
       }
 
       if (thumbsEl) {
+        thumbsEl.setAttribute("data-single", featured.length <= 1 ? "true" : "false");
         thumbsEl.style.display = featured.length <= 1 ? "none" : "";
       }
 
@@ -502,13 +537,29 @@
       }
 
       try {
-        showcase.thumbs = Array.from(showcase.querySelectorAll("[data-carousel-thumb]"));
-        if (typeof showcase.bindThumbs === "function") showcase.bindThumbs();
-        if (typeof showcase.reinitializeSwiper === "function") {
-          showcase.reinitializeSwiper();
+        if (featured.length <= 2) {
+          // Destroy Swiper on 1–2 item showcase so Swiper creative effect never offsets/dims mobile cards
+          if (sliderEl && sliderEl.swiper) {
+            try { sliderEl.swiper.destroy(true, true); } catch (e) {}
+          }
+          if (thumbsEl && thumbsEl.swiper) {
+            try { thumbsEl.swiper.destroy(true, true); } catch (e) {}
+          }
+          if (mainWrap) {
+            mainWrap.removeAttribute("style");
+            mainWrap.querySelectorAll(".product-carousel-showcase__slide").forEach(function (sl) {
+              sl.removeAttribute("style");
+            });
+          }
         } else {
-          if (sliderEl && sliderEl.swiper) sliderEl.swiper.update();
-          if (thumbsEl && thumbsEl.swiper) thumbsEl.swiper.update();
+          showcase.thumbs = Array.from(showcase.querySelectorAll("[data-carousel-thumb]"));
+          if (typeof showcase.bindThumbs === "function") showcase.bindThumbs();
+          if (typeof showcase.reinitializeSwiper === "function") {
+            showcase.reinitializeSwiper();
+          } else {
+            if (sliderEl && sliderEl.swiper) sliderEl.swiper.update();
+            if (thumbsEl && thumbsEl.swiper) thumbsEl.swiper.update();
+          }
         }
       } catch (e) {}
     });
@@ -859,7 +910,7 @@
           "</div>" :
           "<div class='annr-size-primary'>" +
             "<div class='annr-size-tag'>SIZING</div>" +
-            "<div class='annr-size-value' style='font-size:15px;letter-spacing:1px;font-weight:700'>FLAT MEASUREMENTS ONLY</div>" +
+            "<div class='annr-size-value' style='font-family:\"NB Architekt Std\",sans-serif;font-size:14px;letter-spacing:1.4px;font-weight:700;line-height:1.25'>EXACT FLAT MEASUREMENTS</div>" +
           "</div>";
 
         sizeBox.innerHTML =
@@ -1031,6 +1082,7 @@
 
     var catalogRoot = grid.closest(".collection-catalog");
     if (catalogRoot) {
+      catalogRoot.setAttribute("data-view", "products");
       if (!catalogRoot.style.getPropertyValue("--collection-columns-desktop")) {
         catalogRoot.style.setProperty("--collection-columns-desktop", catalogRoot.getAttribute("data-desktop-columns") || "4");
       }
@@ -1168,6 +1220,7 @@
         );
       }).join("");
 
+      grid.setAttribute("data-single-item", filtered.length === 1 ? "true" : "false");
       grid.innerHTML = html;
     }
 

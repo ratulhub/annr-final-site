@@ -2,15 +2,39 @@
 /*# sourceMappingURL=/cdn/shop/t/75/assets/theme.css.map?v=170184888075214981191789705535 */
 
 /* AnnR dynamic 1-of-1 storefront, luxury gallery & header overrides */
+
+/* Hide MODEL VIEW toggle across Home & Collections until requested to activate */
+.product-carousel-showcase__switch,
+.collection-display-view {
+  display: none !important;
+}
+
+/* Hide legacy US/international credit card icons in footer (Bangladesh uses COD / bKash / Nagad) */
+.footer-payments,
+.footer-bottom-payments,
+.footer__payments,
+.footer-bottom ul.list-payment,
+.footer-bottom .payment-icons {
+  display: none !important;
+}
+
 body.template-name-product .header-group,
 body.template-name-collection .header-group,
 body.template-name-search .header-group,
 body.template-name-page .header-group,
+.header-group:has(shihiko-header.header-new-past-hero),
+.header-group.annr-header-solid,
 .header-group:has(.header-new.is-scrolled) {
-  background: rgba(255, 255, 255, 0.96) !important;
+  background: rgba(255, 255, 255, 0.97) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
   border-bottom: 1px solid rgba(17, 17, 17, 0.08) !important;
+}
+.header-group.annr-header-hero-glass {
+  background: rgba(10, 10, 10, 0.62) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 body.template-name-product .header-new,
 body.template-name-collection .header-new,
@@ -22,7 +46,12 @@ body.template-name-page .header-new {
 /* Luxury Product Card Framing (Home Showcase & Collection Grid) */
 .collection-product-grid { display: grid !important; width: 100% !important; gap: 36px 16px !important; padding: 0 24px 64px !important; box-sizing: border-box !important; }
 @media only screen and (max-width: 767px) {
-  .collection-product-grid { gap: 24px 10px !important; padding: 0 12px 44px !important; }
+  .collection-product-grid { gap: 24px 12px !important; padding: 0 16px 48px !important; }
+  .collection-product-grid[data-single-item="true"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    max-width: 400px !important;
+    margin: 0 auto !important;
+  }
 }
 .collection-product-grid .product-card,
 product-carousel-showcase .product-card { opacity: 1 !important; visibility: visible !important; display: flex !important; flex-direction: column !important; }
@@ -82,18 +111,91 @@ product-carousel-showcase .product-carousel-showcase__thumb img {
   object-fit: cover !important;
   object-position: center !important;
 }
+product-carousel-showcase .product-carousel-showcase__thumbs[data-single="true"],
+product-carousel-showcase .product-carousel-showcase__thumbs:has(.product-carousel-showcase__thumb-slide:only-child) {
+  display: none !important;
+}
 product-carousel-showcase .product-carousel-showcase__slider[data-few-items="true"] .swiper-wrapper {
+  display: flex !important;
   justify-content: center !important;
   gap: 24px !important;
   padding: 0 24px !important;
   box-sizing: border-box !important;
   transform: none !important;
+  width: 100% !important;
 }
 product-carousel-showcase .product-carousel-showcase__slider[data-few-items="true"] .product-carousel-showcase__slide {
   max-width: 460px !important;
   flex: 0 1 460px !important;
   width: 100% !important;
-  margin-right: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+@media only screen and (max-width: 767px) {
+  product-carousel-showcase {
+    padding: 36px 0 44px !important;
+  }
+  product-carousel-showcase .product-carousel-showcase__header {
+    padding: 0 16px !important;
+    margin-bottom: 18px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+  product-carousel-showcase .product-carousel-showcase__title {
+    font-size: 22px !important;
+    line-height: 1.08 !important;
+  }
+  product-carousel-showcase .product-carousel-showcase__actions {
+    width: auto !important;
+    margin-top: 0 !important;
+    flex-shrink: 0 !important;
+  }
+  product-carousel-showcase .product-carousel-showcase__cta {
+    min-width: auto !important;
+  }
+  product-carousel-showcase .product-carousel-showcase__slider[data-few-items="true"] .swiper-wrapper {
+    padding: 0 16px !important;
+    gap: 16px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  product-carousel-showcase .product-carousel-showcase__slider[data-few-items="true"] .product-carousel-showcase__slide {
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+  }
+  product-carousel-showcase .product-carousel-showcase__slide {
+    opacity: 1 !important;
+  }
+  body.template-name-product .footer,
+  body.template-name-product footer {
+    padding-bottom: 92px !important;
+  }
+  .product-info-features {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 11px !important;
+    margin: 18px 0 26px !important;
+  }
+  .product-info-feature {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+  .product-info-feature > span:not(.icon) {
+    padding-top: 0 !important;
+    height: auto !important;
+  }
+}
+.product-info-feature > span:not(.icon) {
+  padding-top: 0 !important;
+  height: auto !important;
 }
 
 /* Luxury Editorial Product Detail Page (PDP) Gallery & Layout */
