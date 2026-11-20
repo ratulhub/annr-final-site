@@ -482,6 +482,10 @@
         }).join("");
       }
 
+      if (thumbsEl) {
+        thumbsEl.style.display = featured.length <= 1 ? "none" : "";
+      }
+
       if (thumbWrap) {
         thumbWrap.innerHTML = featured.map(function (p, idx) {
           var img1 = safeImg(p.images && p.images[0]);

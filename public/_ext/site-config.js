@@ -1919,96 +1919,110 @@
         });
       }
 
-      function renderAnnrCartDrawer() {
+      var isRenderingCart = false;
+      var lastRenderedCartSig = "";
+
+      function renderAnnrCartDrawer(force) {
+        if (isRenderingCart) return;
         var cartPopup = document.getElementById("cart-popup");
         var items = readLocalCart();
         updateHeaderCartBadges(items);
         if (!cartPopup) return;
 
-        var countEl = cartPopup.querySelector(".cart-popup-title .count");
-        if (countEl) countEl.textContent = "[" + (items.length < 10 ? "0" + items.length : String(items.length)) + "]";
-
-        // Clean legacy US payment icons inside empty cart
-        var payIcons = cartPopup.querySelector(".inline-list.payment-icons");
-        if (payIcons && !payIcons.getAttribute("data-annr-bd-pay")) {
-          payIcons.setAttribute("data-annr-bd-pay", "1");
-          payIcons.innerHTML =
-            "<li style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;letter-spacing:1.4px;color:rgba(255,255,255,0.72);text-transform:uppercase'>CASH ON DELIVERY · BKASH · NAGAD</li>";
-        }
-
+        var sig = JSON.stringify(items);
         var existingBody = document.getElementById("annr-cart-drawer-body");
-        var emptyEl = cartPopup.querySelector(".cart-popup-empty");
-
-        if (items.length === 0) {
-          if (existingBody) existingBody.remove();
-          if (emptyEl) emptyEl.style.display = "";
+        if (!force && sig === lastRenderedCartSig && (items.length === 0 ? !existingBody : !!existingBody)) {
           return;
         }
+        isRenderingCart = true;
+        try {
+          lastRenderedCartSig = sig;
+          var countEl = cartPopup.querySelector(".cart-popup-title .count");
+          if (countEl) countEl.textContent = "[" + (items.length < 10 ? "0" + items.length : String(items.length)) + "]";
 
-        if (emptyEl) emptyEl.style.display = "none";
+          // Clean legacy US payment icons inside empty cart
+          var payIcons = cartPopup.querySelector(".inline-list.payment-icons");
+          if (payIcons && !payIcons.getAttribute("data-annr-bd-pay")) {
+            payIcons.setAttribute("data-annr-bd-pay", "1");
+            payIcons.innerHTML =
+              "<li style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;letter-spacing:1.4px;color:rgba(255,255,255,0.72);text-transform:uppercase'>CASH ON DELIVERY · BKASH · NAGAD</li>";
+          }
 
-        var subtotal = items.reduce(function (sum, it) {
-          return sum + (Number(it.price) || 0) * (Number(it.quantity) || 1);
-        }, 0);
-        var freeShipRemain = Math.max(0, 5000 - subtotal);
+          var emptyEl = cartPopup.querySelector(".cart-popup-empty");
 
-        var bodyEl = existingBody || document.createElement("div");
-        bodyEl.id = "annr-cart-drawer-body";
-        bodyEl.style.cssText = "flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:0 16px 20px;overflow-y:auto;color:#ffffff;font-family:'NB Architekt Std',sans-serif";
+          if (items.length === 0) {
+            if (existingBody) existingBody.remove();
+            if (emptyEl) emptyEl.style.display = "";
+            return;
+          }
 
-        var itemsHtml = items.map(function (it, idx) {
-          var imgSrc = safeImg(it.image || "/_ext/annr-template-001.png");
-          return (
-            "<div style='display:flex;gap:14px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.12);align-items:flex-start'>" +
-              "<img src='" + esc(imgSrc) + "' alt='" + esc(it.title) + "' style='width:76px;height:76px;object-fit:cover;background:#1a1a1a;flex-shrink:0;border:1px solid rgba(255,255,255,0.12)' onerror=\"this.src='/_ext/annr-template-001.png'\">" +
-              "<div style='flex:1;min-width:0'>" +
-                (it.code ? "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:9.5px;color:#e05a2b;letter-spacing:1.4px;margin-bottom:4px'>" + esc(it.code) + " · 1 OF 1</div>" : "") +
-                "<div style='font-size:13px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;line-height:1.35;color:#ffffff'>" + esc(it.title) + "</div>" +
-                (it.showSize !== false && it.size ? "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;color:rgba(255,255,255,0.6);margin-top:4px'>SIZE: " + esc(it.size) + "</div>" : "") +
-                "<div style='display:flex;justify-content:space-between;align-items:center;margin-top:10px'>" +
-                  "<span style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:13px;font-weight:700;color:#ffffff'>Tk " + (Number(it.price) || 0).toLocaleString("en-US") + " BDT</span>" +
-                  "<button type='button' data-annr-remove-idx='" + idx + "' style='background:none;border:none;color:rgba(255,255,255,0.55);font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;text-decoration:underline;cursor:pointer;padding:0'>REMOVE</button>" +
+          if (emptyEl) emptyEl.style.display = "none";
+
+          var subtotal = items.reduce(function (sum, it) {
+            return sum + (Number(it.price) || 0) * (Number(it.quantity) || 1);
+          }, 0);
+          var freeShipRemain = Math.max(0, 5000 - subtotal);
+
+          var bodyEl = existingBody || document.createElement("div");
+          bodyEl.id = "annr-cart-drawer-body";
+          bodyEl.style.cssText = "flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:0 16px 20px;overflow-y:auto;color:#ffffff;font-family:'NB Architekt Std',sans-serif";
+
+          var itemsHtml = items.map(function (it, idx) {
+            var imgSrc = safeImg(it.image || "/_ext/annr-template-001.png");
+            return (
+              "<div style='display:flex;gap:14px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.12);align-items:flex-start'>" +
+                "<img src='" + esc(imgSrc) + "' alt='" + esc(it.title) + "' style='width:76px;height:76px;object-fit:cover;background:#1a1a1a;flex-shrink:0;border:1px solid rgba(255,255,255,0.12)' onerror=\"this.src='/_ext/annr-template-001.png'\">" +
+                "<div style='flex:1;min-width:0'>" +
+                  (it.code ? "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:9.5px;color:#e05a2b;letter-spacing:1.4px;margin-bottom:4px'>" + esc(it.code) + " · 1 OF 1</div>" : "") +
+                  "<div style='font-size:13px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;line-height:1.35;color:#ffffff'>" + esc(it.title) + "</div>" +
+                  (it.showSize !== false && it.size ? "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;color:rgba(255,255,255,0.6);margin-top:4px'>SIZE: " + esc(it.size) + "</div>" : "") +
+                  "<div style='display:flex;justify-content:space-between;align-items:center;margin-top:10px'>" +
+                    "<span style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:13px;font-weight:700;color:#ffffff'>Tk " + (Number(it.price) || 0).toLocaleString("en-US") + " BDT</span>" +
+                    "<button type='button' data-annr-remove-idx='" + idx + "' style='background:none;border:none;color:rgba(255,255,255,0.55);font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;text-decoration:underline;cursor:pointer;padding:0'>REMOVE</button>" +
+                  "</div>" +
                 "</div>" +
+              "</div>"
+            );
+          }).join("");
+
+          bodyEl.innerHTML =
+            "<div>" +
+              "<div style='background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);padding:10px 12px;margin-bottom:8px;font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#f3f3f3'>" +
+                (freeShipRemain === 0
+                  ? "✓ COMPLIMENTARY BANGLADESH SHIPPING UNLOCKED"
+                  : "ADD ৳" + freeShipRemain.toLocaleString("en-US") + " MORE FOR FREE SHIPPING") +
               "</div>" +
-            "</div>"
-          );
-        }).join("");
-
-        bodyEl.innerHTML =
-          "<div>" +
-            "<div style='background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);padding:10px 12px;margin-bottom:8px;font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#f3f3f3'>" +
-              (freeShipRemain === 0
-                ? "✓ COMPLIMENTARY BANGLADESH SHIPPING UNLOCKED"
-                : "ADD ৳" + freeShipRemain.toLocaleString("en-US") + " MORE FOR FREE SHIPPING") +
+              itemsHtml +
             "</div>" +
-            itemsHtml +
-          "</div>" +
-          "<div class='cart-popup-footer' style='padding-top:16px;border-top:1px solid rgba(255,255,255,0.16);margin-top:16px'>" +
-            "<div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px'>" +
-              "<span style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:11px;letter-spacing:1.4px;color:rgba(255,255,255,0.7);text-transform:uppercase'>SUBTOTAL</span>" +
-              "<span style='font-family:\"NB Architekt Std\",sans-serif;font-size:18px;font-weight:700;color:#ffffff'>Tk " + subtotal.toLocaleString("en-US") + " BDT</span>" +
-            "</div>" +
-            "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;color:rgba(255,255,255,0.55);margin-bottom:16px'>Shipping &amp; VIP Points calculated at checkout.</div>" +
-            "<a href='/checkout' class='cart-popup-checkout' style='display:block;width:100%;text-align:center;background:#ffffff;color:#0a0a0a;padding:15px 18px;font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;text-decoration:none;box-sizing:border-box'>PROCEED TO CHECKOUT →</a>" +
-            "<div style='text-align:center;margin-top:10px;font-family:\"FK Grotesk SemiMono\",monospace;font-size:9.5px;letter-spacing:1.2px;color:rgba(255,255,255,0.5)'>CASH ON DELIVERY · BKASH · NAGAD</div>" +
-          "</div>";
+            "<div class='cart-popup-footer' style='padding-top:16px;border-top:1px solid rgba(255,255,255,0.16);margin-top:16px'>" +
+              "<div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px'>" +
+                "<span style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:11px;letter-spacing:1.4px;color:rgba(255,255,255,0.7);text-transform:uppercase'>SUBTOTAL</span>" +
+                "<span style='font-family:\"NB Architekt Std\",sans-serif;font-size:18px;font-weight:700;color:#ffffff'>Tk " + subtotal.toLocaleString("en-US") + " BDT</span>" +
+              "</div>" +
+              "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;color:rgba(255,255,255,0.55);margin-bottom:16px'>Shipping &amp; VIP Points calculated at checkout.</div>" +
+              "<a href='/checkout' class='cart-popup-checkout' style='display:block;width:100%;text-align:center;background:#ffffff;color:#0a0a0a;padding:15px 18px;font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;text-decoration:none;box-sizing:border-box'>PROCEED TO CHECKOUT →</a>" +
+              "<div style='text-align:center;margin-top:10px;font-family:\"FK Grotesk SemiMono\",monospace;font-size:9.5px;letter-spacing:1.2px;color:rgba(255,255,255,0.5)'>CASH ON DELIVERY · BKASH · NAGAD</div>" +
+            "</div>";
 
-        if (!existingBody) {
-          cartPopup.appendChild(bodyEl);
+          if (!existingBody) {
+            cartPopup.appendChild(bodyEl);
+          }
+
+          bodyEl.querySelectorAll("[data-annr-remove-idx]").forEach(function (rmBtn) {
+            rmBtn.onclick = function () {
+              var idx = Number(rmBtn.getAttribute("data-annr-remove-idx"));
+              var next = readLocalCart().filter(function (_, i) { return i !== idx; });
+              try { localStorage.setItem("annr-cart", JSON.stringify(next)); } catch (e) {}
+              renderAnnrCartDrawer(true);
+            };
+          });
+        } finally {
+          isRenderingCart = false;
         }
-
-        bodyEl.querySelectorAll("[data-annr-remove-idx]").forEach(function (rmBtn) {
-          rmBtn.onclick = function () {
-            var idx = Number(rmBtn.getAttribute("data-annr-remove-idx"));
-            var next = readLocalCart().filter(function (_, i) { return i !== idx; });
-            try { localStorage.setItem("annr-cart", JSON.stringify(next)); } catch (e) {}
-            renderAnnrCartDrawer();
-          };
-        });
       }
 
       function syncCartItems() {
-        renderAnnrCartDrawer();
+        renderAnnrCartDrawer(false);
       }
 
       // Inject a clean VIP Referral Coupon bar inside the slide-out cart drawer (#cart-popup)
@@ -2068,12 +2082,13 @@
       if (cpEl && !cpEl.__annrCouponObserved) {
         cpEl.__annrCouponObserved = true;
         var cpObs = new MutationObserver(function () {
-          renderAnnrCartDrawer();
+          if (isRenderingCart) return;
+          renderAnnrCartDrawer(false);
           if (!document.getElementById("adm-cart-coupon-box")) injectCartCouponBar();
         });
-        cpObs.observe(cpEl, { childList: true, subtree: true });
+        cpObs.observe(cpEl, { childList: true });
       }
-      renderAnnrCartDrawer();
+      renderAnnrCartDrawer(false);
       injectCartCouponBar();
 
       // Sync when cart popup opens or item is added
