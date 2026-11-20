@@ -330,6 +330,52 @@ async function buildPredictiveSearchHtml(query: string): Promise<string> {
   return `<div id="shopify-section-predictive-search-new" class="shopify-section"><div id="predictive-search-new-results"><div class="header-search-new__result-products" data-header-search-new-result-products>${cards}</div></div></div>`;
 }
 
+async function buildAnnrRecommendationSlides(excludeHandle?: string, allowedHandles?: Set<string>): Promise<string> {
+  if (!isSupabaseConfigured()) return "";
+  try {
+    const { data } = await supabase
+      .from("products")
+      .select("id,handle,title,price,images,status,code,size,show_size")
+      .in("status", ["active", "reserved"])
+      .order("created_at", { ascending: false })
+      .limit(12);
+    if (!Array.isArray(data) || data.length === 0) return "";
+    const filtered = (data as Array<Record<string, unknown>>).filter((r) => {
+      const h = String(r["handle"] || "");
+      if (!h || LEGACY_PRODUCT_HANDLES.has(h) || h === "annr-archival-001") return false;
+      if (excludeHandle && h === excludeHandle) return false;
+      if (allowedHandles && allowedHandles.size > 0 && !allowedHandles.has(h)) return false;
+      return true;
+    }).slice(0, 8);
+    if (!filtered.length) return "";
+    return filtered.map((p) => {
+      const images = Array.isArray(p["images"]) ? (p["images"] as string[]) : [];
+      const img1 = images[0] || "/_ext/annr-template-001.png";
+      const img2 = images[1] && images[1] !== img1 ? images[1] : "";
+      const pTitle = esc(p["title"]);
+      const price = String(p["price"] || "0").replace(/\.00$/, "");
+      const handle = esc(p["handle"] || "");
+      const code = esc(p["code"] || "");
+      const size = p["show_size"] !== false && p["size"] && p["size"] !== "NONE" ? esc(p["size"]) : "";
+      const badgeText = `1 OF 1${size ? ` · SIZE ${size}` : ""}`;
+      return `<div class="swiper-slide"><div class="product-card" data-handle="${handle}">
+  <div class="product-card-image" style="position:relative">
+    <div style="position:absolute;top:8px;left:8px;background:rgba(17,17,17,0.92);color:#fff;font-family:'FK Grotesk SemiMono',monospace;font-size:9px;font-weight:700;padding:3px 7px;letter-spacing:1px;z-index:2">${badgeText}</div>
+    <a href="/products/${handle}/index.html" class="product-card-image-wrapper" aria-label="${pTitle}">
+      <img src="${esc(img1)}" alt="${pTitle}" width="1200" height="1200" loading="lazy" onerror="this.onerror=null;this.src='/_ext/annr-template-001.png'">
+      ${img2 ? `<img src="${esc(img2)}" alt="${pTitle}" width="1200" height="1200" loading="lazy" onerror="this.onerror=null;this.src='/_ext/annr-template-001.png'">` : ""}
+    </a>
+  </div>
+  ${code ? `<div style="font-family:'FK Grotesk SemiMono',monospace;font-size:9.5px;color:#e05a2b;letter-spacing:1.4px;margin-top:8px;font-weight:700">${code}</div>` : ""}
+  <a href="/products/${handle}/index.html" class="product-card-title">${pTitle}</a>
+  <div class="product-card-price"><span class="money">Tk ${esc(price)} <span class="money-currency-code">BDT</span></span></div>
+</div></div>`;
+    }).join("\n");
+  } catch {
+    return "";
+  }
+}
+
 async function handle({ request }: { request: Request }) {
   return secure(await route(request));
 }
@@ -455,6 +501,29 @@ async function route(request: Request): Promise<Response> {
   }
   if (url.pathname === "/search/suggest") {
     return new Response(await buildPredictiveSearchHtml(url.searchParams.get("q") || ""), {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
+  if (url.pathname.startsWith("/recommendations/")) {
+    let excludeHandle = "";
+    const ref = request.headers.get("referer") || "";
+    const refMatch = ref.match(/\/products\/([a-zA-Z0-9_-]+)/);
+    if (refMatch && refMatch[1]) excludeHandle = refMatch[1];
+    const slides = await buildAnnrRecommendationSlides(excludeHandle);
+    return new Response(`<div class="shopify-section"><div data-product-list>${slides}</div></div>`, {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
+  if (url.searchParams.get("section_id") === "ajax-product-recently-viewed") {
+    const rawProds = (url.searchParams.get("products") || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const ref = request.headers.get("referer") || "";
+    const refMatch = ref.match(/\/products\/([a-zA-Z0-9_-]+)/);
+    const excludeHandle = refMatch && refMatch[1] ? refMatch[1] : "";
+    const allowed = new Set(rawProds.filter((h) => h && h !== "annr-archival-001" && !LEGACY_PRODUCT_HANDLES.has(h)));
+    const slides = allowed.size > 0 ? await buildAnnrRecommendationSlides(excludeHandle, allowed) : "";
+    return new Response(`<div id="product-list">${slides}</div>`, {
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
     });
