@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useAdmin } from "../admin/store";
+import { syncAllFromSupabase, useAdmin } from "../admin/store";
 import { dataSource } from "../admin/services/dataSource";
-import { readEvents } from "../admin/analytics/provider";
+import { readEvents, syncAnalyticsEventsFromEdge } from "../admin/analytics/provider";
 import { isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/")({ component: Dashboard });
@@ -15,6 +15,22 @@ function Dashboard() {
   const s = useAdmin();
   const [orderFilter, setOrderFilter] = useState<string>("all");
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [syncingLive, setSyncingLive] = useState(false);
+  const [, setEventsTick] = useState(0);
+
+  const refreshLiveDashboard = async () => {
+    setSyncingLive(true);
+    try {
+      await Promise.all([syncAllFromSupabase(), syncAnalyticsEventsFromEdge()]);
+      setEventsTick((n) => n + 1);
+    } finally {
+      setSyncingLive(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshLiveDashboard();
+  }, []);
 
   // Compute key metrics
   const activeProducts = s.products.filter((p) => p.status === "active").length;
@@ -112,6 +128,9 @@ function Dashboard() {
           </p>
         </div>
         <div className="adm-row">
+          <button className="adm-btn ghost" disabled={syncingLive} onClick={() => void refreshLiveDashboard()}>
+            {syncingLive ? "Syncing…" : "⚡ Sync Live Data"}
+          </button>
           <button className="adm-btn ghost" onClick={() => setEditing(!editing)}>
             {editing ? "Done" : "Customize metrics"}
           </button>
@@ -295,7 +314,9 @@ function Dashboard() {
           </div>
           <div className="adm-status">
             <span>Storage mode</span>
-            <span className="adm-tag">Browser draft + Static mirror</span>
+            <span className={`adm-tag ${isSupabaseConfigured() ? "active" : ""}`}>
+              {isSupabaseConfigured() ? "Supabase Live DB + Cloudflare Edge" : "Browser draft + Static mirror"}
+            </span>
           </div>
           <div className="adm-status">
             <span>Security audit</span>

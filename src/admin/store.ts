@@ -1038,6 +1038,312 @@ export function restoreVersion(i: number) {
 }
 export function unpublishAll() { dataSource.clear(PUB_KEY); subs.forEach((f) => f()); }
 export function replaceState(s: State) { setState(() => s); }
+const AUTOMATED_TEST_EMAIL_RE = /@example\.com$|^(buyer_test|friend_\d+|ratul_vip_\d+|vip_verify_\d+|browser\d+|vipuser\d+|testuser_\d+|testcustomer\d+|test_check_12345|qa\.vip)@/i;
+
+export function isAutomatedTestEmail(email?: string | null): boolean {
+  return AUTOMATED_TEST_EMAIL_RE.test(String(email || "").trim().toLowerCase());
+}
+
+let inFlightGlobalSync: Promise<void> | null = null;
+
+export async function syncAllFromSupabase(): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  if (inFlightGlobalSync) return inFlightGlobalSync;
+
+  inFlightGlobalSync = (async () => {
+    try {
+      const deletedHandles = getDeletedHandles();
+      const [prodRes, catRes, campRes, ordRes, itemsRes, discRes, loyRes] = await Promise.allSettled([
+        supabase.from("products").select("*").order("created_at", { ascending: false }),
+        supabase.from("categories").select("*").order("sort_order", { ascending: true }),
+        supabase.from("campaigns").select("*").order("sort_order", { ascending: true }),
+        supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100),
+        supabase.from("order_items").select("*").limit(300),
+        supabase.from("discounts").select("*").limit(100),
+        supabase.rpc("admin_get_loyalty_overview"),
+      ]);
+
+      setState((current) => {
+        let nextProducts = current.products;
+        let nextCategories = current.categories;
+        let nextCampaigns = current.campaigns;
+        let nextCollections = current.collections;
+        let nextOrders = current.orders;
+        let nextCustomers = current.customers;
+        let nextDiscounts = current.discounts;
+
+        // 1. Categories
+        if (catRes.status === "fulfilled" && !catRes.value.error && Array.isArray(catRes.value.data) && catRes.value.data.length > 0) {
+          nextCategories = catRes.value.data.map((r: any, idx: number) => ({
+            id: String(r.id || uid()),
+            slug: String(r.slug || ""),
+            name: String(r.name || r.slug || "Category"),
+            description: String(r.description || ""),
+            imageUrl: r.image_url ? String(r.image_url) : "",
+            sortOrder: Number(r.sort_order ?? idx + 1),
+            visible: r.is_visible !== false,
+          }));
+          const byHandle = new Map(current.collections.map((col) => [col.handle, col]));
+          const builtCols: Collection[] = [...current.collections.filter((col) => col.handle === "all" || col.handle === "unique-campaign")];
+          for (const cat of nextCategories) {
+            const prevCol = byHandle.get(cat.slug);
+            builtCols.push({
+              handle: cat.slug,
+              title: cat.name,
+              description: cat.description || prevCol?.description || "",
+              image: cat.imageUrl || prevCol?.image || "",
+              visible: cat.visible,
+              sort: prevCol?.sort || "manual",
+              products: prevCol?.products || [],
+              seoTitle: prevCol?.seoTitle || `${cat.name} | AnnR`,
+              seoDescription: cat.description || prevCol?.seoDescription || "",
+            });
+          }
+          nextCollections = builtCols;
+        }
+
+        // 2. Campaigns
+        if (campRes.status === "fulfilled" && !campRes.value.error && Array.isArray(campRes.value.data) && campRes.value.data.length > 0) {
+          nextCampaigns = campRes.value.data.map((r: any, idx: number) => ({
+            id: String(r.id || uid()),
+            slug: String(r.slug || ""),
+            name: String(r.name || r.slug || "Campaign"),
+            description: String(r.description || ""),
+            heroImageUrl: r.hero_image_url ? String(r.hero_image_url) : "",
+            heroTitle: String(r.hero_title || r.name || ""),
+            heroSubtitle: String(r.hero_subtitle || ""),
+            status: (r.status as Campaign["status"]) || "active",
+            sortOrder: Number(r.sort_order ?? idx + 1),
+          }));
+        }
+
+        // 3. Products
+        if (prodRes.status === "fulfilled" && !prodRes.value.error && Array.isArray(prodRes.value.data)) {
+          const catSlugs = new Set((nextCategories || []).map((c) => c.slug));
+          const remoteRows = prodRes.value.data.filter(
+            (sp: any) =>
+              sp &&
+              sp.handle &&
+              !LEGACY_PRODUCT_HANDLES.has(sp.handle) &&
+              sp.status !== "archived" &&
+              !deletedHandles.has(String(sp.handle)) &&
+              !(Array.isArray(sp.tags) && sp.tags.includes("__deleted")),
+          );
+          const prevByHandle = new Map(current.products.map((lp) => [lp.handle, lp]));
+          const map = new Map<string, Product>();
+          for (const sp of remoteRows as any[]) {
+            const existing = prevByHandle.get(sp.handle);
+            const spTags: string[] = Array.isArray(sp.tags) ? sp.tags.map((t: unknown) => String(t)) : [];
+            const catTag = spTags.find((t) => t.startsWith("cat:"))?.slice(4);
+            const campTag = spTags.find((t) => t.startsWith("camp:"))?.slice(5);
+            const hideSizeTag = spTags.includes("__hide_size");
+            const cleanDisplayTags = spTags
+              .filter((t) => t && !t.startsWith("cat:") && !t.startsWith("camp:") && t !== "__hide_size" && !t.startsWith("__unit:"))
+              .join(", ");
+            const typeLower = String(sp.product_type || "").toLowerCase();
+            const resolvedCategory =
+              catTag ||
+              (catSlugs.has(typeLower) ? typeLower : existing?.category || "hoodies");
+            const resolvedCampaign =
+              campTag ||
+              (sp.campaign_id ? "unique-campaign" : existing?.campaign || "unique-campaign");
+            const resolvedShowSize =
+              typeof sp.show_size === "boolean"
+                ? sp.show_size
+                : hideSizeTag
+                  ? false
+                  : (existing?.showSize ?? true);
+            const resolvedCols = Array.from(
+              new Set([
+                ...(existing?.collections || []),
+                ...(resolvedCampaign === "unique-campaign" ? ["unique-campaign"] : []),
+                resolvedCategory,
+                "all",
+              ].filter(Boolean)),
+            );
+            map.set(sp.handle, {
+              id: sp.id || existing?.id,
+              handle: sp.handle,
+              code: sp.code || existing?.code || "ANNR-U001",
+              title: sp.title || existing?.title || "1-of-1 Piece",
+              description: sp.description || existing?.description || "",
+              price: sp.price != null ? String(sp.price) : existing?.price || "0.00",
+              compareAt: sp.compare_at_price != null ? String(sp.compare_at_price) : existing?.compareAt || "",
+              currency: sp.currency || existing?.currency || "BDT",
+              status: sp.status || existing?.status || "active",
+              vendor: sp.vendor || existing?.vendor || "AnnR",
+              type: sp.product_type || existing?.type || resolvedCategory,
+              category: resolvedCategory,
+              campaign: resolvedCampaign,
+              tags: cleanDisplayTags || existing?.tags || "1-of-1, archival",
+              images: Array.isArray(sp.images) && sp.images.length > 0 ? sp.images : existing?.images || [],
+              variants: existing?.variants || [
+                {
+                  id: uid(),
+                  option: sp.size || "L",
+                  sku: sp.code || "ANNR-U",
+                  price: String(sp.price || "0.00"),
+                  stock: sp.status === "sold" ? 0 : (sp.stock ?? 1),
+                },
+              ],
+              collections: resolvedCols,
+              seoTitle: sp.seo_title || existing?.seoTitle || "",
+              seoDescription: sp.seo_description || existing?.seoDescription || "",
+              weight: existing?.weight || "0.6",
+              badge: existing?.badge || "1 OF 1",
+              featured: existing?.featured || false,
+              trackStock: true,
+              allowBackorder: false,
+              sizeChart: existing?.sizeChart || "",
+              isOneOfOne: true,
+              size: sp.size || existing?.size || "L",
+              showSize: resolvedShowSize,
+              measurementUnit: "in",
+              measurements: sp.measurements || existing?.measurements || { chest: 24, length: 28.5, shoulder: 20, sleeve: 24.5 },
+              fabric: sp.fabric || existing?.fabric || "480 GSM French Terry",
+              condition: sp.condition || existing?.condition || "10/10 Deadstock Archival",
+              careInstructions: sp.care_instructions || existing?.careInstructions || "Cold Hand Wash Only",
+              stock: sp.status === "sold" ? 0 : (sp.stock ?? 1),
+            });
+          }
+          for (const lp of current.products) {
+            if (map.has(lp.handle) || deletedHandles.has(lp.handle) || lp.status === "archived" || LEGACY_PRODUCT_HANDLES.has(lp.handle)) continue;
+            if (lp.handle === "annr-archival-001" && !lp.id) continue;
+            if (!lp.id) map.set(lp.handle, lp);
+          }
+          nextProducts = Array.from(map.values());
+          try {
+            if (typeof window !== "undefined") {
+              localStorage.setItem(
+                "annr_live_products",
+                JSON.stringify(nextProducts.filter((p) => p.status !== "draft" && p.status !== "archived")),
+              );
+            }
+          } catch {}
+        }
+
+        // 4. Orders & Order Items
+        if (ordRes.status === "fulfilled" && !ordRes.value.error && Array.isArray(ordRes.value.data)) {
+          const itemsByOrder = new Map<string, string[]>();
+          if (itemsRes.status === "fulfilled" && !itemsRes.value.error && Array.isArray(itemsRes.value.data)) {
+            for (const it of itemsRes.value.data as any[]) {
+              if (!it || !it.order_id) continue;
+              const oid = String(it.order_id);
+              const list = itemsByOrder.get(oid) || [];
+              list.push(`${it.title || "Archival Piece"} × ${it.quantity ?? 1}`);
+              itemsByOrder.set(oid, list);
+            }
+          }
+          const orderMap = new Map<string, Order>();
+          for (const ro of ordRes.value.data as any[]) {
+            if (!ro || isAutomatedTestEmail(ro.email)) continue;
+            const id = `#${ro.order_number || String(ro.id || "").slice(0, 8)}`;
+            const addrObj = ro.shipping_address && typeof ro.shipping_address === "object" ? ro.shipping_address : null;
+            const custName = String(ro.customer_name || addrObj?.full_name || ro.email || "Store Customer");
+            const addrStr = addrObj
+              ? [addrObj.full_address, addrObj.district, addrObj.division, addrObj.phone ? `Tel: ${addrObj.phone}` : ""].filter(Boolean).join(", ")
+              : String(ro.shipping_address || "");
+            const itemsStr = (itemsByOrder.get(String(ro.id)) || []).join(", ") || String(ro.items || "1-of-1 Archival Piece");
+            const rawPay = String(ro.payment_status || ro.payment_provider_ref || "Pending");
+            const payLabel = rawPay.toLowerCase() === "paid" ? "Paid" : rawPay.toLowerCase() === "cod" ? "COD" : "Pending";
+            const rawSt = String(ro.status || "Unfulfilled");
+            const stLabel = rawSt.toLowerCase() === "fulfilled" || rawSt.toLowerCase() === "completed" ? "Fulfilled" : rawSt.toLowerCase() === "cancelled" ? "Cancelled" : "Unfulfilled";
+            orderMap.set(id, {
+              id,
+              date: String(ro.created_at || new Date().toISOString()).slice(0, 10),
+              customer: custName,
+              email: String(ro.email || ""),
+              total: String(ro.total_bdt ?? ro.total ?? "0"),
+              status: stLabel,
+              payment: payLabel,
+              items: itemsStr,
+              address: addrStr,
+              note: ro.trx_id ? `TrxID: ${ro.trx_id}` : String(addrObj?.notes || ""),
+            });
+          }
+          for (const lo of current.orders) {
+            if (!orderMap.has(lo.id) && !isAutomatedTestEmail(lo.email)) {
+              orderMap.set(lo.id, {
+                ...lo,
+                address: typeof lo.address === "string" ? lo.address : JSON.stringify(lo.address || ""),
+                items: typeof lo.items === "string" ? lo.items : String(lo.items || ""),
+              });
+            }
+          }
+          nextOrders = Array.from(orderMap.values());
+        }
+
+        // 5. Customers & VIP Members
+        if (loyRes.status === "fulfilled" && !loyRes.value.error && loyRes.value.data && typeof loyRes.value.data === "object") {
+          const ov = loyRes.value.data as Record<string, any>;
+          const remoteMembers: any[] = Array.isArray(ov["members"]) ? ov["members"] : [];
+          const custByEmail = new Map<string, Customer>();
+          for (const c of current.customers) {
+            if (c && c.email && !isAutomatedTestEmail(c.email)) {
+              custByEmail.set(c.email.toLowerCase().trim(), c);
+            }
+          }
+          const orderCountsByEmail = new Map<string, number>();
+          for (const o of nextOrders) {
+            const em = String(o.email || "").toLowerCase().trim();
+            if (em) orderCountsByEmail.set(em, (orderCountsByEmail.get(em) || 0) + 1);
+          }
+          for (const m of remoteMembers) {
+            if (!m || !m.email || isAutomatedTestEmail(m.email)) continue;
+            const em = String(m.email).toLowerCase().trim();
+            const prev = custByEmail.get(em);
+            custByEmail.set(em, {
+              id: String(m.id || prev?.id || uid()),
+              name: String(m.full_name || prev?.name || em.split("@")[0] || "VIP Member"),
+              email: em,
+              phone: String(m.phone || prev?.phone || ""),
+              orders: Math.max(Number(m.total_orders || 0), orderCountsByEmail.get(em) || 0, prev?.orders || 0),
+              points: Number(m.available_points ?? prev?.points ?? 100),
+              tier: String(m.tier || prev?.tier || "Silver"),
+              tags: "vip",
+              blocked: m.status === "suspended" || m.status === "blocked" || Boolean(prev?.blocked),
+            });
+          }
+          nextCustomers = Array.from(custByEmail.values());
+        }
+
+        // 6. Discounts
+        if (discRes.status === "fulfilled" && !discRes.value.error && Array.isArray(discRes.value.data) && discRes.value.data.length > 0) {
+          nextDiscounts = (discRes.value.data as any[]).map((d) => ({
+            id: String(d.id || uid()),
+            code: String(d.code || "").toUpperCase(),
+            type: String(d.discount_type || d.type || "percentage"),
+            value: String(d.value ?? "10"),
+            minOrder: String(d.min_order_amount ?? d.minOrder ?? "0"),
+            uses: Number(d.uses_count ?? d.uses ?? 0),
+            limit: d.max_uses != null ? String(d.max_uses) : "",
+            active: d.is_active !== false && d.active !== false,
+            starts: d.starts_at ? String(d.starts_at).slice(0, 10) : new Date().toISOString().slice(0, 10),
+            ends: d.ends_at ? String(d.ends_at).slice(0, 10) : "",
+          }));
+        }
+
+        return {
+          ...current,
+          products: nextProducts,
+          categories: nextCategories,
+          campaigns: nextCampaigns,
+          collections: nextCollections,
+          orders: nextOrders,
+          customers: nextCustomers,
+          discounts: nextDiscounts,
+        };
+      });
+    } catch {
+      // ignore network error
+    } finally {
+      inFlightGlobalSync = null;
+    }
+  })();
+
+  return inFlightGlobalSync;
+}
+
 export function useAdmin(): State {
   return useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, get, get);
 }

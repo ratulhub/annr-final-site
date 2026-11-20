@@ -1743,10 +1743,13 @@ export async function syncAdminLoyaltyOverviewFromDb(): Promise<{
     const { data, error } = await supabase.rpc("admin_get_loyalty_overview");
     if (error || !data?.ok) return null;
 
+    const AUTOMATED_TEST_EMAIL_RE = /@example\.com$|^(buyer_test|friend_\d+|ratul_vip_\d+|vip_verify_\d+|browser\d+|vipuser\d+|testuser_\d+|testcustomer\d+|test_check_12345|qa\.vip)@/i;
     const remoteMembers: VipMember[] = Array.isArray(data.members)
-      ? data.members.map((m: any) => ({
-          id: m.id,
-          email: (m.email || "").toLowerCase().trim(),
+      ? data.members
+          .filter((m: any) => m && m.email && !AUTOMATED_TEST_EMAIL_RE.test(String(m.email).trim().toLowerCase()))
+          .map((m: any) => ({
+            id: m.id,
+            email: (m.email || "").toLowerCase().trim(),
           full_name: m.full_name || "VIP Member",
           phone: m.phone || "",
           is_whatsapp: m.marketing_consent !== false,

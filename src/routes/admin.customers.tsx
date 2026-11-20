@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { setState, uid, useAdmin, type Customer } from "../admin/store";
+import { useEffect, useMemo, useState } from "react";
+import { setState, syncAllFromSupabase, uid, useAdmin, type Customer } from "../admin/store";
 import { BackBtn, Card } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/customers")({ component: Customers });
@@ -12,6 +12,20 @@ function Customers() {
   const [q, setQ] = useState("");
   const [tierFilter, setTierFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [syncing, setSyncing] = useState(false);
+
+  const refreshCustomers = async () => {
+    setSyncing(true);
+    try {
+      await syncAllFromSupabase();
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshCustomers();
+  }, []);
 
   const vipCount = s.customers.filter((c) => c.tier !== "Bronze" || (c.tags && c.tags.includes("vip"))).length;
   const totalPoints = s.customers.reduce((sum, c) => sum + (Number(c.points) || 0), 0);
@@ -73,6 +87,9 @@ function Customers() {
           </div>
         </div>
         <div className="adm-row" style={{ gap: 8 }}>
+          <button type="button" className="adm-btn ghost" disabled={syncing} onClick={() => void refreshCustomers()}>
+            {syncing ? "Syncing…" : "⚡ Sync VIP & Customers from DB"}
+          </button>
           {s.customers.length > 0 && (
             <button
               type="button"

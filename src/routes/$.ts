@@ -91,6 +91,57 @@ const RATE_LIMIT_POST = 30;
 const RATE_LIMIT_GET = 120;
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
+type EdgeAnalyticsEvent = {
+  name: string;
+  at: string;
+  path: string;
+  props: Record<string, string | number>;
+};
+
+const VALID_ANALYTICS_EVENTS = new Set([
+  "page_view",
+  "cta_click",
+  "form_start",
+  "form_submit",
+  "form_error",
+  "site_search",
+  "file_download",
+  "outbound_click",
+  "scroll_depth",
+  "add_to_cart",
+  "javascript_error",
+  "web_vital",
+]);
+
+const edgeAnalyticsEvents: EdgeAnalyticsEvent[] = [];
+
+function recordEdgeAnalyticsEvent(raw: unknown) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+  const r = raw as Record<string, unknown>;
+  const name = String(r["name"] || "").trim();
+  if (!VALID_ANALYTICS_EVENTS.has(name)) return;
+  const at = typeof r["at"] === "string" && /^\d{4}-\d{2}-\d{2}T/.test(r["at"]) ? r["at"].slice(0, 30) : new Date().toISOString();
+  const path = String(r["path"] || "/").split(/[?#]/)[0]!.slice(0, 180) || "/";
+  const props: Record<string, string | number> = {};
+  const rawProps = r["props"];
+  if (rawProps && typeof rawProps === "object" && !Array.isArray(rawProps)) {
+    const entries = Object.entries(rawProps as Record<string, unknown>).slice(0, 12);
+    for (const [k, v] of entries) {
+      const cleanKey = k.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 32);
+      if (!cleanKey) continue;
+      if (typeof v === "number" && Number.isFinite(v)) {
+        props[cleanKey] = v;
+      } else if (typeof v === "string") {
+        props[cleanKey] = v.slice(0, 140);
+      }
+    }
+  }
+  edgeAnalyticsEvents.push({ name, at, path, props });
+  if (edgeAnalyticsEvents.length > 3000) {
+    edgeAnalyticsEvents.splice(0, edgeAnalyticsEvents.length - 3000);
+  }
+}
+
 export function checkRateLimit(key: string, method: string, now = Date.now()): { allowed: boolean; retryAfterSec: number } {
   const limit = method === "POST" ? RATE_LIMIT_POST : RATE_LIMIT_GET;
   const bucketKey = `${method === "POST" ? "P" : "G"}:${key}`;
@@ -492,6 +543,30 @@ async function route(request: Request): Promise<Response> {
         "cache-control": "public, max-age=86400",
       },
     });
+  }
+  if (url.pathname === "/_ext/analytics-events") {
+    if (request.method === "GET") {
+      return Response.json(
+        { events: edgeAnalyticsEvents.slice(-1500) },
+        { status: 200, headers: { "cache-control": "no-store" } },
+      );
+    }
+    if (request.method === "POST") {
+      const clientIp = (request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0] || "local").trim().slice(0, 64);
+      const rl = checkRateLimit(`analytics:${clientIp}`, "POST");
+      if (!rl.allowed) {
+        return Response.json({ ok: false }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
+      }
+      try {
+        const text = await request.text();
+        if (text.length <= 64 * 1024) {
+          const parsed = JSON.parse(text);
+          const list = Array.isArray(parsed?.events) ? parsed.events.slice(0, 50) : Array.isArray(parsed) ? parsed.slice(0, 50) : [parsed];
+          for (const item of list) recordEdgeAnalyticsEvent(item);
+        }
+      } catch {}
+      return Response.json({ ok: true, count: edgeAnalyticsEvents.length }, { status: 200, headers: { "cache-control": "no-store" } });
+    }
   }
   if (url.pathname === "/search" || url.pathname === "/search/") {
     return new Response(null, {

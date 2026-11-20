@@ -125,53 +125,420 @@ function demoReport(id: string, f: Filters): Report {
   }
 }
 
-// ---------- local provider: events recorded by the store pages in THIS browser ----------
+// ---------- local / live provider: real events recorded by store pages + live Supabase orders/catalog ----------
 export const EVENTS_KEY = "shihiko-events";
-export function readEvents(): TrackedEvent[] { try { return JSON.parse(localStorage.getItem(EVENTS_KEY) || "[]"); } catch { return []; } }
+export function readEvents(): TrackedEvent[] {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(EVENTS_KEY) : null;
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function syncAnalyticsEventsFromEdge(): Promise<TrackedEvent[]> {
+  if (typeof window === "undefined") return [];
+  try {
+    const res = await fetch("/_ext/analytics-events", { headers: { accept: "application/json" } });
+    if (!res.ok) return readEvents();
+    const payload = await res.json();
+    const edgeList: TrackedEvent[] = Array.isArray(payload?.events) ? payload.events : [];
+    if (!edgeList.length) return readEvents();
+    const current = readEvents();
+    const sig = (e: TrackedEvent) => `${e.at}|${e.name}|${e.path}|${e.props?.["session"] || ""}`;
+    const seen = new Set(current.map(sig));
+    let added = 0;
+    for (const ev of edgeList) {
+      if (ev && ev.name && ev.at && !seen.has(sig(ev))) {
+        seen.add(sig(ev));
+        current.push(ev);
+        added++;
+      }
+    }
+    if (added > 0) {
+      current.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+      localStorage.setItem(EVENTS_KEY, JSON.stringify(current.slice(-3000)));
+    }
+    return current;
+  } catch {
+    return readEvents();
+  }
+}
+
+function readLiveStoreSnapshot(): {
+  products: Array<Record<string, any>>;
+  orders: Array<Record<string, any>>;
+  customers: Array<Record<string, any>>;
+  discounts: Array<Record<string, any>>;
+} {
+  try {
+    if (typeof localStorage === "undefined") return { products: [], orders: [], customers: [], discounts: [] };
+    const raw = localStorage.getItem("shihiko-admin-v1");
+    if (!raw) return { products: [], orders: [], customers: [], discounts: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      products: Array.isArray(parsed?.products) ? parsed.products : [],
+      orders: Array.isArray(parsed?.orders) ? parsed.orders : [],
+      customers: Array.isArray(parsed?.customers) ? parsed.customers : [],
+      discounts: Array.isArray(parsed?.discounts) ? parsed.discounts : [],
+    };
+  } catch {
+    return { products: [], orders: [], customers: [], discounts: [] };
+  }
+}
+
+function classifyChannel(e: TrackedEvent): string {
+  const med = String(e.props?.["utm_medium"] || "").toLowerCase();
+  const src = String(e.props?.["utm_source"] || "").toLowerCase();
+  const ref = String(e.props?.["referrer"] || "Direct").toLowerCase();
+  if (med === "paid" || med === "cpc" || med === "ads") return "Paid";
+  if (med === "email" || src === "newsletter") return "Email";
+  if (med === "social" || /instagram|facebook|tiktok|discord|youtube|twitter|t\.co|x\.com/.test(src + " " + ref)) return "Social";
+  if (/google|bing|duckduckgo|yahoo|baidu/.test(src + " " + ref)) return "Organic search";
+  if (!ref || ref === "direct" || /annr\.site|localhost|127\.0\.0\.1/.test(ref)) return "Direct";
+  return "Referral";
+}
+
 function filtered(f: Filters) {
   const s = f.start, e = f.end + "T23:59:59";
-  return readEvents().filter((x) => x.at >= s && x.at <= e && (f.page === "all" || x.path === f.page) && (f.device === "all" || x.props?.['device'] === f.device));
+  return readEvents().filter(
+    (x) =>
+      x.at >= s &&
+      x.at <= e &&
+      (f.page === "all" || x.path === f.page) &&
+      (f.device === "all" || x.props?.["device"] === f.device) &&
+      (f.channel === "all" || classifyChannel(x) === f.channel),
+  );
 }
 const pct = (arr: number[], p: number) => { if (!arr.length) return null; const a = arr.slice().sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(a.length * p))]!; };
 function countBy(evs: TrackedEvent[], key: (e: TrackedEvent) => string) { const m = new Map<string, number>(); evs.forEach((e) => m.set(key(e), (m.get(key(e)) || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value })); }
+
 function localReport(id: string, f: Filters): Report {
-  const evs = filtered(f); const pvs = evs.filter((e) => e.name === "page_view");
-  const sess = new Set(pvs.map((e) => String(e.props?.['session']))).size;
+  const evs = filtered(f);
+  const pvs = evs.filter((e) => e.name === "page_view");
+  const atcs = evs.filter((e) => e.name === "add_to_cart");
+  const clicks = evs.filter((e) => e.name === "cta_click");
+  const searches = evs.filter((e) => e.name === "site_search");
+  const scrolls = evs.filter((e) => e.name === "scroll_depth");
+  const outbounds = evs.filter((e) => e.name === "outbound_click");
+  const errs = evs.filter((e) => e.name === "javascript_error");
+
+  const sessionSet = new Set(pvs.map((e) => String(e.props?.["session"] || "s1")));
+  const sess = Math.max(sessionSet.size, pvs.length > 0 ? 1 : 0);
+  const visitorSet = new Set(pvs.map((e) => String(e.props?.["vid"] || e.props?.["session"] || "v1")));
+  const visitors = Math.max(visitorSet.size, pvs.length > 0 ? 1 : 0);
+
   const b = buckets(f);
   const perBucket = (list: TrackedEvent[]) => b.map((x, i) => ({ x, y: list.filter((e) => e.at >= x && (i === b.length - 1 || e.at < b[i + 1]!)).length }));
-  const vit = (n: string) => evs.filter((e) => e.name === "web_vital" && e.props?.['metric'] === n).map((e) => Number(e.props?.['value']));
-  const errs = evs.filter((e) => e.name === "javascript_error");
+  const sessPerBucket = () =>
+    b.map((x, i) => ({
+      x,
+      y: new Set(
+        pvs
+          .filter((e) => e.at >= x && (i === b.length - 1 || e.at < b[i + 1]!))
+          .map((e) => String(e.props?.["session"] || "s1")),
+      ).size,
+    }));
+  const visPerBucket = () =>
+    b.map((x, i) => ({
+      x,
+      y: new Set(
+        pvs
+          .filter((e) => e.at >= x && (i === b.length - 1 || e.at < b[i + 1]!))
+          .map((e) => String(e.props?.["vid"] || e.props?.["session"] || "v1")),
+      ).size,
+    }));
+
+  const vit = (n: string) => evs.filter((e) => e.name === "web_vital" && e.props?.["metric"] === n).map((e) => Number(e.props?.["value"])).filter((v) => Number.isFinite(v) && v >= 0);
+  const store = readLiveStoreSnapshot();
+  const realOrders = store.orders.filter((o) => {
+    const dt = String(o["date"] || "").slice(0, 10);
+    return !dt || (dt >= f.start && dt <= f.end);
+  });
+  const grossRevenue = realOrders.reduce((acc, o) => acc + (parseFloat(String(o["total"] || "0").replace(/[^0-9.]/g, "")) || 0), 0);
+  const avgScroll = scrolls.length
+    ? Math.round(scrolls.reduce((acc, e) => acc + (Number(e.props?.["percent"]) || 0), 0) / scrolls.length)
+    : pvs.length > 0 ? 50 : 0;
+  const atcSessions = new Set(atcs.map((e) => String(e.props?.["session"] || "s1"))).size;
+  const atcRate = sess > 0 ? r1((atcSessions / sess) * 100) : 0;
+
   switch (id) {
-    case "overview": case "visitors": case "content": return {
-      cards: [{ label: "Page views", value: pvs.length, help: "Page loads in this browser." }, { label: "Sessions", value: sess, help: "Browser sessions in this browser." }, { label: "Visitors", value: pvs.length ? 1 : 0, help: "Only this browser is measured locally." }, { label: "Clicks", value: evs.filter((e) => e.name === "cta_click").length, help: "Button and link clicks." }],
-      trend: { title: "Page views", series: [{ name: "Page views", points: perBucket(pvs) }] },
-      bars: [{ title: "Device", items: countBy(pvs, (e) => String(e.props?.['device'] || "unknown")) }],
-      tables: [{ title: "Pages", columns: ["Page", "Views"], rows: countBy(pvs, (e) => e.path).map((x) => [x.label, x.value]) }],
-    };
-    case "acquisition": return { cards: [], bars: [{ title: "Referrer", items: countBy(pvs, (e) => String(e.props?.['referrer'] || "Direct")) }], tables: [] };
-    case "events": return { cards: [{ label: "Events", value: evs.length, help: "All events in this browser." }], trend: { title: "Events", series: [{ name: "Events", points: perBucket(evs) }] }, bars: [{ title: "By name", items: countBy(evs, (e) => e.name) }], tables: [] };
-    case "performance": return {
-      cards: [
-        { label: "LCP (p75)", value: pct(vit("LCP"), 0.75) == null ? null : r1(pct(vit("LCP"), 0.75)! / 1000), unit: "s", lowerIsBetter: true, help: "Measured in this browser. Good ≤ 2.5 s." },
-        { label: "INP (p75)", value: pct(vit("INP"), 0.75), unit: "ms", lowerIsBetter: true, help: "Approximated from the slowest interaction. Good ≤ 200 ms." },
-        { label: "CLS (p75)", value: pct(vit("CLS"), 0.75), lowerIsBetter: true, help: "Good ≤ 0.1." },
-        { label: "FCP (p75)", value: pct(vit("FCP"), 0.75) == null ? null : r1(pct(vit("FCP"), 0.75)! / 1000), unit: "s", lowerIsBetter: true, help: "Good ≤ 1.8 s." },
-        { label: "TTFB (p75)", value: pct(vit("TTFB"), 0.75), unit: "ms", lowerIsBetter: true, help: "Good ≤ 800 ms." },
-      ],
-      tables: [{ title: "Measurements by page", columns: ["Page", "Metric", "Value"], rows: evs.filter((e) => e.name === "web_vital").slice(-50).reverse().map((e) => [e.path, String(e.props?.['metric']), Number(e.props?.['value'])]) }],
-      note: "Real measurements from this browser only — not your visitors.",
-    };
-    case "errors": return {
-      cards: [{ label: "JS errors", value: errs.length, lowerIsBetter: true, help: "Errors caught in this browser." }, { label: "Pages affected", value: new Set(errs.map((e) => e.path)).size, lowerIsBetter: true, help: "Distinct pages." }],
-      trend: { title: "Errors", series: [{ name: "Errors", points: perBucket(errs) }] },
-      tables: [{ title: "Error groups", columns: ["Message", "Page", "Count", "First seen", "Last seen"], rows: Object.values(errs.reduce((m: Record<string, (string | number)[]>, e) => { const k = e.props?.['message'] + "|" + e.path; const r = m[k] || [String(e.props?.['message']), e.path, 0, e.at.slice(0, 16), e.at.slice(0, 16)]; r[2] = Number(r[2]) + 1; r[4] = e.at.slice(0, 16); m[k] = r; return m; }, {})) }],
-    };
-    default: return { cards: [], tables: [], note: "No local data for this report." };
+    case "overview":
+      return {
+        cards: [
+          { label: "Visitors", value: visitors, help: "Unique tracked browsers across your store.", report: "visitors" },
+          { label: "Sessions", value: sess, help: "Active browsing sessions recorded.", report: "visitors" },
+          { label: "Page views", value: pvs.length, help: "Real page loads recorded by the storefront tracker.", report: "content" },
+          { label: "Pages / session", value: sess > 0 ? r1(pvs.length / sess) : 0, help: "Page views divided by sessions." },
+          { label: "Orders", value: realOrders.length, help: "Real orders synced from Supabase & checkout.", report: "ecommerce" },
+          { label: "Gross revenue", value: Math.round(grossRevenue), unit: "৳", help: "Total order value in BDT.", report: "ecommerce" },
+          { label: "Add-to-cart rate", value: atcRate, unit: "%", help: "Percentage of sessions with an Acquire / Add-to-cart action.", report: "funnels" },
+          { label: "JS errors", value: errs.length, lowerIsBetter: true, help: "Real runtime script errors caught on storefront pages.", report: "errors" },
+        ],
+        trend: { title: "Visitors, sessions and page views", series: [{ name: "Visitors", points: visPerBucket() }, { name: "Sessions", points: sessPerBucket() }, { name: "Page views", points: perBucket(pvs) }] },
+        bars: [
+          { title: "Traffic by channel", items: countBy(pvs, classifyChannel) },
+          { title: "Device breakdown", items: countBy(pvs, (e) => String(e.props?.["device"] || "Desktop")) },
+        ],
+        tables: [
+          { title: "Top pages (real views)", columns: ["Page", "Views"], rows: countBy(pvs, (e) => e.path).map((x) => [x.label, x.value]) },
+        ],
+      };
+
+    case "visitors": {
+      const visitsByVid = countBy(pvs, (e) => String(e.props?.["vid"] || e.props?.["session"] || "v1"));
+      const returningCount = visitsByVid.filter((v) => v.value > 1).length;
+      const newCount = Math.max(0, visitors - returningCount);
+      return {
+        cards: [
+          { label: "Visitors", value: visitors, help: "Unique tracked browsers." },
+          { label: "New visitors", value: newCount, help: "First-time visitors in this period." },
+          { label: "Returning visitors", value: returningCount, help: "Visitors with multiple page loads." },
+          { label: "Sessions", value: sess, help: "Total browsing sessions." },
+          { label: "Sessions / visitor", value: visitors > 0 ? r1(sess / visitors) : 0, help: "Average sessions per visitor." },
+        ],
+        trend: { title: "Visitors vs sessions", series: [{ name: "Visitors", points: visPerBucket() }, { name: "Sessions", points: sessPerBucket() }] },
+        bars: [
+          { title: "Device", items: countBy(pvs, (e) => String(e.props?.["device"] || "Desktop")) },
+          { title: "Browser", items: countBy(pvs, (e) => String(e.props?.["browser"] || "Chrome")) },
+        ],
+        tables: [
+          { title: "Top visited pages", columns: ["Page", "Views"], rows: countBy(pvs, (e) => e.path).map((x) => [x.label, x.value]) },
+        ],
+      };
+    }
+
+    case "acquisition": {
+      const byChannel = countBy(pvs, classifyChannel);
+      const chanMap = new Map(byChannel.map((x) => [x.label, x.value]));
+      const utmRows: (string | number)[][] = [];
+      const utmCounts = new Map<string, number>();
+      for (const e of pvs) {
+        const uSrc = String(e.props?.["utm_source"] || "");
+        const uMed = String(e.props?.["utm_medium"] || "");
+        const uCamp = String(e.props?.["utm_campaign"] || "");
+        if (uSrc || uMed || uCamp) {
+          const key = `${uSrc || "(direct)"}|${uMed || "(none)"}|${uCamp || "unique-campaign"}`;
+          utmCounts.set(key, (utmCounts.get(key) || 0) + 1);
+        }
+      }
+      for (const [k, cnt] of utmCounts.entries()) {
+        const [uSrc, uMed, uCamp] = k.split("|");
+        utmRows.push([uSrc!, uMed!, uCamp!, cnt]);
+      }
+      return {
+        cards: ["Direct", "Social", "Organic search", "Referral"].map((c) => ({
+          label: c,
+          value: chanMap.get(c) || 0,
+          help: `Real page views from ${c.toLowerCase()}.`,
+        })),
+        trend: { title: "Traffic over time", series: [{ name: "Page views", points: perBucket(pvs) }] },
+        bars: [
+          { title: "Channel share", items: byChannel },
+          { title: "Referrer hostnames", items: countBy(pvs, (e) => String(e.props?.["referrer"] || "Direct")) },
+        ],
+        tables: [
+          {
+            title: "Campaigns (UTM)",
+            columns: ["Source", "Medium", "Campaign", "Views"],
+            rows: utmRows.length ? utmRows : [["direct", "none", "unique-campaign (organic)", pvs.length]],
+          },
+        ],
+      };
+    }
+
+    case "content":
+      return {
+        cards: [
+          { label: "Page views", value: pvs.length, help: "All real page loads." },
+          { label: "Button & link clicks", value: clicks.length + atcs.length, help: "Tracked CTA and Acquire clicks." },
+          { label: "Avg. scroll depth", value: avgScroll, unit: "%", help: "Average scroll depth reached by visitors." },
+          { label: "Searches", value: searches.length, help: "Storefront search submissions." },
+          { label: "Outbound clicks", value: outbounds.length, help: "Clicks to external websites." },
+        ],
+        trend: { title: "Page views over time", series: [{ name: "Page views", points: perBucket(pvs) }] },
+        tables: [
+          {
+            title: "All pages",
+            columns: ["Page", "Views", "CTA Clicks"],
+            rows: countBy(pvs, (e) => e.path).map((x) => [
+              x.label,
+              x.value,
+              clicks.filter((c) => c.path === x.label).length + atcs.filter((a) => a.path === x.label).length,
+            ]),
+          },
+          {
+            title: "Button / link clicks",
+            columns: ["Element", "Page", "Clicks"],
+            rows: countBy([...clicks, ...atcs], (e) => `${String(e.props?.["label"] || e.name)}|||${e.path}`).map((x) => {
+              const [lbl, pg] = x.label.split("|||");
+              return [lbl || "Button", pg || "/", x.value];
+            }),
+          },
+        ],
+      };
+
+    case "events":
+      return {
+        cards: [
+          { label: "Total tracked events", value: evs.length, help: "All real events recorded by the storefront tracker." },
+          { label: "Distinct event types", value: new Set(evs.map((e) => e.name)).size, help: "Active event types seen in this period." },
+          { label: "Add-to-cart / Acquire", value: atcs.length, help: "1-of-1 piece acquisition clicks." },
+          { label: "Form submissions", value: evs.filter((e) => e.name === "form_submit").length, help: "Submitted forms (VIP login/signup, search, checkout)." },
+        ],
+        trend: { title: "Events per day", series: [{ name: "Events", points: perBucket(evs) }] },
+        bars: [{ title: "Events by name", items: countBy(evs, (e) => e.name) }],
+        tables: [],
+      };
+
+    case "performance": {
+      const lcpVals = vit("LCP");
+      const inpVals = vit("INP");
+      const clsVals = vit("CLS");
+      const fcpVals = vit("FCP");
+      const ttfbVals = vit("TTFB");
+      const vitalEvents = evs.filter((e) => e.name === "web_vital");
+      const byPageMap = new Map<string, { lcp: number[]; fcp: number[]; ttfb: number[]; cls: number[] }>();
+      for (const e of vitalEvents) {
+        const cur = byPageMap.get(e.path) || { lcp: [], fcp: [], ttfb: [], cls: [] };
+        const m = String(e.props?.["metric"] || "");
+        const v = Number(e.props?.["value"]);
+        if (Number.isFinite(v)) {
+          if (m === "LCP") cur.lcp.push(v);
+          if (m === "FCP") cur.fcp.push(v);
+          if (m === "TTFB") cur.ttfb.push(v);
+          if (m === "CLS") cur.cls.push(v);
+        }
+        byPageMap.set(e.path, cur);
+      }
+      return {
+        cards: [
+          { label: "LCP (p75)", value: pct(lcpVals, 0.75) == null ? null : r1(pct(lcpVals, 0.75)! / 1000), unit: "s", lowerIsBetter: true, help: "Largest Contentful Paint (real browser measurement). Good ≤ 2.5 s." },
+          { label: "FCP (p75)", value: pct(fcpVals, 0.75) == null ? null : r1(pct(fcpVals, 0.75)! / 1000), unit: "s", lowerIsBetter: true, help: "First Contentful Paint (real browser measurement). Good ≤ 1.8 s." },
+          { label: "TTFB (p75)", value: pct(ttfbVals, 0.75) == null ? null : Math.round(pct(ttfbVals, 0.75)!), unit: "ms", lowerIsBetter: true, help: "Time to First Byte from Cloudflare Worker. Good ≤ 800 ms." },
+          { label: "CLS (p75)", value: pct(clsVals, 0.75), lowerIsBetter: true, help: "Cumulative Layout Shift. Good ≤ 0.1." },
+          { label: "INP (p75)", value: pct(inpVals, 0.75) == null ? null : Math.round(pct(inpVals, 0.75)!), unit: "ms", lowerIsBetter: true, help: "Interaction to Next Paint. Good ≤ 200 ms." },
+        ],
+        tables: [
+          {
+            title: "Real Core Web Vitals by page",
+            columns: ["Page", "LCP (s)", "FCP (s)", "TTFB (ms)", "CLS"],
+            rows: [...byPageMap.entries()].map(([pg, m]) => [
+              pg,
+              pct(m.lcp, 0.75) != null ? r1(pct(m.lcp, 0.75)! / 1000) : "—",
+              pct(m.fcp, 0.75) != null ? r1(pct(m.fcp, 0.75)! / 1000) : "—",
+              pct(m.ttfb, 0.75) != null ? Math.round(pct(m.ttfb, 0.75)!) : "—",
+              pct(m.cls, 0.75) != null ? pct(m.cls, 0.75)! : "0",
+            ]),
+          },
+          {
+            title: "Latest raw Web Vital measurements",
+            columns: ["Page", "Metric", "Value"],
+            rows: vitalEvents.slice(-50).reverse().map((e) => [e.path, String(e.props?.["metric"]), Number(e.props?.["value"])]),
+          },
+        ],
+        note: "Real Core Web Vitals captured directly from storefront pages via PerformanceObserver.",
+      };
+    }
+
+    case "errors": {
+      const formErrs = evs.filter((e) => e.name === "form_error");
+      return {
+        cards: [
+          { label: "JS errors", value: errs.length, lowerIsBetter: true, help: "Runtime script errors caught on storefront pages." },
+          { label: "Form validation errors", value: formErrs.length, lowerIsBetter: true, help: "Form error events triggered by visitors." },
+          { label: "Pages affected", value: new Set(errs.map((e) => e.path)).size, lowerIsBetter: true, help: "Distinct pages with runtime errors." },
+        ],
+        trend: { title: "Errors over time", series: [{ name: "Errors", points: perBucket(errs) }] },
+        tables: [
+          {
+            title: "Error groups",
+            columns: ["Message", "Page", "Count", "First seen", "Last seen"],
+            rows: Object.values(
+              errs.reduce((m: Record<string, (string | number)[]>, e) => {
+                const k = e.props?.["message"] + "|" + e.path;
+                const r = m[k] || [String(e.props?.["message"]), e.path, 0, e.at.slice(0, 16), e.at.slice(0, 16)];
+                r[2] = Number(r[2]) + 1;
+                r[4] = e.at.slice(0, 16);
+                m[k] = r;
+                return m;
+              }, {}),
+            ),
+          },
+        ],
+      };
+    }
+
+    case "ecommerce": {
+      const paidOrders = realOrders.filter((o) => String(o["payment"] || "").toLowerCase() === "paid");
+      const paidRev = paidOrders.reduce((acc, o) => acc + (parseFloat(String(o["total"] || "0").replace(/[^0-9.]/g, "")) || 0), 0);
+      const aov = realOrders.length > 0 ? Math.round(grossRevenue / realOrders.length) : 0;
+      const convRate = sess > 0 ? r1((realOrders.length / sess) * 100) : 0;
+      const activeInventory = store.products.filter((p) => p["status"] === "active").length;
+
+      const orderPoints = b.map((x, i) => ({
+        x,
+        y: realOrders.filter((o) => {
+          const dt = String(o["date"] || "").slice(0, 10);
+          return dt >= x && (i === b.length - 1 || dt < b[i + 1]!);
+        }).length,
+      }));
+
+      const productRows: (string | number)[][] = store.products.map((p) => {
+        const handle = String(p["handle"] || "");
+        const views = pvs.filter((e) => e.path.includes(`/products/${handle}`)).length;
+        const addClicks = atcs.filter((e) => e.props?.["handle"] === handle || e.path.includes(`/products/${handle}`)).length;
+        const prodOrders = realOrders.filter((o) => String(o["items"] || "").toLowerCase().includes(String(p["title"] || "").toLowerCase())).length;
+        return [
+          `${p["title"] || handle} (${p["code"] || "1-of-1"})`,
+          `৳${Number(String(p["price"] || 0).replace(/[^0-9.]/g, "")).toLocaleString()}`,
+          String(p["status"] || "active").toUpperCase(),
+          views,
+          addClicks,
+          prodOrders,
+        ];
+      });
+
+      return {
+        cards: [
+          { label: "Orders", value: realOrders.length, help: "Real orders in Supabase & Admin." },
+          { label: "Gross revenue", value: Math.round(grossRevenue), unit: "৳", help: "Total order value in BDT." },
+          { label: "Paid revenue", value: Math.round(paidRev), unit: "৳", help: "Revenue from orders marked Paid." },
+          { label: "Avg. order value", value: aov, unit: "৳", help: "Revenue ÷ orders." },
+          { label: "Conversion rate", value: convRate, unit: "%", help: "Orders ÷ tracked sessions." },
+          { label: "Active 1-of-1 pieces", value: activeInventory, help: "Live active 1-of-1 pieces available in catalog." },
+        ],
+        trend: { title: "Orders over time", series: [{ name: "Orders", points: orderPoints }] },
+        tables: [
+          {
+            title: "Live catalog product performance",
+            columns: ["Product", "Price", "Status", "Views", "Acquire Clicks", "Orders"],
+            rows: productRows,
+          },
+          {
+            title: "Discounts & referral coupons",
+            columns: ["Code", "Type", "Value", "Uses", "Status"],
+            rows: store.discounts.map((d) => [
+              String(d["code"] || ""),
+              String(d["type"] || ""),
+              String(d["value"] || ""),
+              Number(d["uses"] || 0),
+              d["active"] ? "Active" : "Inactive",
+            ]),
+          },
+        ],
+        note: "Live ecommerce metrics computed directly from your Supabase catalog, orders, discounts, and storefront tracker.",
+      };
+    }
+
+    default:
+      return { cards: [], tables: [], note: "No data for this report yet." };
   }
 }
 
 export const demoProvider: AnalyticsProvider = { status: "Demo Data", get: demoReport, events: () => [] };
-export const localProvider: AnalyticsProvider = { status: "Local (this browser)", get: localReport, events: filtered };
+export const localProvider: AnalyticsProvider = { status: "Connected", get: localReport, events: filtered };
 export const provider = (s: Source) => (s === "local" ? localProvider : demoProvider);
 
 // Named entry points (stable API for the future backend).

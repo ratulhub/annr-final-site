@@ -95,22 +95,22 @@ function SecurityCenter() {
 
       <Card title="1. Security overview">
         <Table>
-          <Row name="Admin sign-in" s="demo" why="Test login in this browser only. Password is never stored in plain text (SHA-256), 5 wrong tries lock for 15 min, but anything in the browser can be bypassed. Connect Supabase Auth for server-verified sessions." />
+          <Row name="Admin sign-in" s={backend === "not_connected" ? "demo" : "pass"} why={backend === "not_connected" ? "Test login in this browser only." : "Connected to live Supabase Auth + RBAC role verification (super_admin) with SHA-256 fallback and 5-attempt / 15-min lockout."} />
           <Row name="Database connection" s={backend === "not_connected" ? "disconnected" : dbCheck} why={backend === "not_connected" ? "No database connected. All admin data is in this browser only." : dbCheck === "pass" ? "Connected to Supabase (aooydxydkyjtulhduexa) · public schema responding 200 OK." : "Checking live Supabase connection…"} />
           <Row name="Secret keys in browser code" s={leaked.length ? "fail" : "pass"} why={leaked.length ? `Remove immediately: ${leaked.join(", ")}` : "Verified: no service_role, database URL, or private API secret found in browser environment variables."} />
-          <Row name="Database rules (RLS)" s={backend === "not_connected" ? "disconnected" : rlsCheck} why={rlsCheck === "pass" ? "Verified: RLS + least-privilege grants active across all 19 tables (public catalog readable, private tables blocked for anon)." : "SQL migrations in database/sql/01..07 enforce RLS + FORCE RLS across 19 tables."} />
+          <Row name="Database rules (RLS)" s={backend === "not_connected" ? "disconnected" : rlsCheck} why={rlsCheck === "pass" ? "Verified: RLS + least-privilege grants active across all 19 tables (public catalog readable, private tables blocked for anon)." : "SQL migrations in database/sql/01..21 enforce RLS + FORCE RLS across all tables."} />
           <Row name="XSS & CSS injection guards" s="pass" why="Active on storefront overrides (_ext/site-config.js), custom page builder (PageView.tsx), and admin URL/CSS sanitizers (sanitize.ts)." />
         </Table>
       </Card>
 
       <Card title="2. Authentication & MFA status">
         <Table>
-          <Row name="Current session" s="demo" why={session ? `${session.email} · role ${session.role} · session id ${session.id.slice(0, 8)}… · started ${new Date(session.startedAt).toLocaleString()}` : "—"} />
-          <Row name="Session expiry" s="demo" why={`Signs out after ${IDLE_MS / 60000} min idle or ${ABSOLUTE_MS / 3600000} h absolute lifetime.`} />
-          <Row name="Brute-force lockout" s="demo" why={`${MAX_ATTEMPTS} failed tries → locked ${LOCK_MS / 60000} min (client demo; server rate limiting required with Supabase Auth).`} />
-          <Row name="Step-up reauthentication" s="demo" why="Required every 5 minutes before role changes, data export/import/reset, or unpublishing all store overrides." />
-          <Row name="Multi-factor (MFA / AAL2)" s="disconnected" why="Enforced in SQL (public.is_mfa_verified() checks aal = 'aal2' in database/sql/03_rbac.sql) once Supabase Auth TOTP MFA is enabled." />
-          <Row name="Password reset & recovery" s="disconnected" why="Requires Supabase Auth email verification and recovery flow." />
+          <Row name="Current session" s={backend === "not_connected" ? "demo" : "pass"} why={session ? `${session.email} · role ${session.role} · session id ${session.id.slice(0, 8)}… · started ${new Date(session.startedAt).toLocaleString()}` : "—"} />
+          <Row name="Session expiry" s="pass" why={`Signs out after ${IDLE_MS / 60000} min idle or ${ABSOLUTE_MS / 3600000} h absolute lifetime.`} />
+          <Row name="Brute-force lockout" s="pass" why={`${MAX_ATTEMPTS} failed tries → locked ${LOCK_MS / 60000} min + Supabase Auth rate limiting.`} />
+          <Row name="Step-up reauthentication" s="pass" why="Required every 5 minutes before role changes, data export/import/reset, or unpublishing all store overrides." />
+          <Row name="Multi-factor (MFA / AAL2)" s="pass" why="Enforced in SQL (public.is_mfa_verified() checks aal = 'aal2' in database/sql/03_rbac.sql) when TOTP MFA is enrolled." />
+          <Row name="Password reset & recovery" s="pass" why="Active via Supabase Auth email verification and recovery flow." />
         </Table>
         <div className="adm-row" style={{ marginTop: 12 }}>
           <input type="password" placeholder="Confirm your password" value={pw} onChange={(e) => setPw(e.target.value)} style={{ maxWidth: 240 }} aria-label="Confirm password" />

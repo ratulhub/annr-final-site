@@ -7,6 +7,8 @@
 .collection-product-grid .product-card-image { position: relative !important; display: block !important; width: 100% !important; padding-top: 133.6%; background: #f3f3f3; }
 .collection-product-grid .product-card-image-wrapper { display: block !important; }
 .collection-product-grid .product-card-image-wrapper img { display: block !important; position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+.product-card-image-wrapper img:only-child,
+product-carousel-showcase .product-card-image-wrapper img:only-child,
 .collection-product-grid .product-card-image-wrapper img:only-child,
 .collection-catalog[data-view=model] .product-card-image-wrapper img:only-child,
 .collection-catalog[data-view=products] .product-card-image-wrapper img:nth-child(1),

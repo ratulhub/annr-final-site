@@ -27,6 +27,11 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
 });
 
 export function isSupabaseConfigured(): boolean {
+  const isVitest =
+    Boolean(env["VITEST"]) ||
+    env["MODE"] === "test" ||
+    (typeof process !== "undefined" && Boolean(process.env?.["VITEST"]));
+  if (isVitest) return false;
   let validUrl = false;
   try {
     const parsed = new URL(configuredUrl);

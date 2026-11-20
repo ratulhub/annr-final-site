@@ -11,13 +11,14 @@ export function presetRange(p: string) {
 }
 export const defaultFilters = (): Filters => ({ preset: "30d", ...presetRange("30d"), compare: true, interval: "day", device: "all", channel: "all", page: "all" });
 
-// Shared across every analytics page, remembered in this browser.
+// Shared across every analytics page, remembered in this browser. Defaults to "local" (real live events & Supabase data).
 export function useFilters() {
   const [f, setF] = useState<Filters>(defaultFilters);
-  const [src, setSrc] = useState<Source>("demo");
+  const [src, setSrc] = useState<Source>("local");
   useEffect(() => {
     try { const raw = localStorage.getItem(KEY); if (raw) { const v = JSON.parse(raw); setF(v.preset === "custom" ? v : { ...v, ...presetRange(v.preset) }); } } catch { /* ignore */ }
-    setSrc((localStorage.getItem(SRC_KEY) as Source) || "demo");
+    const savedSrc = localStorage.getItem(SRC_KEY) as Source | null;
+    setSrc(savedSrc === "demo" ? "demo" : "local");
   }, []);
   const update = (p: Partial<Filters>) => setF((cur) => { const n = { ...cur, ...p }; localStorage.setItem(KEY, JSON.stringify(n)); return n; });
   const setSource = (s: Source) => { localStorage.setItem(SRC_KEY, s); setSrc(s); };

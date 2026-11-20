@@ -46,8 +46,8 @@ export function siteDefaults(): SiteConfig {
     technical: { maintenance: false, maintenanceTitle: "AnnR", maintenanceText: "We'll be back soon", pageTransition: true, cartDrawer: true, productLabels: true, notFoundTitle: "Page not found", notFoundText: "", customCss: "" },
     integrations: [
       { id: "checkout", name: "Direct 1-of-1 Checkout", kind: "Commerce", status: "connected", note: "Orders place directly via /checkout & Supabase RPCs." },
-      { id: "analytics", name: "Analytics provider", kind: "Analytics", status: "not connected", note: "Privacy-safe local tracking enabled." },
-      { id: "email", name: "Email service", kind: "Email", status: "not connected", note: "Connect transactional email via Edge Functions." },
+      { id: "analytics", name: "Analytics & Edge Tracker", kind: "Analytics", status: "connected", note: "Live storefront events & Core Web Vitals synced via /_ext/analytics-events." },
+      { id: "email", name: "Supabase Auth & Email", kind: "Email", status: "connected", note: "VIP registration & auth verification via Supabase Auth." },
       { id: "storage", name: "File storage", kind: "Storage", status: "connected", note: "Supabase public-media bucket (<= 400 KB) + URL links." },
       { id: "payments", name: "Payments", kind: "Payments", status: "connected", note: "Cash on Delivery / MFS confirmation." },
     ],

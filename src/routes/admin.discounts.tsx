@@ -1,11 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { setState, useAdmin, type Discount } from "../admin/store";
+import { useEffect } from "react";
+import { publish, setState, syncAllFromSupabase, useAdmin, type Discount } from "../admin/store";
 import { BackBtn, Card, RowList } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/discounts")({ component: Discounts });
 
 function Discounts() {
   const s = useAdmin();
+  useEffect(() => {
+    void syncAllFromSupabase();
+  }, []);
   const activeCount = s.discounts.filter((d) => d.active).length;
   const totalUses = s.discounts.reduce((sum, d) => sum + (Number(d.uses) || 0), 0);
 
@@ -42,7 +46,10 @@ function Discounts() {
       <Card title="Discounts" subtitle="Manage active coupon codes, set minimum order values, and schedule expiration dates">
         <RowList<Discount>
           rows={s.discounts}
-          onChange={(r) => setState((x) => ({ ...x, discounts: r }))}
+          onChange={(r) => {
+            setState((x) => ({ ...x, discounts: r }));
+            setTimeout(() => { try { publish(); } catch {} }, 40);
+          }}
           blank={{
             code: "",
             type: "percentage",

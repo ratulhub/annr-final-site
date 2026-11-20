@@ -35,7 +35,7 @@
   var preview = false;
   var cfg = null, P = {}, C = {}, G = {}, S = {}, D = {}, allCols = [];
   var path = location.pathname;
-  var tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/search\b/.test(path) ? "search" : /\/home\.html$|^\/$/.test(path) ? "home" : "other";
+  var tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/search\b/.test(path) ? "search" : /\/home(?:\.html)?\/?$|^\/$/.test(path) ? "home" : "other";
   function refreshState() {
     var framed = window.self !== window.top;
     preview = framed ? window.name === "shihiko-preview" : sessionStorage.getItem("shihiko-preview") === "1";
@@ -67,7 +67,7 @@
     } catch (e) {}
 
     path = location.pathname;
-    tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/search\b/.test(path) ? "search" : /\/home\.html$|^\/$/.test(path) ? "home" : "other";
+    tpl = /\/products\//.test(path) ? "product" : /\/collections\//.test(path) ? "collection" : /\/(pages|policies)\//.test(path) ? "page" : /\/search\b/.test(path) ? "search" : /\/home(?:\.html)?\/?$|^\/$/.test(path) ? "home" : "other";
     return !!cfg;
   }
   refreshState();
@@ -5030,7 +5030,17 @@
   var KEY = "shihiko-events";
   var sess = sessionStorage.getItem("shihiko-sess") || Math.random().toString(36).slice(2, 10);
   sessionStorage.setItem("shihiko-sess", sess);
+  var vid = "";
+  try {
+    vid = localStorage.getItem("annr_vid") || "";
+    if (!vid) {
+      vid = "v-" + Math.random().toString(36).slice(2, 11) + "-" + Date.now().toString(36);
+      localStorage.setItem("annr_vid", vid);
+    }
+  } catch (e) { vid = sess; }
   var device = window.innerWidth < 768 ? "Mobile" : window.innerWidth < 1100 ? "Tablet" : "Desktop";
+  var ua = navigator.userAgent || "";
+  var browserName = /Edg\//i.test(ua) ? "Edge" : /SamsungBrowser/i.test(ua) ? "Samsung Internet" : /Firefox\//i.test(ua) ? "Firefox" : /Chrome\//i.test(ua) && !/Edg\//i.test(ua) ? "Chrome" : /Safari\//i.test(ua) && !/Chrome\//i.test(ua) ? "Safari" : "Other";
   var pendingEvents = [], flushTimer = 0;
   var scheduleIdle = window.requestIdleCallback || function (fn) { return setTimeout(fn, 32); };
   function flushEvents() {
@@ -5042,15 +5052,35 @@
       for (var i = 0; i < batch.length; i++) l.push(batch[i]);
       localStorage.setItem(KEY, JSON.stringify(l.slice(-3000)));
     } catch (e) { /* storage full or blocked */ }
+    try {
+      fetch("/_ext/analytics-events", {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ events: batch })
+      }).catch(function () {});
+    } catch (e) {}
   }
   function trackEvent(name, props) {
-    var p = props || {}; p.session = sess; p.device = device;
+    var p = Object.assign({}, props || {});
+    p.session = sess;
+    p.vid = vid;
+    p.device = device;
+    p.browser = browserName;
     pendingEvents.push({ name: name, at: new Date().toISOString(), path: location.pathname, props: p });
     if (document.visibilityState === "hidden") { flushEvents(); return; }
     if (!flushTimer) flushTimer = scheduleIdle(flushEvents);
   }
   window.shihikoTrack = trackEvent;
-  var q = new URLSearchParams(location.search), pv = { referrer: document.referrer ? new URL(document.referrer).hostname : "Direct" };
+  var q = new URLSearchParams(location.search);
+  var refHost = "Direct";
+  try {
+    if (document.referrer) {
+      var rh = new URL(document.referrer).hostname;
+      refHost = rh && rh !== location.hostname ? rh : "Direct";
+    }
+  } catch (e) {}
+  var pv = { referrer: refHost };
   ["utm_source", "utm_medium", "utm_campaign"].forEach(function (k) { if (q.get(k)) pv[k] = q.get(k).slice(0, 60); });
   trackEvent("page_view", pv);
 
@@ -5082,7 +5112,10 @@
   document.addEventListener("click", function (e) {
     var a = e.target.closest && e.target.closest("a,button"); if (!a) return;
     var href = a.getAttribute("href") || "", label = (a.textContent || a.getAttribute("aria-label") || "").trim().slice(0, 40);
-    if (/add-to-cart|js-add-to-cart|product-form__submit/i.test(a.className) || a.name === "add") trackEvent("add_to_cart", { label: label });
+    if (/add-to-cart|js-add-to-cart|product-form__submit/i.test(a.className) || a.name === "add" || a.hasAttribute("data-product-button") || a.closest(".product-info-submit")) {
+      var curP = window.__annrCurrentProduct || window.__ANNR_SSR_PRODUCT__;
+      trackEvent("add_to_cart", { label: (curP && curP.title) ? String(curP.title).slice(0, 60) : label, handle: (curP && curP.handle) ? String(curP.handle) : "" });
+    }
     else if (/^https?:/.test(href) && href.indexOf(location.host) < 0) trackEvent("outbound_click", { href: noQ(href) });
     else if (/\.(pdf|zip)$/i.test(href)) trackEvent("file_download", { href: noQ(href) });
     else trackEvent("cta_click", { label: label, href: noQ(href) });
@@ -5110,13 +5143,26 @@
   window.addEventListener("error", function (e) { trackEvent("javascript_error", { message: String(e.message || "error").slice(0, 120) }); });
   function vital(metric, value) { trackEvent("web_vital", { metric: metric, value: Math.round(value * (metric === "CLS" ? 1000 : 1)) / (metric === "CLS" ? 1000 : 1) }); }
   try {
-    var nav = performance.getEntriesByType("navigation")[0]; if (nav) vital("TTFB", nav.responseStart);
+    var nav = performance.getEntriesByType("navigation")[0]; if (nav && nav.responseStart > 0) vital("TTFB", nav.responseStart);
     new PerformanceObserver(function (l) { l.getEntries().forEach(function (en) { if (en.name === "first-contentful-paint") vital("FCP", en.startTime); }); }).observe({ type: "paint", buffered: true });
-    var lcp = 0, cls = 0, inp = 0;
-    new PerformanceObserver(function (l) { var en = l.getEntries(); lcp = en[en.length - 1].startTime; }).observe({ type: "largest-contentful-paint", buffered: true });
-    new PerformanceObserver(function (l) { l.getEntries().forEach(function (en) { if (!en.hadRecentInput) cls += en.value; }); }).observe({ type: "layout-shift", buffered: true });
-    new PerformanceObserver(function (l) { l.getEntries().forEach(function (en) { inp = Math.max(inp, en.duration); }); }).observe({ type: "event", buffered: true, durationThreshold: 40 });
-    addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && !window.__v) { window.__v = 1; if (lcp) vital("LCP", lcp); vital("CLS", cls); if (inp) vital("INP", inp); } });
+    var lcp = 0, cls = 0, inp = 0, lcpSent = false, clsSent = false;
+    new PerformanceObserver(function (l) {
+      var en = l.getEntries();
+      if (en.length) {
+        lcp = en[en.length - 1].startTime;
+        if (!lcpSent && lcp > 0) { lcpSent = true; vital("LCP", lcp); }
+      }
+    }).observe({ type: "largest-contentful-paint", buffered: true });
+    new PerformanceObserver(function (l) {
+      l.getEntries().forEach(function (en) { if (!en.hadRecentInput) cls += en.value; });
+      if (!clsSent) { clsSent = true; vital("CLS", cls); }
+    }).observe({ type: "layout-shift", buffered: true });
+    new PerformanceObserver(function (l) {
+      l.getEntries().forEach(function (en) {
+        if (en.duration > inp) { inp = en.duration; vital("INP", inp); }
+      });
+    }).observe({ type: "event", buffered: true, durationThreshold: 16 });
+    addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && !window.__v) { window.__v = 1; if (lcp && !lcpSent) vital("LCP", lcp); if (!clsSent) vital("CLS", cls); if (inp) vital("INP", inp); } });
   } catch (e) { /* older browser */ }
 
   // Load AnnR Unique One-of-One Archival Catalog engine

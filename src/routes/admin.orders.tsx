@@ -1,19 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { setState, useAdmin, type Order } from "../admin/store";
+import { setState, syncAllFromSupabase, useAdmin, type Order } from "../admin/store";
 import { BackBtn, Card, RowList } from "../admin/ui";
 import { updateStoreOrderStatus } from "../lib/loyalty";
-import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/orders")({ component: Orders });
 
 function Orders() {
   const s = useAdmin();
-  const rows = s.orders.map((o) => ({ ...o }));
+  const rows = s.orders.map((o) => ({
+    ...o,
+    items: typeof o.items === "string" ? o.items : String(o.items || ""),
+    address: typeof o.address === "string" ? o.address : JSON.stringify(o.address || ""),
+  }));
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const refreshOrders = async () => {
+    setSyncing(true);
+    try {
+      await syncAllFromSupabase();
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Sync new orders from checkout (localStorage or Supabase)
   useEffect(() => {
+    void refreshOrders();
     try {
       const raw = localStorage.getItem("annr-orders");
       if (raw) {
@@ -33,8 +47,8 @@ function Orders() {
                   total: String(po.total || "0.00"),
                   status: po.status || "Unfulfilled",
                   payment: po.payment_method?.toUpperCase() || po.payment || "Pending",
-                  items: Array.isArray(po.items) ? po.items.map((i: any) => `${i.title} × ${i.quantity}`).join(", ") : (po.items || ""),
-                  address: po.full_address || po.address || "",
+                  items: Array.isArray(po.items) ? po.items.map((i: any) => `${i.title} × ${i.quantity}`).join(", ") : String(po.items || ""),
+                  address: typeof po.full_address === "string" ? po.full_address : typeof po.address === "string" ? po.address : "",
                   note: po.customer_notes || po.trx_id ? `TrxID: ${po.trx_id || ""}` : "",
                 });
               }
@@ -45,39 +59,6 @@ function Orders() {
             return prev;
           });
         }
-      }
-
-      // Also query Supabase orders table if configured
-      if (isSupabaseConfigured()) {
-        supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(50).then(({ data }) => {
-          if (data && data.length > 0) {
-            setState((prev) => {
-              const existingIds = new Set(prev.orders.map((o) => o.id));
-              const remoteAdd: Order[] = [];
-              for (const ro of data) {
-                const id = `#${ro.order_number || ro.id.slice(0, 8)}`;
-                if (!existingIds.has(id)) {
-                  remoteAdd.push({
-                    id,
-                    date: ro.created_at.slice(0, 10),
-                    customer: ro.customer_name || "Customer",
-                    email: ro.email || "",
-                    total: String(ro.total_bdt || ro.total || "0"),
-                    status: ro.status || "Unfulfilled",
-                    payment: ro.payment_status || "Pending",
-                    items: "Store items",
-                    address: ro.shipping_address || "",
-                    note: ro.trx_id ? `TrxID: ${ro.trx_id}` : "",
-                  });
-                }
-              }
-              if (remoteAdd.length > 0) {
-                return { ...prev, orders: [...remoteAdd, ...prev.orders] };
-              }
-              return prev;
-            });
-          }
-        }, () => {});
       }
     } catch (e) {
       console.error(e);
@@ -151,6 +132,9 @@ function Orders() {
           </div>
         </div>
         <div className="adm-row" style={{ gap: 8 }}>
+          <button type="button" className="adm-btn ghost" disabled={syncing} onClick={() => void refreshOrders()}>
+            {syncing ? "Syncing…" : "⚡ Sync from DB"}
+          </button>
           {s.orders.length > 0 && (
             <button
               type="button"

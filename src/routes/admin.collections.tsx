@@ -86,11 +86,21 @@ function Collections() {
         </div>
       </div>
 
-      {s.collections.map((c) => (
+      {s.collections.map((c) => {
+        const assignedCount = s.products.filter(
+          (p) =>
+            c.handle === "all" ||
+            (c.handle === "unique-campaign" && p.campaign !== "none") ||
+            p.category === c.handle ||
+            p.campaign === c.handle ||
+            (Array.isArray(p.collections) && p.collections.includes(c.handle)) ||
+            (Array.isArray(c.products) && c.products.includes(p.handle)),
+        ).length;
+        return (
         <Card
           key={c.handle}
           title={c.title}
-          subtitle={`/${c.handle} · ${c.products.length} products assigned`}
+          subtitle={`/${c.handle} · ${assignedCount} product${assignedCount === 1 ? "" : "s"} in collection`}
           action={
             <div className="adm-row">
               <span className={`adm-tag ${c.visible ? "active" : "draft"}`}>
@@ -165,23 +175,33 @@ function Collections() {
                   borderRadius: 6,
                 }}
               >
-                {s.products.map((p) => (
-                  <Toggle
-                    key={p.handle}
-                    label={p.title}
-                    value={c.products.includes(p.handle)}
-                    onChange={(v) =>
-                      up(c.handle, {
-                        products: v ? [...c.products, p.handle] : c.products.filter((h) => h !== p.handle),
-                      })
-                    }
-                  />
-                ))}
+                {s.products.map((p) => {
+                  const inCol =
+                    c.handle === "all" ||
+                    (c.handle === "unique-campaign" && p.campaign !== "none") ||
+                    p.category === c.handle ||
+                    p.campaign === c.handle ||
+                    p.collections.includes(c.handle) ||
+                    c.products.includes(p.handle);
+                  return (
+                    <Toggle
+                      key={p.handle}
+                      label={p.title}
+                      value={inCol}
+                      onChange={(v) =>
+                        up(c.handle, {
+                          products: v ? Array.from(new Set([...c.products, p.handle])) : c.products.filter((h) => h !== p.handle),
+                        })
+                      }
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
         </Card>
-      ))}
+        );
+      })}
     </>
   );
 }

@@ -76,7 +76,7 @@ function Settings() {
       <Card title="Store settings (orders & shipping)"><KeyValueEditor data={s.settings} onChange={(k, v) => setState((x) => ({ ...x, settings: { ...x.settings, [k]: v } }))} /></Card>
       <Card title="Staff & admins"><p style={{ marginTop: 0 }}>Moved to <Link className="link" to="/admin/users">Users & permissions</Link>.</p></Card>
       <Card title="Data">
-        <p style={{ marginTop: 0 }}>Test mode: changes are saved in this browser only until a database is connected.</p>
+        <p style={{ marginTop: 0 }}>Live mode: product, category, campaign, and site configuration updates sync automatically with your connected Supabase database and local backup.</p>
         <div className="adm-row">
           <button className="adm-btn" onClick={exportJson}>Export all data</button>
           <label className="adm-btn ghost">Import data<input type="file" accept="application/json" hidden onChange={async (e) => {

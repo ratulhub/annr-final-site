@@ -13,10 +13,10 @@ function Integrations() {
           <h1>Integrations</h1>
         </div>
       </div>
-      <p className="adm-hint">Services the store uses or will use. Nothing is connected from this panel yet, so every status is honest: Not connected.</p>
+      <p className="adm-hint">Live services connected to your AnnR storefront, edge worker, and Supabase backend.</p>
       <IntegrationsCard />
       <Card title="Already working through the live store">
-        <p style={{ marginTop: 0 }}>Cart, checkout, payment, VIP account login, reservations and predictive search run natively through AnnR routes and Supabase.</p>
+        <p style={{ marginTop: 0 }}>Cart, checkout, payment, VIP account login, 1-of-1 reservations, first-party analytics tracking, and predictive search run natively through AnnR Cloudflare Worker routes and Supabase.</p>
         <Link className="link" to="/admin/analytics/$report" params={{ report: "settings" }}>Analytics providers</Link>
       </Card>
     </>

@@ -1,7 +1,8 @@
 import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef, type ReactNode } from "react";
 import adminCss from "../admin/admin.css?url";
-import { isLoggedIn, login, logout, getSession, publish, publishToSupabase } from "../admin/store";
+import { isLoggedIn, login, logout, getSession, publish, publishToSupabase, syncAllFromSupabase } from "../admin/store";
+import { syncAnalyticsEventsFromEdge } from "../admin/analytics/provider";
 import { logAuthEvent, touch } from "../admin/security/auth";
 import { can, permissionForPath } from "../admin/security/permissions";
 import { useAdmin } from "../admin/store";
@@ -383,12 +384,18 @@ function AdminLayout() {
     setCollapsed(localStorage.getItem("shihiko-admin-collapsed") === "1");
     setReady(true);
     if (isSupabaseConfigured()) {
+      void syncAnalyticsEventsFromEdge();
+      void syncAllFromSupabase();
       void supabase.auth.getSession().then(({ data }) => {
         setDbAuthed(Boolean(data?.session));
+        if (data?.session) void syncAllFromSupabase();
       }).catch(() => setDbAuthed(false));
       const { data: sub } = supabase.auth.onAuthStateChange((_ev, session) => {
         setDbAuthed(Boolean(session));
-        if (session) touch();
+        if (session) {
+          touch();
+          void syncAllFromSupabase();
+        }
       });
       return () => {
         sub.subscription.unsubscribe();

@@ -4,8 +4,10 @@ import { useAdmin } from "../admin/store";
 import { BackBtn, Card } from "../admin/ui";
 import { BarList, DataTable, Funnel, LineChart, MetricCard, csv } from "../admin/analytics/charts";
 import { presetRange, previousPeriod, savedPresets, savePresets, useFilters, type Filters, type Saved } from "../admin/analytics/filters";
-import { EVENT_NAMES, EVENTS_KEY, funnel, provider, readEvents, type EventName, type Source } from "../admin/analytics/provider";
+import { EVENT_NAMES, EVENTS_KEY, funnel, provider, readEvents, syncAnalyticsEventsFromEdge, type EventName, type Source } from "../admin/analytics/provider";
 import { REPORTS } from "../admin/analytics/reports";
+import { syncAllFromSupabase } from "../admin/store";
+import { isSupabaseConfigured } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/analytics/$report")({ component: Analytics });
 
@@ -13,6 +15,12 @@ function Analytics() {
   const { report } = Route.useParams();
   const meta = REPORTS.find((r) => r.id === report);
   const { f, update, src, setSource } = useFilters();
+  const [, setSyncTick] = useState(0);
+  useEffect(() => {
+    void Promise.all([syncAnalyticsEventsFromEdge(), syncAllFromSupabase()]).then(() => {
+      setSyncTick((n) => n + 1);
+    });
+  }, [report]);
   if (!meta) return <Card title="Report not found"><Link className="link" to="/admin/analytics/$report" params={{ report: "overview" }}>Analytics overview</Link></Card>;
   const custom = ["funnels", "seo", "reports", "settings"].includes(report);
   return (
@@ -29,7 +37,9 @@ function Analytics() {
             <p className="adm-hint" style={{ marginTop: 6 }}>{meta.purpose}</p>
           </div>
         </div>
-        <span className="adm-tag" style={{ background: src === "demo" ? "#000" : "#fff", color: src === "demo" ? "#fff" : "#000" }}>{src === "demo" ? "DEMO DATA — not real visitors" : "LOCAL — this browser only"}</span>
+        <span className={`adm-tag ${src === "local" ? "active" : ""}`} style={src === "demo" ? { background: "#000", color: "#fff" } : undefined}>
+          {src === "demo" ? "DEMO DATA — sample simulation" : "LIVE TRACKER & SUPABASE — Real Store Data"}
+        </span>
       </div>
       {report !== "settings" && report !== "seo" && <FilterBar f={f} update={update} src={src} setSource={setSource} />}
       {!custom && <StandardReport id={report} f={f} src={src} />}
@@ -53,10 +63,10 @@ function FilterBar({ f, update, src, setSource }: { f: Filters; update: (p: Part
         <input type="date" value={f.end} min={f.start} onChange={(e) => update({ preset: "custom", end: e.target.value })} style={{ width: 150 }} aria-label="End date" />
         <select value={f.interval} onChange={(e) => update({ interval: e.target.value as Filters["interval"] })} style={{ width: 110 }} aria-label="Interval"><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select>
         <select value={f.device} onChange={(e) => update({ device: e.target.value })} style={{ width: 120 }} aria-label="Device"><option value="all">All devices</option>{["Mobile", "Desktop", "Tablet"].map((d) => <option key={d}>{d}</option>)}</select>
-        <select value={f.channel} onChange={(e) => update({ channel: e.target.value })} style={{ width: 140 }} aria-label="Channel" disabled={src === "local"}><option value="all">All channels</option>{["Direct", "Organic search", "Social", "Referral", "Email", "Paid"].map((d) => <option key={d}>{d}</option>)}</select>
+        <select value={f.channel} onChange={(e) => update({ channel: e.target.value })} style={{ width: 140 }} aria-label="Channel"><option value="all">All channels</option>{["Direct", "Organic search", "Social", "Referral", "Email", "Paid"].map((d) => <option key={d}>{d}</option>)}</select>
         <select value={f.page} onChange={(e) => update({ page: e.target.value })} style={{ width: 200 }} aria-label="Page"><option value="all">All pages</option>{["/home.html", ...pages.filter((p) => p !== "/home.html")].map((p) => <option key={p}>{p}</option>)}</select>
         <label className="adm-check"><input type="checkbox" checked={f.compare} onChange={(e) => update({ compare: e.target.checked })} />Compare to previous period</label>
-        <select value={src} onChange={(e) => setSource(e.target.value as Source)} style={{ width: 170 }} aria-label="Data source"><option value="demo">Demo data</option><option value="local">This browser's events</option></select>
+        <select value={src} onChange={(e) => setSource(e.target.value as Source)} style={{ width: 190 }} aria-label="Data source"><option value="local">Live Store & Tracker Data</option><option value="demo">Demo simulation</option></select>
       </div>
       {chips.length > 0 && <div className="adm-row" style={{ marginTop: 8 }}>{chips.map((c) => <span key={c} className="adm-tag">{c}</span>)}<button className="adm-btn ghost sm" onClick={() => update({ device: "all", channel: "all", page: "all" })}>Clear filters</button></div>}
     </section>
@@ -188,18 +198,30 @@ function Reports({ f, src, update }: { f: Filters; src: Source; update: (p: Part
 
 function Settings({ src, setSource }: { src: Source; setSource: (s: Source) => void }) {
   const [n, setN] = useState(0);
-  useEffect(() => setN(readEvents().length), []);
-  const providers = [["Google Analytics 4 / Plausible", "Visitors, traffic, events"], ["Google Search Console", "Search clicks, queries"], ["PageSpeed Insights / RUM", "Performance"], ["Sentry or similar", "Errors"], ["Supabase", "Orders & revenue"]];
+  useEffect(() => {
+    setN(readEvents().length);
+    void syncAnalyticsEventsFromEdge().then((evs) => setN(evs.length));
+  }, []);
+  const sbConnected = isSupabaseConfigured();
+  const providers: [string, string, boolean][] = [
+    ["AnnR First-Party Tracker (Edge + Browser)", "Visitors, sessions, page views, clicks, searches, Core Web Vitals", true],
+    ["Supabase Live Database", "Orders, BDT revenue, 1-of-1 catalog, categories, campaigns & VIP loyalty", sbConnected],
+    ["AnnR Real Broken-Link & SEO Auditor", "Internal broken-link verification & live metadata coverage", true],
+    ["Google Analytics 4 / Plausible (Optional)", "External third-party traffic mirror", false],
+    ["Google Search Console (Optional)", "External Google SERP impressions & keyword positions", false],
+  ];
   return <>
     <Card title="Data source">
-      <div className="adm-row"><label className="adm-check"><input type="radio" checked={src === "demo"} onChange={() => setSource("demo")} />Demo data (sample numbers)</label>
-        <label className="adm-check"><input type="radio" checked={src === "local"} onChange={() => setSource("local")} />This browser's events ({n} recorded)</label></div>
-      <p className="adm-hint">Local mode uses real events the store pages record in this browser only (trackEvent → local adapter). It is not your visitors' data.</p>
-      <button className="adm-btn danger sm" onClick={() => { if (confirm("Delete all locally recorded events?")) { localStorage.removeItem(EVENTS_KEY); setN(0); } }}>Clear local events</button>
+      <div className="adm-row">
+        <label className="adm-check"><input type="radio" checked={src === "local"} onChange={() => setSource("local")} />Live Store & Tracker Data ({n} real events recorded)</label>
+        <label className="adm-check"><input type="radio" checked={src === "demo"} onChange={() => setSource("demo")} />Demo data (sample simulation)</label>
+      </div>
+      <p className="adm-hint">Live mode combines real storefront events (synced via the Cloudflare Worker edge collector + browser tracker) with your live Supabase orders, catalog, and VIP database.</p>
+      <button className="adm-btn danger sm" onClick={() => { if (confirm("Delete all locally cached events?")) { localStorage.removeItem(EVENTS_KEY); setN(0); } }}>Clear cached events</button>
     </Card>
     <Card title="Providers">
-      <div className="adm-table-wrap"><table><thead><tr><th>Provider</th><th>Used for</th><th>Status</th></tr></thead><tbody>{providers.map(([p, u]) => <tr key={p}><td>{p}</td><td>{u}</td><td><span className="adm-tag">Not connected</span></td></tr>)}</tbody></table></div>
-      <p className="adm-hint">Connecting needs a backend so keys stay private. No keys are stored in the browser.</p>
+      <div className="adm-table-wrap"><table><thead><tr><th>Provider</th><th>Used for</th><th>Status</th></tr></thead><tbody>{providers.map(([p, u, ok]) => <tr key={p}><td>{p}</td><td>{u}</td><td><span className={`adm-tag ${ok ? "active" : ""}`}>{ok ? "Connected" : "Optional"}</span></td></tr>)}</tbody></table></div>
+      <p className="adm-hint">First-party tracking and Supabase analytics run natively without exposing any private keys in the browser.</p>
     </Card>
   </>;
 }
