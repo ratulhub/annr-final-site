@@ -30,6 +30,19 @@ const LEGACY_COLLECTION_HANDLES = new Set([
   "vault",
 ]);
 
+const BUILTIN_STATIC_COLLECTIONS = new Set([
+  "unique-campaign",
+  "all",
+  "hoodies",
+  "sweatshirts",
+  "trousers",
+  "sweaters",
+  "t-shirts",
+  "jackets",
+  "knitwear",
+  "accessories",
+]);
+
 // Same behaviour as the original mirror server: live Shopify features (cart, cart drawer,
 // recommendations, localization) are passed through to the real store; any other
 // clean page URL is sent to its static copy in /public.
@@ -247,16 +260,20 @@ async function buildPredictiveSearchHtml(query: string): Promise<string> {
     try {
       const { data } = await supabase
         .from("products")
-        .select("id,handle,title,description,product_type,tags,price,images,status,code,size,show_size")
+        .select("id,handle,title,description,tags,price,images,status,code,size,show_size")
         .in("status", ["active", "reserved", "sold"])
         .limit(100);
       if (Array.isArray(data)) {
+        // When live products exist in Supabase, clear the static template fallback so deleted template products don't appear
+        if (data.length > 0) byHandle.clear();
         for (const r of data as Array<Record<string, unknown>>) {
           const h = String(r["handle"] || "");
           if (h && !LEGACY_PRODUCT_HANDLES.has(h)) {
+            const tagsArr = Array.isArray(r["tags"]) ? (r["tags"] as string[]) : [];
+            const catTag = tagsArr.find((t) => typeof t === "string" && t.startsWith("cat:"))?.slice(4) || "";
             byHandle.set(h, {
               ...r,
-              category: r["product_type"] || "",
+              category: catTag,
               showSize: r["show_size"],
             });
           }
@@ -383,43 +400,70 @@ async function route(request: Request): Promise<Response> {
   }
   if (request.method === "GET") {
     // Dynamic product page routing & legacy handle redirects
-    const prodMatch = url.pathname.match(/^\/products\/([a-zA-Z0-9_-]+)(?:\/index\.html)?$/);
+    const prodMatch = url.pathname.match(/^\/products\/([a-zA-Z0-9_-]+)(?:\/index\.html)?\/?$/);
     if (prodMatch && prodMatch[1]) {
       const handle = prodMatch[1];
       if (LEGACY_PRODUCT_HANDLES.has(handle)) {
         return new Response(null, {
           status: 302,
-          headers: { location: `/products/annr-archival-001/index.html${url.search}` },
+          headers: { location: `/collections/unique-campaign/index.html${url.search}` },
         });
       }
-      // A newly-created product has no physical /index.html file. Cloudflare
-      // serves missing static files as a 404 before this route can recover, so
-      // clean product URLs must render the existing product template directly.
-      const staticPath = `/products/${handle}/index.html`;
-      const existing = await fetchStaticHtml(url, staticPath);
-      if (existing) return existing;
+      if (handle === "annr-archival-001") {
+        const existing = await fetchStaticHtml(url, "/products/annr-archival-001/index.html");
+        if (existing) return existing;
+      }
+      // Render dynamic products through the product template, pre-injecting live Supabase product metadata when available
       const fallbackProd = await fetchStaticHtml(url, "/products/annr-archival-001/index.html");
-      if (fallbackProd) return fallbackProd;
+      if (fallbackProd) {
+        if (isSupabaseConfigured()) {
+          try {
+            const { data: row } = await supabase
+              .from("products")
+              .select("id,handle,code,title,description,price,compare_at_price,currency,status,size,show_size,measurement_unit,measurements,fabric,condition,care_instructions,images,tags,stock,reserved_until,created_at")
+              .eq("handle", handle)
+              .maybeSingle();
+            if (row && row.status !== "archived" && row.status !== "draft") {
+              let html = await fallbackProd.text();
+              const safeTitle = esc(String(row.title || "Archival Piece"));
+              const safeImg = esc(String((Array.isArray(row.images) && row.images[0]) || "/_ext/annr-template-001.png"));
+              const safeJson = JSON.stringify(row).replace(/</g, "\\u003c");
+              html = html
+                .replace(/<title>[^<]*<\/title>/i, `<title>${safeTitle} (1 of 1) - AnnR</title>`)
+                .replace(/(<meta\s+property=["']og:title["']\s+content=["'])[^"']*(["'])/i, `$1${safeTitle} - AnnR$2`)
+                .replace(/(<meta\s+property=["']og:image["']\s+content=["'])[^"']*(["'])/i, `$1${safeImg}$2`)
+                .replace(/<\/head>/i, `<script>window.__ANNR_SSR_PRODUCT__=${safeJson};</script></head>`);
+              return new Response(html, {
+                status: 200,
+                headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+              });
+            }
+          } catch {}
+        }
+        return fallbackProd;
+      }
     }
 
     // Dynamic collection page routing & legacy collection redirects
-    const colMatch = url.pathname.match(/^\/collections\/([a-zA-Z0-9_-]+)(?:\/index(?:\.page-\d+)?\.html)?$/);
+    const colMatch = url.pathname.match(/^\/collections\/([a-zA-Z0-9_-]+)(?:\/index(?:\.page-\d+)?\.html)?\/?$/);
     if (colMatch && colMatch[1]) {
-      const colHandle = colMatch[1];
+      const colHandle = colMatch[1].toLowerCase();
       if (LEGACY_COLLECTION_HANDLES.has(colHandle)) {
         return new Response(null, {
           status: 302,
           headers: { location: `/collections/unique-campaign/index.html${url.search}` },
         });
       }
-      if (!url.pathname.endsWith("/index.html")) {
-        return new Response(null, {
-          status: 302,
-          headers: { location: `/collections/${colHandle}/index.html${url.search}` },
-        });
+      if (BUILTIN_STATIC_COLLECTIONS.has(colHandle)) {
+        if (!url.pathname.endsWith("/index.html")) {
+          return new Response(null, {
+            status: 302,
+            headers: { location: `/collections/${colHandle}/index.html${url.search}` },
+          });
+        }
+        const existing = await fetchStaticHtml(url, `/collections/${colHandle}/index.html`);
+        if (existing) return existing;
       }
-      const existing = await fetchStaticHtml(url, url.pathname);
-      if (existing) return existing;
       const fallbackCol = await fetchStaticHtml(url, "/collections/unique-campaign/index.html");
       if (fallbackCol) return fallbackCol;
     }

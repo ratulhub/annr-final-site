@@ -10,7 +10,19 @@
     "binding": "ASSETS",
     "directory": ".output/public",
     "run_worker_first": [
-      "/products/annr-unique-*"
+      "/products/*",
+      "!/products/annr-archival-001/*",
+      "/collections/*",
+      "!/collections/unique-campaign/*",
+      "!/collections/all/*",
+      "!/collections/hoodies/*",
+      "!/collections/sweatshirts/*",
+      "!/collections/trousers/*",
+      "!/collections/sweaters/*",
+      "!/collections/t-shirts/*",
+      "!/collections/jackets/*",
+      "!/collections/knitwear/*",
+      "!/collections/accessories/*"
     ]
   },
   "observability": {

@@ -26,7 +26,11 @@ begin
     new.stock := 0;
     new.sold_at := coalesce(new.sold_at, now());
     new.reserved_until := null;
-  elsif new.status in ('active','draft','archived') then
+  elsif new.status = 'archived' then
+    new.stock := 0;
+    new.reserved_until := null;
+    new.sold_at := null;
+  elsif new.status in ('active','draft') then
     new.stock := 1;
     new.reserved_until := null;
     new.sold_at := null;

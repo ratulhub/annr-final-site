@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { safeImageUrl } from "../admin/security/sanitize";
-import { publish, setState, uid, useAdmin, type Campaign } from "../admin/store";
+import { publish, publishToSupabase, setState, uid, useAdmin, type Campaign } from "../admin/store";
 import { BackBtn, Card } from "../admin/ui";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
@@ -27,7 +27,13 @@ async function syncCampaignDb(c: Campaign, oldSlug?: string): Promise<{ ok: bool
       },
       { onConflict: "slug" },
     );
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      if (error.code === "42501" || /permission denied/i.test(error.message)) {
+        const pubRes = await publishToSupabase("campaigns sync");
+        return pubRes.ok ? { ok: true } : { ok: false, error: pubRes.error || "Publish failed" };
+      }
+      return { ok: false, error: error.message };
+    }
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Failed to sync campaign" };
@@ -41,20 +47,16 @@ function CampaignsPage() {
   const [syncError, setSyncError] = useState("");
   const [syncing, setSyncing] = useState(false);
 
-  const syncFromDb = async () => {
+  const syncFromDb = async (silent = false) => {
     if (!isSupabaseConfigured()) {
-      setSyncError("Supabase not configured.");
+      if (!silent) setSyncError("Supabase not configured.");
       return;
     }
     setSyncing(true);
-    setSyncError("");
+    if (!silent) setSyncError("");
     try {
       const { data, error } = await supabase.from("campaigns").select("*").order("sort_order", { ascending: true });
-      if (error) {
-        setSyncError(`DB load error: ${error.message}`);
-        return;
-      }
-      if (Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data) && data.length > 0) {
         const mapped: Campaign[] = data.map((r: any, idx: number) => ({
           id: String(r.id || uid()),
           slug: String(r.slug || ""),
@@ -68,13 +70,35 @@ function CampaignsPage() {
         }));
         setState((x) => ({ ...x, campaigns: mapped }));
         setTimeout(() => { try { publish(); } catch {} }, 30);
+        return;
+      }
+      // Fallback: read published campaigns from site_config_versions
+      const { data: cfgRows } = await supabase
+        .from("site_config_versions")
+        .select("config")
+        .eq("is_published", true)
+        .limit(1);
+      const remoteCamps = (cfgRows?.[0] as any)?.config?.campaigns;
+      if (Array.isArray(remoteCamps) && remoteCamps.length > 0) {
+        setState((x) => ({ ...x, campaigns: remoteCamps }));
+        setTimeout(() => { try { publish(); } catch {} }, 30);
+        return;
+      }
+      if (error && error.code !== "42501" && !/permission denied/i.test(error.message) && !silent) {
+        setSyncError(`DB load error: ${error.message}`);
       }
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : "Failed to sync campaigns");
+      if (!silent) setSyncError(err instanceof Error ? err.message : "Failed to sync campaigns");
     } finally {
       setSyncing(false);
     }
   };
+
+  useEffect(() => {
+    if (isSupabaseConfigured()) {
+      void syncFromDb(true);
+    }
+  }, []);
 
   const addCampaign = () => {
     setSyncError("");
@@ -134,7 +158,9 @@ function CampaignsPage() {
         void (async () => {
           try {
             const { error } = await supabase.from("campaigns").delete().eq("slug", target.slug);
-            if (error) setSyncError(`Removed locally; DB delete failed: ${error.message}`);
+            if (error && error.code !== "42501" && !/permission denied/i.test(error.message)) {
+              setSyncError(`Removed locally; DB delete failed: ${error.message}`);
+            }
           } catch (err) {
             setSyncError(err instanceof Error ? err.message : "DB delete failed");
           }

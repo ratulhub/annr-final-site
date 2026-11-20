@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { setState, uid, useAdmin, type Collection } from "../admin/store";
+import { publish, setState, uid, useAdmin, type Collection } from "../admin/store";
 import { Area, BackBtn, Card, Select, Text, Toggle } from "../admin/ui";
 
 export const Route = createFileRoute("/admin/collections")({ component: Collections });
@@ -11,12 +11,12 @@ function Collections() {
 
   const visibleCount = s.collections.filter((c) => c.visible).length;
 
-  const up = (h: string, patch: Partial<Collection>) =>
+  const up = (h: string, patch: Partial<Collection>) => {
     setState((x) => {
       let hidden = x.site.hiddenPages || [];
       if (patch.visible !== undefined) {
         const paths = [`/collections/${h}`, `/collections/${h}/index.html`, `/collections/${h}/`];
-        if (patch.visible === false) {
+        if (patch.visible === false && h !== "unique-campaign" && h !== "all") {
           paths.forEach((p) => {
             if (!hidden.includes(p)) hidden = [...hidden, p];
           });
@@ -30,6 +30,8 @@ function Collections() {
         collections: x.collections.map((c) => (c.handle === h ? { ...c, ...patch } : c)),
       };
     });
+    setTimeout(() => { try { publish(); } catch {} }, 40);
+  };
 
   const add = () => {
     const h = "new-collection-" + uid();
@@ -50,6 +52,7 @@ function Collections() {
         ...x.collections,
       ],
     }));
+    setTimeout(() => { try { publish(); } catch {} }, 40);
     setOpen(h);
   };
 
@@ -115,19 +118,23 @@ function Collections() {
               >
                 Preview ↗
               </a>
-              <button
-                type="button"
-                className="adm-btn danger sm"
-                onClick={() =>
-                  confirm(`Delete collection "${c.title}"?`) &&
-                  setState((x) => ({
-                    ...x,
-                    collections: x.collections.filter((y) => y.handle !== c.handle),
-                  }))
-                }
-              >
-                Delete
-              </button>
+              {c.handle !== "unique-campaign" && c.handle !== "all" && (
+                <button
+                  type="button"
+                  className="adm-btn danger sm"
+                  onClick={() => {
+                    if (confirm(`Delete collection "${c.title}"?`)) {
+                      setState((x) => ({
+                        ...x,
+                        collections: x.collections.filter((y) => y.handle !== c.handle),
+                      }));
+                      setTimeout(() => { try { publish(); } catch {} }, 40);
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              )}
             </div>
           }
         >

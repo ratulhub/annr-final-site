@@ -79,7 +79,8 @@
       ".annr-sort-select { background: #ffffff; border: 1px solid #d8d3ca; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; padding: 6px 12px; outline: none; cursor: pointer; }\n" +
       ".annr-card-one-badge { position: absolute; top: 10px; left: 10px; z-index: 4; background: rgba(17,17,17,0.92); color: #ffffff; padding: 4px 8px; font-family: 'FK Grotesk SemiMono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; pointer-events: none; }\n" +
       ".annr-card-sold-overlay { position: absolute; inset: 0; background: rgba(17,17,17,0.68); display: flex; align-items: center; justify-content: center; z-index: 5; pointer-events: none; }\n" +
-      ".annr-card-sold-tag { background: #ffffff; color: #111111; font-family: 'NB Architekt Std', sans-serif; font-size: 13px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; padding: 8px 16px; border: 2px solid #111111; box-shadow: 0 6px 20px rgba(0,0,0,0.3); }\n";
+      ".annr-card-sold-tag { background: #ffffff; color: #111111; font-family: 'NB Architekt Std', sans-serif; font-size: 13px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; padding: 8px 16px; border: 2px solid #111111; box-shadow: 0 6px 20px rgba(0,0,0,0.3); }\n" +
+      ".js-catalog__content-preloader, .ajax-preloader.js-catalog__content-preloader { display: none !important; opacity: 0 !important; pointer-events: none !important; height: 0 !important; }\n";
     document.head.appendChild(st);
   }
 
@@ -186,14 +187,36 @@
     };
   }
 
+  function getDeletedHandlesMap() {
+    var map = {};
+    try {
+      var rawDel = localStorage.getItem("annr_deleted_handles");
+      if (rawDel) {
+        var arr = JSON.parse(rawDel);
+        if (Array.isArray(arr)) arr.forEach(function (h) { if (h) map[String(h)] = 1; });
+      }
+    } catch (e) {}
+    try {
+      var rawCfg = localStorage.getItem("shihiko-site-config");
+      if (rawCfg) {
+        var sc = JSON.parse(rawCfg);
+        if (sc && Array.isArray(sc.deletedProducts)) {
+          sc.deletedProducts.forEach(function (h) { if (h) map[String(h)] = 1; });
+        }
+      }
+    } catch (e) {}
+    return map;
+  }
+
   function mergeProductLists(lists) {
     var byHandle = {};
     var order = [];
+    var delMap = getDeletedHandlesMap();
     lists.forEach(function (arr) {
       if (!Array.isArray(arr)) return;
       arr.forEach(function (raw) {
         var norm = normalizeProduct(raw);
-        if (!norm) return;
+        if (!norm || delMap[norm.handle]) return;
         if (!byHandle[norm.handle]) order.push(norm.handle);
         byHandle[norm.handle] = norm;
       });
@@ -209,6 +232,7 @@
     var remoteCacheList = [];
     var siteCfgList = [];
     var localAdmList = [];
+    var ssrList = window.__ANNR_SSR_PRODUCT__ ? [window.__ANNR_SSR_PRODUCT__] : [];
 
     try {
       var rawRemote = localStorage.getItem("annr_live_products");
@@ -227,31 +251,23 @@
       var rawAdm = localStorage.getItem("shihiko-admin-v1");
       if (rawAdm) {
         var parsed = JSON.parse(rawAdm);
-        if (parsed && Array.isArray(parsed.products)) localAdmList = parsed.products;
+        if (parsed && Array.isArray(parsed.products)) {
+          localAdmList = parsed.products.filter(function (p) {
+            if (!p) return false;
+            if ((remoteCacheList.length > 0 || ssrList.length > 0) && p.handle === "annr-archival-001" && !p.id) return false;
+            return true;
+          });
+        }
       }
     } catch (e) {}
 
-    liveProducts = mergeProductLists([remoteCacheList, siteCfgList, localAdmList]);
+    liveProducts = mergeProductLists([ssrList, remoteCacheList, siteCfgList, localAdmList]);
     if (liveProducts.length > 0 && callback) {
       callback(liveProducts);
     }
 
-    // Fallback seed from static /_ext/catalog.json for clean/incognito browsers before Supabase responds
-    fetch("/_ext/catalog.json")
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (catData) {
-        var seedArr = Array.isArray(catData) ? catData : (catData && Array.isArray(catData.products) ? catData.products : []);
-        if (Array.isArray(seedArr) && seedArr.length > 0 && liveProducts.length === 0) {
-          baseList = seedArr;
-          liveProducts = mergeProductLists([baseList, remoteCacheList, siteCfgList, localAdmList]);
-          if (liveProducts.length > 0 && callback) callback(liveProducts);
-        }
-      })
-      .catch(function () {});
-
-    // 2. Fetch live products from Supabase (resilient across schema migrations 14 vs 16)
-    var colsFull = "id,handle,code,title,description,price,compare_at_price,currency,status,size,show_size,measurement_unit,measurements,fabric,condition,care_instructions,images,tags,category_id,campaign_id,stock,reserved_until,created_at,categories(slug,name),campaigns(slug,name)";
-    var colsMid = "id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,images,tags,category_id,campaign_id,stock,reserved_until,created_at,categories(slug,name),campaigns(slug,name)";
+    // 2. Fetch live products from Supabase directly (without joining categories/campaigns which may fail with 401 if table grants are pending)
+    var colsFull = "id,handle,code,title,description,price,compare_at_price,currency,status,size,show_size,measurement_unit,measurements,fabric,condition,care_instructions,images,tags,category_id,campaign_id,stock,reserved_until,created_at";
     var colsMin = "id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,images,tags,category_id,campaign_id,stock,reserved_until,created_at";
 
     function querySb(selectCols) {
@@ -266,11 +282,7 @@
 
     querySb(colsFull)
       .then(function (r) {
-        if (r.status === 400) return querySb(colsMid);
-        return r;
-      })
-      .then(function (r) {
-        if (r.status === 400) return querySb(colsMin);
+        if (!r.ok) return querySb(colsMin);
         return r;
       })
       .then(function (r) { return r.ok ? r.json() : null; })
@@ -280,11 +292,23 @@
           try {
             localStorage.setItem("annr_live_products", JSON.stringify(normalizedRemote));
           } catch (e) {}
-          liveProducts = mergeProductLists([normalizedRemote, localAdmList]);
+          var filteredAdm = localAdmList.filter(function (p) {
+            return p && !(p.handle === "annr-archival-001" && !p.id);
+          });
+          liveProducts = mergeProductLists([normalizedRemote, filteredAdm]);
           if (callback) callback(liveProducts);
         } else if (liveProducts.length === 0) {
-          liveProducts = mergeProductLists([baseList, siteCfgList, localAdmList]);
-          if (callback) callback(liveProducts);
+          fetch("/_ext/catalog.json")
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (catData) {
+              var seedArr = Array.isArray(catData) ? catData : (catData && Array.isArray(catData.products) ? catData.products : []);
+              baseList = Array.isArray(seedArr) ? seedArr : [];
+              liveProducts = mergeProductLists([baseList, siteCfgList, localAdmList]);
+              if (callback) callback(liveProducts);
+            })
+            .catch(function () {
+              if (callback) callback(liveProducts);
+            });
         }
       })
       .catch(function () {
@@ -767,12 +791,15 @@
     function matchesCategory(p, cat) {
       if (!cat || cat === "all") return true;
       if (p.categorySlug === cat || p.category === cat) return true;
+      if (p.campaignSlug === cat || p.campaign === cat) return true;
       if (Array.isArray(p.collections) && p.collections.indexOf(cat) !== -1) return true;
       return false;
     }
 
     function renderGrid() {
       purgeLegacyHeroLogo();
+      document.querySelectorAll(".js-catalog__content").forEach(function (el) { el.classList.remove("loading"); });
+      document.querySelectorAll(".js-catalog__content-preloader").forEach(function (el) { el.style.display = "none"; });
       var filtered = currentProducts.slice();
 
       if (!isUniqueCampaign && currentHandle !== "all") {
@@ -870,6 +897,15 @@
     function ensureCollectionChrome() {
       var colHeader = document.querySelector(".collection-header, .catalog-header");
       var liveCats = getActiveCategories();
+
+      if (!isUniqueCampaign && currentHandle !== "all") {
+        var matchedCat = liveCats.find(function (c) { return c.slug === currentHandle; });
+        if (matchedCat) {
+          document.querySelectorAll(".collection-title").forEach(function (el) {
+            el.textContent = matchedCat.name;
+          });
+        }
+      }
 
       if (isUniqueCampaign && !document.getElementById("annr-campaign-hero-el")) {
         var hero = document.createElement("div");
@@ -1022,6 +1058,18 @@
             .filter(function (c) { return c && c.slug && c.visible !== false && c.is_visible !== false; })
             .map(function (c) { return { slug: String(c.slug).toLowerCase(), name: String(c.name || c.slug) }; });
           if (list.length > 0) return list;
+        }
+      }
+    } catch (e) {}
+    try {
+      var rawCfg = localStorage.getItem("shihiko-site-config");
+      if (rawCfg) {
+        var sc = JSON.parse(rawCfg);
+        if (sc && Array.isArray(sc.categories) && sc.categories.length > 0) {
+          var cfgList = sc.categories
+            .filter(function (c) { return c && c.slug && c.visible !== false && c.is_visible !== false; })
+            .map(function (c) { return { slug: String(c.slug).toLowerCase(), name: String(c.name || c.slug) }; });
+          if (cfgList.length > 0) return cfgList;
         }
       }
     } catch (e) {}

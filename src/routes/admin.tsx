@@ -1,13 +1,13 @@
 import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef, type ReactNode } from "react";
 import adminCss from "../admin/admin.css?url";
-import { isLoggedIn, login, logout, getSession } from "../admin/store";
+import { isLoggedIn, login, logout, getSession, publish, publishToSupabase } from "../admin/store";
 import { logAuthEvent, touch } from "../admin/security/auth";
 import { can, permissionForPath } from "../admin/security/permissions";
 import { useAdmin } from "../admin/store";
 import { NAV_GROUPS, type NavGroup } from "../admin/config/navigation";
-import { publish } from "../admin/store";
 import { useDirty } from "./admin.publish";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 const FONTS = ["Druk-Wide", "NB-Architekt", "FKGroteskSemiMono"].map((f) => ({ rel: "stylesheet", href: `/cdn/shop/t/75/assets/${f}.css` }));
 
@@ -369,6 +369,10 @@ function GlobalSearch() {
 function AdminLayout() {
   const [ready, setReady] = useState(false);
   const [authed, setAuthed] = useState(false);
+  const [dbAuthed, setDbAuthed] = useState<boolean | null>(null);
+  const [reconnPw, setReconnPw] = useState("");
+  const [reconnBusy, setReconnBusy] = useState(false);
+  const [reconnErr, setReconnErr] = useState("");
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
   const path = useLocation({ select: (l) => l.pathname });
@@ -378,6 +382,19 @@ function AdminLayout() {
     setAuthed(isLoggedIn());
     setCollapsed(localStorage.getItem("shihiko-admin-collapsed") === "1");
     setReady(true);
+    if (isSupabaseConfigured()) {
+      void supabase.auth.getSession().then(({ data }) => {
+        setDbAuthed(Boolean(data?.session));
+      }).catch(() => setDbAuthed(false));
+      const { data: sub } = supabase.auth.onAuthStateChange((_ev, session) => {
+        setDbAuthed(Boolean(session));
+        if (session) touch();
+      });
+      return () => {
+        sub.subscription.unsubscribe();
+      };
+    }
+    return undefined;
   }, []);
 
   useEffect(() => {
@@ -608,6 +625,64 @@ function AdminLayout() {
         </header>
 
         <main className="adm-main">
+          {isSupabaseConfigured() && dbAuthed === false && (
+            <div
+              className="adm-banner warning"
+              style={{
+                marginBottom: 16,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 10,
+              }}
+            >
+              <div style={{ flex: "1 1 260px" }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>
+                  Live Supabase Database Session Disconnected
+                </div>
+                <div style={{ fontSize: 12, marginTop: 2 }}>
+                  Enter your admin password for <b>{getSession()?.email || "arahimratul2004@gmail.com"}</b> to reconnect live database sync so product adds, edits, and deletions publish to all visitors.
+                </div>
+                {reconnErr && <div style={{ color: "#b91c1c", fontSize: 12, marginTop: 4, fontWeight: 600 }}>{reconnErr}</div>}
+              </div>
+              <form
+                className="adm-row"
+                style={{ gap: 6 }}
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!reconnPw) return;
+                  setReconnBusy(true);
+                  setReconnErr("");
+                  const email = getSession()?.email || "arahimratul2004@gmail.com";
+                  const r = await login(email, reconnPw);
+                  setReconnBusy(false);
+                  setReconnPw("");
+                  if (r.ok) {
+                    const { data } = await supabase.auth.getSession();
+                    setDbAuthed(Boolean(data?.session));
+                    if (!data?.session) {
+                      setReconnErr("Signed in locally, but Supabase Auth rejected the password. Verify your Supabase user password.");
+                    }
+                  } else {
+                    setReconnErr(r.error);
+                  }
+                }}
+              >
+                <input
+                  type="password"
+                  placeholder="Admin password"
+                  value={reconnPw}
+                  onChange={(e) => setReconnPw(e.target.value)}
+                  style={{ width: 170, padding: "6px 10px", fontSize: 12.5, background: "#fff" }}
+                  required
+                />
+                <button type="submit" className="adm-btn primary sm" disabled={reconnBusy}>
+                  {reconnBusy ? "Connecting…" : "Reconnect Live DB"}
+                </button>
+              </form>
+            </div>
+          )}
           {(() => {
             const need = permissionForPath(path);
             return need && !can(getSession()?.role, need) ? <Denied perm={need} /> : <Outlet />;
@@ -723,20 +798,29 @@ function Denied({ perm }: { perm: string }) {
 function PublishButton() {
   const dirty = useDirty();
   const mayPublish = can(getSession()?.role, "site.publish");
+  const [pubBusy, setPubBusy] = useState(false);
+  const [pubNote, setPubNote] = useState("");
   return (
     <span className="adm-row adm-publish-wrap" style={{ gap: 6 }}>
       <Link to="/admin/publish" className="link adm-publish-link">
-        {dirty ? "Unpublished changes" : "All published"}
+        {pubNote || (dirty ? "Unpublished changes" : "All published")}
       </Link>
       <button
         className={`adm-btn sm adm-publish-btn ${dirty ? "primary" : "ghost"}`}
-        disabled={!dirty || !mayPublish}
-        onClick={() => {
+        disabled={pubBusy || !mayPublish}
+        onClick={async () => {
           if (!mayPublish) return;
+          setPubBusy(true);
           publish();
           logAuthEvent("site_publish");
+          if (isSupabaseConfigured()) {
+            const res = await publishToSupabase();
+            setPubNote(res.ok ? "✓ Live in DB" : "Saved locally");
+            setTimeout(() => setPubNote(""), 3000);
+          }
+          setPubBusy(false);
         }}
-        title={dirty ? "Unpublished changes pending - click to publish" : "Live storefront is up to date"}
+        title={dirty ? "Unpublished changes pending - click to publish live" : "Click to re-sync published config to live storefront"}
       >
         <span
           style={{
@@ -748,7 +832,7 @@ function PublishButton() {
             marginRight: 4,
           }}
         />
-        <span>Publish</span>
+        <span>{pubBusy ? "Publishing…" : "Publish"}</span>
       </button>
     </span>
   );

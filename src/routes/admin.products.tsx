@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   deleteProductFromSupabase,
+  getDeletedHandles,
   LEGACY_PRODUCT_HANDLES,
   publish,
   setState,
@@ -47,19 +48,10 @@ function Products() {
     setSyncing(true);
     setSyncMsg("");
     try {
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from("products")
-        .select("*, categories(id,slug,name), campaigns(id,slug,name)")
+        .select("*")
         .order("created_at", { ascending: false });
-
-      if (error && /relationship|schema cache|categories|campaigns/i.test(error.message)) {
-        const retry = await supabase
-          .from("products")
-          .select("*")
-          .order("created_at", { ascending: false });
-        data = retry.data as typeof data;
-        error = retry.error;
-      }
 
       if (error) {
         console.warn("Could not sync products from Supabase:", error);
@@ -67,17 +59,27 @@ function Products() {
         return;
       }
 
-      if (Array.isArray(data) && data.length > 0) {
-        const remoteRows = data.filter((sp: any) => sp && sp.handle && !LEGACY_PRODUCT_HANDLES.has(sp.handle));
+      if (Array.isArray(data)) {
+        const deletedHandles = getDeletedHandles();
+        const remoteRows = data.filter(
+          (sp: any) =>
+            sp &&
+            sp.handle &&
+            !LEGACY_PRODUCT_HANDLES.has(sp.handle) &&
+            sp.status !== "archived" &&
+            !deletedHandles.has(String(sp.handle)) &&
+            !(Array.isArray(sp.tags) && sp.tags.includes("__deleted")),
+        );
         setState((current) => {
-          const map = new Map<string, Product>();
+          const prevByHandle = new Map<string, Product>();
           for (const lp of current.products) {
             if (!LEGACY_PRODUCT_HANDLES.has(lp.handle)) {
-              map.set(lp.handle, lp);
+              prevByHandle.set(lp.handle, lp);
             }
           }
+          const map = new Map<string, Product>();
           for (const sp of remoteRows as any[]) {
-            const existing = map.get(sp.handle);
+            const existing = prevByHandle.get(sp.handle);
             const spTags: string[] = Array.isArray(sp.tags) ? sp.tags.map((t: unknown) => String(t)) : [];
             const catTag = spTags.find((t) => t.startsWith("cat:"))?.slice(4);
             const campTag = spTags.find((t) => t.startsWith("camp:"))?.slice(5);
@@ -156,14 +158,30 @@ function Products() {
             };
             map.set(sp.handle, merged);
           }
-          return { ...current, products: Array.from(map.values()) };
+
+          // Preserve unsynced local-only products created in this browser (excluding deleted handles and unedited template seed when live rows exist)
+          for (const lp of current.products) {
+            if (map.has(lp.handle) || deletedHandles.has(lp.handle) || lp.status === "archived" || LEGACY_PRODUCT_HANDLES.has(lp.handle)) {
+              continue;
+            }
+            if (remoteRows.length > 0 && lp.handle === "annr-archival-001" && !lp.id) continue;
+            if (!lp.id) {
+              map.set(lp.handle, lp);
+            }
+          }
+
+          const finalProducts = Array.from(map.values());
+          try {
+            localStorage.setItem(
+              "annr_live_products",
+              JSON.stringify(finalProducts.filter((p) => p.status !== "draft" && p.status !== "archived")),
+            );
+          } catch {}
+          return { ...current, products: finalProducts };
         });
-        setSyncMsg(`✓ Synced ${remoteRows.length} products from Supabase`);
+        setSyncMsg(`✓ Synced ${remoteRows.length} live product${remoteRows.length === 1 ? "" : "s"} from Supabase`);
         setTimeout(() => setSyncMsg(""), 3000);
         try { publish(); } catch {}
-      } else {
-        setSyncMsg("✓ Connected to Supabase (0 products in remote DB)");
-        setTimeout(() => setSyncMsg(""), 3000);
       }
     } catch (err) {
       console.warn("Supabase products sync error:", err);
@@ -209,7 +227,11 @@ function Products() {
 
   const add = async () => {
     const handle = "annr-unique-" + uid();
-    const code = "ANNR-U" + Math.floor(100 + Math.random() * 900);
+    const existingCodes = new Set(s.products.map((x) => (x.code || "").toUpperCase()));
+    let code = "ANNR-U" + Math.floor(100 + Math.random() * 900);
+    while (existingCodes.has(code)) {
+      code = "ANNR-U" + Math.floor(1000 + Math.random() * 9000);
+    }
     const p: Product = {
       handle,
       code,

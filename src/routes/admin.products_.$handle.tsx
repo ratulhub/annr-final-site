@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   deleteProductFromSupabase,
   publish,
+  renameProductHandleInSupabase,
   setState,
   syncProductToSupabase,
   uid,
@@ -13,7 +14,7 @@ import {
 import { Area, BackBtn, Card, RowList, Select, Text, Toggle } from "../admin/ui";
 import { storeFile } from "../admin/services/media";
 import { normalizeDbImageUrl, safeImageUrl } from "../admin/security/sanitize";
-import { isSupabaseConfigured } from "../lib/supabase";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/admin/products_/$handle")({ component: Edit });
 
@@ -158,6 +159,7 @@ function Edit() {
   const [publishedToast, setPublishedToast] = useState(false);
   const [dbStatus, setDbStatus] = useState<string>("Auto-saved & Published");
   const [handleDraft, setHandleDraft] = useState<string>(p?.handle || handle);
+  const [loadingRemote, setLoadingRemote] = useState<boolean>(!p && isSupabaseConfigured());
   const latestProductRef = useRef<Product | null>(p || null);
   latestProductRef.current = p || null;
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -174,6 +176,98 @@ function Edit() {
     } catch {}
   }, [p?.handle, handle]);
 
+  // Fetch product directly from Supabase if page was refreshed or opened via direct URL
+  useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setLoadingRemote(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data: row } = await supabase
+          .from("products")
+          .select("*")
+          .eq("handle", handle)
+          .maybeSingle();
+        if (cancelled || !row) return;
+        const tags: string[] = Array.isArray(row.tags) ? row.tags : [];
+        const catTag = tags.find((t) => typeof t === "string" && t.startsWith("cat:"))?.slice(4);
+        const campTag = tags.find((t) => typeof t === "string" && t.startsWith("camp:"))?.slice(5);
+        const hideSizeTag = tags.includes("__hide_size");
+        const cleanTags = tags.filter((t) => t !== "__hide_size" && !t.startsWith("__unit:") && !t.startsWith("cat:") && !t.startsWith("camp:"));
+        const catSlug = catTag || "hoodies";
+        const campSlug = campTag || "unique-campaign";
+        const priceStr = Number(row.price || 0).toFixed(2);
+        const remoteProd: Product = {
+          id: row.id,
+          handle: row.handle,
+          code: row.code || "ANNR-U001",
+          title: row.title || "Untitled Piece",
+          vendor: "AnnR",
+          type: catSlug.toUpperCase(),
+          status: row.status || "active",
+          featured: true,
+          badge: row.status === "sold" ? "SOLD" : "1 OF 1",
+          price: priceStr,
+          compareAt: row.compare_at_price ? Number(row.compare_at_price).toFixed(2) : "",
+          currency: row.currency || "BDT",
+          trackStock: true,
+          allowBackorder: false,
+          weight: "0.6",
+          tags: cleanTags.join(", ") || "1-of-1, archival, unique",
+          description: row.description || "",
+          sizeChart: "",
+          seoTitle: `${row.title || "Piece"} (1-of-1) | AnnR`,
+          seoDescription: row.description || "",
+          collections: Array.from(new Set([campSlug, catSlug, "all"].filter(Boolean))),
+          images: Array.isArray(row.images) ? row.images : [],
+          size: row.size || "L",
+          showSize: row.show_size !== undefined ? row.show_size !== false : !hideSizeTag,
+          measurementUnit: "in",
+          measurements: row.measurements || {},
+          fabric: row.fabric || "",
+          condition: row.condition || "10/10 Archival",
+          careInstructions: row.care_instructions || "",
+          category: catSlug,
+          campaign: campSlug,
+          stock: row.status === "sold" ? 0 : (row.stock ?? 1),
+          ...(row.reserved_until ? { reservedUntil: String(row.reserved_until) } : {}),
+          isOneOfOne: true,
+          variants: [
+            {
+              id: row.id || uid(),
+              option: row.size || "L",
+              sku: row.code || "ANNR-U001",
+              price: priceStr,
+              stock: row.status === "sold" ? 0 : 1,
+            },
+          ],
+        };
+        setState((cur) => {
+          const exists = cur.products.find((x) => x.handle === handle);
+          if (exists) {
+            return {
+              ...cur,
+              products: cur.products.map((x) =>
+                x.handle === handle
+                  ? { ...exists, ...remoteProd, sizeChart: exists.sizeChart || remoteProd.sizeChart }
+                  : x,
+              ),
+            };
+          }
+          return { ...cur, products: [remoteProd, ...cur.products] };
+        });
+      } catch {
+      } finally {
+        if (!cancelled) setLoadingRemote(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [handle]);
+
   useEffect(() => {
     return () => {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
@@ -181,7 +275,10 @@ function Edit() {
     };
   }, []);
 
-  if (!p) return <p>Product not found. <Link className="link" to="/admin/products">Back</Link></p>;
+  if (!p) {
+    if (loadingRemote) return <p>Loading product from live database…</p>;
+    return <p>Product not found. <Link className="link" to="/admin/products">Back</Link></p>;
+  }
 
   const runDbSync = async (product: Product) => {
     if (!isSupabaseConfigured()) {
@@ -191,6 +288,18 @@ function Edit() {
     setDbStatus("Saving to live DB...");
     const res = await syncProductToSupabase(product);
     if (res.ok) {
+      if ((res.id && res.id !== product.id) || (res.resolvedCode && res.resolvedCode !== product.code)) {
+        setState((x) => ({
+          ...x,
+          products: x.products.map((y) => {
+            if (y.handle !== product.handle) return y;
+            const next: Product = { ...y };
+            if (res.id) next.id = res.id;
+            if (res.resolvedCode) next.code = res.resolvedCode;
+            return next;
+          }),
+        }));
+      }
       const notes: string[] = [];
       if (res.skippedLocalImages && res.skippedLocalImages > 0) {
         notes.push(`${res.skippedLocalImages} local upload(s) need an https:// link for live storefront`);
@@ -290,19 +399,11 @@ function Edit() {
     const oldHandle = p.handle;
     const renamed: Product = { ...p, handle: clean };
     if (isSupabaseConfigured()) {
-      // Create the replacement first.  Archiving the old handle before the
-      // replacement was saved could make a live product disappear when a
-      // network/RLS error occurred during a rename.
       setDbStatus("Renaming in live DB...");
-      const created = await syncProductToSupabase(renamed);
-      if (!created.ok) {
-        setDbStatus(`⚠ Rename was not saved to the live DB: ${created.error || "check authentication"}`);
+      const res = await renameProductHandleInSupabase(oldHandle, renamed);
+      if (!res.ok) {
+        setDbStatus(`⚠ Rename was not saved to the live DB: ${res.error || "check authentication"}`);
         setHandleDraft(oldHandle);
-        return;
-      }
-      const archived = await deleteProductFromSupabase(oldHandle);
-      if (!archived.ok) {
-        setDbStatus(`⚠ New handle is live, but the old handle could not be archived: ${archived.error || "check authentication"}`);
         return;
       }
     }
@@ -335,8 +436,32 @@ function Edit() {
             className="adm-btn primary"
             onClick={() => {
               if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+              let productToSync = latestProductRef.current || p;
+              // Automatically ingest any un-submitted photo URL sitting in the input fields
+              const pendingUrls: string[] = [];
+              if (img.trim()) {
+                const u = normalizeDbImageUrl(img.trim()) || safeImageUrl(img.trim());
+                if (u && !/^http:\/\//i.test(u) && !productToSync.images.includes(u)) pendingUrls.push(u);
+              }
+              if (bulkImg.trim()) {
+                for (const line of bulkImg.split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean)) {
+                  const u = normalizeDbImageUrl(line);
+                  if (u && !productToSync.images.includes(u) && !pendingUrls.includes(u)) pendingUrls.push(u);
+                }
+              }
+              if (pendingUrls.length > 0) {
+                const nextImages = [...productToSync.images, ...pendingUrls];
+                productToSync = { ...productToSync, images: nextImages };
+                latestProductRef.current = productToSync;
+                setState((x) => ({
+                  ...x,
+                  products: x.products.map((y) => (y.handle === handle ? productToSync : y)),
+                }));
+                setImg("");
+                setBulkImg("");
+              }
               publish();
-              void runDbSync(p);
+              void runDbSync(productToSync);
               setPublishedToast(true);
               setTimeout(() => setPublishedToast(false), 2500);
             }}
@@ -938,6 +1063,22 @@ function Edit() {
                 setImg(e.target.value);
                 setImgErr("");
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const raw = img.trim();
+                  if (!raw) return;
+                  const dbReady = normalizeDbImageUrl(raw);
+                  const clean = dbReady || safeImageUrl(raw);
+                  if (!clean || (!dbReady && /^http:\/\//i.test(clean))) {
+                    setImgErr("Enter a valid https:// or / image URL.");
+                    return;
+                  }
+                  setImgErr("");
+                  up({ images: [...p.images, clean] });
+                  setImg("");
+                }
+              }}
               style={{ flex: 1, minWidth: 220 }}
             />
             <button
@@ -963,24 +1104,30 @@ function Edit() {
               + Add URL
             </button>
             <label className="adm-btn ghost sm">
-              Upload File
+              Upload Photo(s)
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 hidden
                 onChange={async (e) => {
                   const input = e.currentTarget;
-                  const f = input.files?.[0];
-                  if (!f) return;
+                  const files = Array.from(input.files || []);
+                  if (!files.length) return;
                   setImgErr("");
-                  try {
-                    const url = await storeFile(f);
-                    up((cur) => ({ images: [...cur.images, url] }));
-                  } catch (err) {
-                    setImgErr((err as Error).message);
-                  } finally {
-                    input.value = "";
+                  const uploaded: string[] = [];
+                  for (const f of files) {
+                    try {
+                      const url = await storeFile(f);
+                      uploaded.push(url);
+                    } catch (err) {
+                      setImgErr((err as Error).message);
+                    }
                   }
+                  if (uploaded.length > 0) {
+                    up((cur) => ({ images: [...cur.images, ...uploaded] }));
+                  }
+                  input.value = "";
                 }}
               />
             </label>

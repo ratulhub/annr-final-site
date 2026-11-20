@@ -161,25 +161,44 @@
   function getFullCatalog() {
     var map = {};
     var list = [];
+    var delSet = {};
+    if (cfg && Array.isArray(cfg.deletedProducts)) {
+      cfg.deletedProducts.forEach(function (h) { delSet[h] = true; });
+    }
+    try {
+      var rawDelH = localStorage.getItem("annr_deleted_handles");
+      if (rawDelH) {
+        var delArr = JSON.parse(rawDelH);
+        if (Array.isArray(delArr)) delArr.forEach(function (h) { if (h) delSet[String(h)] = true; });
+      }
+    } catch (e) {}
+
     function upsertCat(p) {
-      if (!p || !p.handle || LEGACY_PRODUCT_HANDLES[p.handle]) return;
+      if (!p || !p.handle || LEGACY_PRODUCT_HANDLES[p.handle] || delSet[p.handle]) return;
       if (!map[p.handle]) list.push(p);
       map[p.handle] = Object.assign({}, map[p.handle] || {}, p);
     }
 
-    (baseCatalog || []).forEach(upsertCat);
-
-    // Merge remote Supabase products cached in this browser
+    var liveParsed = [];
     try {
       var rawLive = localStorage.getItem("annr_live_products");
       if (rawLive) {
-        var liveParsed = JSON.parse(rawLive);
-        if (Array.isArray(liveParsed)) liveParsed.forEach(upsertCat);
+        var lp = JSON.parse(rawLive);
+        if (Array.isArray(lp)) liveParsed = lp;
       }
     } catch (e) {}
 
+    if (liveParsed.length > 0) {
+      liveParsed.forEach(upsertCat);
+    } else {
+      (baseCatalog || []).forEach(upsertCat);
+    }
+
     if (cfg && Array.isArray(cfg.catalog)) {
-      cfg.catalog.forEach(upsertCat);
+      cfg.catalog.forEach(function (cp) {
+        if (liveParsed.length > 0 && cp && cp.handle === "annr-archival-001" && !cp.id) return;
+        upsertCat(cp);
+      });
     }
 
     // Merge live admin products so newly created/edited products appear immediately in this browser
@@ -188,15 +207,14 @@
       if (rawAdm) {
         var admParsed = JSON.parse(rawAdm);
         if (admParsed && Array.isArray(admParsed.products)) {
-          admParsed.products.forEach(upsertCat);
+          admParsed.products.forEach(function (ap) {
+            if (liveParsed.length > 0 && ap && ap.handle === "annr-archival-001" && !ap.id) return;
+            upsertCat(ap);
+          });
         }
       }
     } catch (e) {}
 
-    var delSet = {};
-    if (cfg && Array.isArray(cfg.deletedProducts)) {
-      cfg.deletedProducts.forEach(function (h) { delSet[h] = true; });
-    }
     return list.filter(function (p) {
       if (!p || !p.handle || LEGACY_PRODUCT_HANDLES[p.handle] || delSet[p.handle]) return false;
       var o = P && P[p.handle];
@@ -841,10 +859,24 @@
 
     var isHidden = false;
 
+    var CORE_PROTECTED_COLS = {
+      "unique-campaign": 1,
+      "all": 1,
+      "hoodies": 1,
+      "sweatshirts": 1,
+      "trousers": 1,
+      "sweaters": 1,
+      "t-shirts": 1,
+      "jackets": 1,
+      "knitwear": 1,
+      "accessories": 1
+    };
+
     // A. Check S.hiddenPages
     (S.hiddenPages || []).forEach(function (hp) {
       if (!hp) return;
       var nhp = String(hp).toLowerCase().replace(/\/index\.html$/, "").replace(/\/$/, "");
+      if (nhp === "/collections/unique-campaign" || nhp === "/collections/all") return;
       if (nhp && (normPath === nhp || normPath.indexOf(nhp + "/") === 0)) {
         isHidden = true;
       }
@@ -852,10 +884,10 @@
 
     // B. Check collections
     var colHandle = handleOf(path, "collections");
-    if (colHandle) {
+    if (colHandle && colHandle !== "unique-campaign" && colHandle !== "all") {
       var colData = colsMap[colHandle] || (C && C[colHandle]);
-      if (colData && colData.visible === false) isHidden = true;
-      if (cfg && Array.isArray(cfg.deletedCollections) && cfg.deletedCollections.indexOf(colHandle) >= 0) isHidden = true;
+      if (colData && colData.visible === false && !CORE_PROTECTED_COLS[colHandle]) isHidden = true;
+      if (!CORE_PROTECTED_COLS[colHandle] && cfg && Array.isArray(cfg.deletedCollections) && cfg.deletedCollections.indexOf(colHandle) >= 0) isHidden = true;
     }
 
     // C. Check pages
@@ -1417,9 +1449,11 @@
     }
 
     if (ch) {
-      var isColDel = (cfg && Array.isArray(cfg.deletedCollections) && cfg.deletedCollections.indexOf(ch) !== -1) ||
-                     (C && C[ch] && (C[ch].deleted || C[ch].visible === false)) ||
-                     (colsMap[ch] && colsMap[ch].visible === false);
+      var isColDel = !CORE_PROTECTED_COLS[ch] && (
+        (cfg && Array.isArray(cfg.deletedCollections) && cfg.deletedCollections.indexOf(ch) !== -1) ||
+        (C && C[ch] && (C[ch].deleted || C[ch].visible === false)) ||
+        (colsMap[ch] && colsMap[ch].visible === false)
+      );
       if (isColDel && !preview) {
         showUnavailable(tech.notFoundTitle || "COLLECTION UNAVAILABLE", tech.notFoundText || "This collection is currently offline.");
         return;
@@ -4909,15 +4943,13 @@
       // 3. Sync live products from Supabase so all visitors & search reflect newly added products
       var sbUrl = "https://aooydxydkyjtulhduexa.supabase.co";
       var sbKey = "sb_publishable_rWZ3_sO_15nX-jMpRMrnng_CrRhuJK5";
-      var pFull = "id,handle,code,title,description,price,compare_at_price,currency,status,size,show_size,measurement_unit,measurements,fabric,condition,care_instructions,images,tags,category_id,campaign_id,stock,reserved_until,created_at,categories(slug,name),campaigns(slug,name)";
-      var pMid = "id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,images,tags,category_id,campaign_id,stock,reserved_until,created_at,categories(slug,name),campaigns(slug,name)";
+      var pFull = "id,handle,code,title,description,price,compare_at_price,currency,status,size,show_size,measurement_unit,measurements,fabric,condition,care_instructions,images,tags,category_id,campaign_id,stock,reserved_until,created_at";
       var pMin = "id,handle,code,title,description,price,compare_at_price,currency,status,size,measurements,fabric,condition,images,tags,category_id,campaign_id,stock,reserved_until,created_at";
       var qProd = function (sel) {
         return fetch(sbUrl + "/rest/v1/products?select=" + sel + "&order=created_at.desc", { headers: { "apikey": sbKey } });
       };
       qProd(pFull)
-        .then(function (r) { return r.status === 400 ? qProd(pMid) : r; })
-        .then(function (r) { return r.status === 400 ? qProd(pMin) : r; })
+        .then(function (r) { return !r.ok ? qProd(pMin) : r; })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (rows) {
           if (Array.isArray(rows) && rows.length > 0) {
@@ -4964,6 +4996,7 @@
               };
             });
             try { localStorage.setItem("annr_live_products", JSON.stringify(cleaned)); } catch (e) {}
+            try { window.dispatchEvent(new CustomEvent("annr:products:updated")); } catch (e) {}
             if (tpl === "search") setupSearchPage();
             else apply();
           }
@@ -5076,7 +5109,7 @@
     if (!document.getElementById("annr-unique-catalog-script")) {
       var ucScript = document.createElement("script");
       ucScript.id = "annr-unique-catalog-script";
-      ucScript.src = "/_ext/unique-catalog.js?v=20261112-v2";
+      ucScript.src = "/_ext/unique-catalog.js?v=20261120-v3";
       ucScript.defer = true;
       document.body.appendChild(ucScript);
     }

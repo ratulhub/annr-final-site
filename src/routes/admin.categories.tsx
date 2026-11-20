@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { safeImageUrl } from "../admin/security/sanitize";
-import { publish, setState, uid, useAdmin, type Category } from "../admin/store";
+import { publish, publishToSupabase, setState, uid, useAdmin, type Category } from "../admin/store";
 import { BackBtn, Card } from "../admin/ui";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
@@ -29,7 +29,14 @@ async function syncCategoryDb(c: Category, oldSlug?: string): Promise<{ ok: bool
       const retry = await supabase.from("categories").upsert(retryPayload, { onConflict: "slug" });
       error = retry.error;
     }
-    if (error) return { ok: false, error: error.message };
+    // If table grant is pending (42501), persist categories through site_config_versions via publishToSupabase
+    if (error) {
+      if (error.code === "42501" || /permission denied/i.test(error.message)) {
+        const pubRes = await publishToSupabase("categories sync");
+        return pubRes.ok ? { ok: true } : { ok: false, error: pubRes.error || "Publish failed" };
+      }
+      return { ok: false, error: error.message };
+    }
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Failed to sync category" };
@@ -50,20 +57,39 @@ function CategoriesPage() {
     }, 30);
   };
 
-  const syncFromDb = async () => {
+  const applyMappedCategories = (mapped: Category[]) => {
+    setState((x) => {
+      const byHandle = new Map(x.collections.map((col) => [col.handle, col]));
+      const nextCols = [...x.collections.filter((col) => col.handle === "all" || col.handle === "unique-campaign")];
+      for (const cat of mapped) {
+        const prevCol = byHandle.get(cat.slug);
+        nextCols.push({
+          handle: cat.slug,
+          title: cat.name,
+          description: cat.description || prevCol?.description || "",
+          image: cat.imageUrl || prevCol?.image || "",
+          visible: cat.visible,
+          sort: prevCol?.sort || "manual",
+          products: prevCol?.products || [],
+          seoTitle: prevCol?.seoTitle || `${cat.name} | AnnR`,
+          seoDescription: cat.description || prevCol?.seoDescription || "",
+        });
+      }
+      return { ...x, categories: mapped, collections: nextCols };
+    });
+    emitCategoryUpdate();
+  };
+
+  const syncFromDb = async (silent = false) => {
     if (!isSupabaseConfigured()) {
-      setSyncError("Supabase not configured.");
+      if (!silent) setSyncError("Supabase not configured.");
       return;
     }
     setSyncing(true);
-    setSyncError("");
+    if (!silent) setSyncError("");
     try {
       const { data, error } = await supabase.from("categories").select("*").order("sort_order", { ascending: true });
-      if (error) {
-        setSyncError(`DB load error: ${error.message}`);
-        return;
-      }
-      if (Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data) && data.length > 0) {
         const mapped: Category[] = data.map((r: any, idx: number) => ({
           id: String(r.id || uid()),
           slug: String(r.slug || ""),
@@ -73,33 +99,35 @@ function CategoriesPage() {
           sortOrder: Number(r.sort_order ?? idx + 1),
           visible: r.is_visible !== false,
         }));
-        setState((x) => {
-          const byHandle = new Map(x.collections.map((col) => [col.handle, col]));
-          const nextCols = [...x.collections.filter((col) => col.handle === "all" || col.handle === "unique-campaign")];
-          for (const cat of mapped) {
-            const prevCol = byHandle.get(cat.slug);
-            nextCols.push({
-              handle: cat.slug,
-              title: cat.name,
-              description: cat.description || prevCol?.description || "",
-              image: cat.imageUrl || prevCol?.image || "",
-              visible: cat.visible,
-              sort: prevCol?.sort || "manual",
-              products: prevCol?.products || [],
-              seoTitle: prevCol?.seoTitle || `${cat.name} | AnnR`,
-              seoDescription: cat.description || prevCol?.seoDescription || "",
-            });
-          }
-          return { ...x, categories: mapped, collections: nextCols };
-        });
-        emitCategoryUpdate();
+        applyMappedCategories(mapped);
+        return;
+      }
+      // Fallback: read published categories from site_config_versions
+      const { data: cfgRows } = await supabase
+        .from("site_config_versions")
+        .select("config")
+        .eq("is_published", true)
+        .limit(1);
+      const remoteCats = (cfgRows?.[0] as any)?.config?.categories;
+      if (Array.isArray(remoteCats) && remoteCats.length > 0) {
+        applyMappedCategories(remoteCats);
+        return;
+      }
+      if (error && error.code !== "42501" && !/permission denied/i.test(error.message) && !silent) {
+        setSyncError(`DB load error: ${error.message}`);
       }
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : "Failed to fetch categories");
+      if (!silent) setSyncError(err instanceof Error ? err.message : "Failed to fetch categories");
     } finally {
       setSyncing(false);
     }
   };
+
+  useEffect(() => {
+    if (isSupabaseConfigured()) {
+      void syncFromDb(true);
+    }
+  }, []);
 
   const addCategory = () => {
     setSyncError("");
@@ -230,7 +258,9 @@ function CategoriesPage() {
         void (async () => {
           try {
             const { error } = await supabase.from("categories").delete().eq("slug", target.slug);
-            if (error) setSyncError(`Removed locally; DB delete failed: ${error.message}`);
+            if (error && error.code !== "42501" && !/permission denied/i.test(error.message)) {
+              setSyncError(`Removed locally; DB delete failed: ${error.message}`);
+            }
           } catch (err) {
             setSyncError(err instanceof Error ? err.message : "DB delete failed");
           }

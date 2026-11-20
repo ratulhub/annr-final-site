@@ -495,6 +495,61 @@ const PUBLIC_FIELDS = {
   collections: ["title", "description", "image", "seoTitle", "seoDescription", "visible", "sort", "products"],
   pages: ["title", "seoTitle", "seoDescription", "visible", "body"],
 } as const;
+const DELETED_HANDLES_KEY = "annr_deleted_handles";
+
+export function getDeletedHandles(): Set<string> {
+  try {
+    if (typeof localStorage === "undefined") return new Set();
+    const raw = localStorage.getItem(DELETED_HANDLES_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(arr) ? arr.map((x) => String(x)) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function markHandleDeleted(handle: string): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    const set = getDeletedHandles();
+    set.add(handle);
+    localStorage.setItem(DELETED_HANDLES_KEY, JSON.stringify(Array.from(set)));
+    const rawLive = localStorage.getItem("annr_live_products");
+    if (rawLive) {
+      const parsed = JSON.parse(rawLive);
+      if (Array.isArray(parsed)) {
+        localStorage.setItem(
+          "annr_live_products",
+          JSON.stringify(parsed.filter((p: any) => p && p.handle !== handle)),
+        );
+      }
+    }
+  } catch {}
+}
+
+export function unmarkHandleDeleted(handle: string): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    const set = getDeletedHandles();
+    if (set.delete(handle)) {
+      localStorage.setItem(DELETED_HANDLES_KEY, JSON.stringify(Array.from(set)));
+    }
+  } catch {}
+}
+
+const PROTECTED_COLLECTION_HANDLES = new Set([
+  "unique-campaign",
+  "all",
+  "hoodies",
+  "sweatshirts",
+  "trousers",
+  "sweaters",
+  "t-shirts",
+  "jackets",
+  "knitwear",
+  "accessories",
+]);
+
 export function siteConfig(s: State) {
   const base = (seedCache ||= seed());
   const out: Record<"products" | "collections" | "pages", Record<string, unknown>> = { products: {}, collections: {}, pages: {} };
@@ -518,11 +573,30 @@ export function siteConfig(s: State) {
       out.products[p.handle] = { deleted: true, status: "deleted" };
     }
   }
+  for (const p of s.products) {
+    if (p.status === "archived" && !deletedProducts.includes(p.handle)) {
+      deletedProducts.push(p.handle);
+      out.products[p.handle] = { deleted: true, status: "archived" };
+    }
+  }
+  for (const delH of getDeletedHandles()) {
+    if (!currentProductHandles.has(delH) && !deletedProducts.includes(delH)) {
+      deletedProducts.push(delH);
+      out.products[delH] = { deleted: true, status: "deleted" };
+    }
+  }
 
   const currentColHandles = new Set(s.collections.map((c) => c.handle));
+  const activeCatSlugs = new Set((s.categories || []).map((c) => c.slug));
+  const activeCampSlugs = new Set((s.campaigns || []).map((c) => c.slug));
   const deletedCollections: string[] = [];
   for (const c of base.collections) {
-    if (!currentColHandles.has(c.handle)) {
+    if (
+      !PROTECTED_COLLECTION_HANDLES.has(c.handle) &&
+      !activeCatSlugs.has(c.handle) &&
+      !activeCampSlugs.has(c.handle) &&
+      !currentColHandles.has(c.handle)
+    ) {
       deletedCollections.push(c.handle);
       out.collections[c.handle] = { deleted: true, visible: false };
     }
@@ -545,39 +619,43 @@ export function siteConfig(s: State) {
       visible: c.visible !== false,
       sort: c.sort,
     })),
+    categories: s.categories || base.categories || [],
+    campaigns: s.campaigns || base.campaigns || [],
     site: s.site,
     defaults: base.site,
-    catalog: s.products.map((p) => ({
-      id: p.id || "",
-      handle: p.handle,
-      code: p.code || "",
-      title: p.title,
-      price: p.price,
-      compareAt: p.compareAt || "",
-      currency: p.currency || "BDT",
-      image: p.images[0] || "",
-      image2: p.images[1] || "",
-      images: p.images || [],
-      description: p.description || "",
-      badge: p.badge || "1 OF 1",
-      category: p.category || "hoodies",
-      campaign: p.campaign || "unique-campaign",
-      collections: p.collections || [],
-      size: p.size || "L",
-      showSize: p.showSize !== false,
-      measurementUnit: "in" as const,
-      measurements: p.measurements || {},
-      fabric: p.fabric || "",
-      condition: p.condition || "",
-      careInstructions: p.careInstructions || "",
-      stock: p.status === "sold" ? 0 : (p.stock ?? 1),
-      isOneOfOne: p.isOneOfOne !== false,
-      tags: p.tags || "",
-      seoTitle: p.seoTitle || "",
-      seoDescription: p.seoDescription || "",
-      sizeChart: p.sizeChart || "",
-      status: p.status,
-    })),
+    catalog: s.products
+      .filter((p) => p.status !== "archived")
+      .map((p) => ({
+        id: p.id || "",
+        handle: p.handle,
+        code: p.code || "",
+        title: p.title,
+        price: p.price,
+        compareAt: p.compareAt || "",
+        currency: p.currency || "BDT",
+        image: p.images[0] || "",
+        image2: p.images[1] || "",
+        images: p.images || [],
+        description: p.description || "",
+        badge: p.badge || "1 OF 1",
+        category: p.category || "hoodies",
+        campaign: p.campaign || "unique-campaign",
+        collections: p.collections || [],
+        size: p.size || "L",
+        showSize: p.showSize !== false,
+        measurementUnit: "in" as const,
+        measurements: p.measurements || {},
+        fabric: p.fabric || "",
+        condition: p.condition || "",
+        careInstructions: p.careInstructions || "",
+        stock: p.status === "sold" ? 0 : (p.stock ?? 1),
+        isOneOfOne: p.isOneOfOne !== false,
+        tags: p.tags || "",
+        seoTitle: p.seoTitle || "",
+        seoDescription: p.seoDescription || "",
+        sizeChart: p.sizeChart || "",
+        status: p.status,
+      })),
     deletedProducts,
     deletedCollections,
     deletedPages,
@@ -591,7 +669,6 @@ function persist(s: State) {
   dataSource.write(DRAFT_KEY, cfg);
   dataSource.write(PUB_KEY, cfg);
   try {
-    if (typeof localStorage !== "undefined") localStorage.removeItem("annr_live_products");
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("annr:products:updated"));
   } catch {}
 }
@@ -604,14 +681,21 @@ const parseNumPrice = (v?: string | number | null) =>
 
 export async function syncProductToSupabase(
   product: Product,
-): Promise<{ ok: boolean; error?: string; skippedLocalImages?: number; rejectedHttpImages?: number }> {
+): Promise<{
+  ok: boolean;
+  error?: string | undefined;
+  skippedLocalImages?: number | undefined;
+  rejectedHttpImages?: number | undefined;
+  resolvedCode?: string | null | undefined;
+  id?: string | undefined;
+}> {
   if (!isSupabaseConfigured()) return { ok: false, error: "Supabase not configured" };
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData?.session) {
       return {
         ok: false,
-        error: "No live Supabase Auth session active — sign out and sign in with your Supabase admin email/password to sync products to live DB.",
+        error: "No live Supabase Auth session active — use the Reconnect Database bar at the top or log in again.",
       };
     }
 
@@ -635,17 +719,9 @@ export async function syncProductToSupabase(
     if (product.showSize === false) baseTags.push("__hide_size");
     baseTags.push("__unit:in");
 
-    let categoryId: string | null = isUuidStr(product.category) ? product.category! : null;
-    let campaignId: string | null = campSlug === "none" ? null : isUuidStr(product.campaign) ? product.campaign! : null;
-
-    if (!categoryId && catSlug) {
-      const { data: catRow } = await supabase.from("categories").select("id").eq("slug", catSlug).maybeSingle();
-      if (catRow?.id) categoryId = catRow.id;
-    }
-    if (!campaignId && campSlug && campSlug !== "none") {
-      const { data: campRow } = await supabase.from("campaigns").select("id").eq("slug", campSlug).maybeSingle();
-      if (campRow?.id) campaignId = campRow.id;
-    }
+    const categoryId: string | null = isUuidStr(product.category) ? product.category! : null;
+    const campaignId: string | null =
+      campSlug === "none" ? null : isUuidStr(product.campaign) ? product.campaign! : null;
 
     const rawImages = Array.isArray(product.images) ? product.images : [];
     let localDataCount = 0;
@@ -669,67 +745,190 @@ export async function syncProductToSupabase(
     }
 
     const cleanHandle = normalizeProductHandle(product.handle);
+    if (product.status !== "archived") {
+      unmarkHandleDeleted(cleanHandle);
+    }
     const cleanCode = normalizeProductCode(product.code);
     const numPrice = Math.max(0, Math.round(parseNumPrice(product.price) * 100) / 100);
     const numCompareAt = parseNumPrice(product.compareAt);
+    const validStatus = ["draft", "active", "reserved", "sold", "archived"].includes(product.status)
+      ? product.status
+      : "active";
 
     const payload: Record<string, unknown> = {
       handle: cleanHandle,
-      title: product.title || "Untitled Piece",
+      title: (product.title || "Untitled Piece").trim().slice(0, 200) || "Untitled Piece",
       description: product.description || "",
       product_type: catSlug || product.type || "hoodies",
       vendor: product.vendor || "AnnR",
       tags: Array.from(new Set(baseTags)),
       price: numPrice,
-      compare_at_price: numCompareAt > 0 ? Math.round(numCompareAt * 100) / 100 : null,
+      compare_at_price: numCompareAt >= numPrice && numCompareAt > 0 ? Math.round(numCompareAt * 100) / 100 : null,
       currency: (product.currency || "BDT").slice(0, 3),
       images: remoteImages,
       seo_title: product.seoTitle || "",
       seo_description: product.seoDescription || "",
-      status: product.status || "active",
+      status: validStatus,
       code: cleanCode,
-      size: product.size || "L",
+      size: (product.size && String(product.size).trim().slice(0, 20)) || "L",
       show_size: product.showSize !== false,
       measurement_unit: "in",
       measurements: cleanMeas,
-      fabric: product.fabric || null,
-      condition: product.condition || null,
-      care_instructions: product.careInstructions || null,
-      stock: product.status === "sold" ? 0 : (product.stock ?? 1),
+      fabric: product.fabric ? String(product.fabric).slice(0, 200) : null,
+      condition: product.condition ? String(product.condition).slice(0, 200) : null,
+      care_instructions: product.careInstructions ? String(product.careInstructions).slice(0, 500) : null,
+      stock: validStatus === "sold" || validStatus === "archived" ? 0 : 1,
       campaign_id: campSlug === "none" ? null : campaignId,
       updated_at: new Date().toISOString(),
     };
 
     if (categoryId) payload["category_id"] = categoryId;
 
-    let { error } = await supabase.from("products").upsert(payload, { onConflict: "handle" });
-    if (error && /show_size|measurement_unit|care_instructions|column/i.test(error.message)) {
-      const fallbackPayload = { ...payload };
+    let activePayload = { ...payload };
+    let { data: upsertedRow, error } = await supabase
+      .from("products")
+      .upsert(activePayload, { onConflict: "handle" })
+      .select("id,code")
+      .maybeSingle();
+
+    if (error && /show_size|measurement_unit|care_instructions|product_type|vendor|seo_title|seo_description|column/i.test(error.message)) {
+      const fallbackPayload = { ...activePayload };
       delete fallbackPayload["show_size"];
       delete fallbackPayload["measurement_unit"];
       delete fallbackPayload["care_instructions"];
-      const retry = await supabase.from("products").upsert(fallbackPayload, { onConflict: "handle" });
+      delete fallbackPayload["product_type"];
+      delete fallbackPayload["vendor"];
+      delete fallbackPayload["seo_title"];
+      delete fallbackPayload["seo_description"];
+      activePayload = fallbackPayload;
+      const retry = await supabase
+        .from("products")
+        .upsert(activePayload, { onConflict: "handle" })
+        .select("id,code")
+        .maybeSingle();
+      upsertedRow = retry.data;
       error = retry.error;
     }
 
+    if (error && (error.code === "23505" || /products_code_unique|duplicate key/i.test(error.message))) {
+      const suffix = cleanHandle.slice(-4).toUpperCase().replace(/[^A-Z0-9]/g, "") || String(Math.floor(100 + Math.random() * 900));
+      const disambiguatedCode = cleanCode ? `${cleanCode.slice(0, 34)}-${suffix}` : null;
+      const retryCode = await supabase
+        .from("products")
+        .upsert({ ...activePayload, code: disambiguatedCode }, { onConflict: "handle" })
+        .select("id,code")
+        .maybeSingle();
+      upsertedRow = retryCode.data;
+      error = retryCode.error;
+      if (error && (error.code === "23505" || /products_code_unique|duplicate key/i.test(error.message))) {
+        const retryNull = await supabase
+          .from("products")
+          .upsert({ ...activePayload, code: null }, { onConflict: "handle" })
+          .select("id,code")
+          .maybeSingle();
+        upsertedRow = retryNull.data;
+        error = retryNull.error;
+      }
+    }
+
     if (error) return { ok: false, error: error.message, skippedLocalImages: localDataCount, rejectedHttpImages };
-    return { ok: true, skippedLocalImages: localDataCount, rejectedHttpImages };
+    try {
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("annr:products:updated"));
+    } catch {}
+    return {
+      ok: true,
+      skippedLocalImages: localDataCount,
+      rejectedHttpImages,
+      resolvedCode: upsertedRow?.code !== undefined ? (upsertedRow.code as string | null) : cleanCode,
+      id: upsertedRow?.id ? String(upsertedRow.id) : product.id,
+    };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Sync failed" };
   }
 }
 
-export async function deleteProductFromSupabase(handle: string): Promise<{ ok: boolean; error?: string }> {
-  if (!isSupabaseConfigured()) return { ok: false, error: "Supabase is not configured" };
-  if (!handle) return { ok: false, error: "Missing product handle" };
+export async function renameProductHandleInSupabase(
+  oldHandle: string,
+  newProduct: Product,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured()) return { ok: true };
   try {
-    // Keep order and audit-history references intact: removing a product from
-    // the admin archives it in the live database instead of hard-deleting it.
-    const { error } = await supabase
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      return {
+        ok: false,
+        error: "No live Supabase Auth session active — use the Reconnect Database bar at the top or log in again.",
+      };
+    }
+    const cleanOld = normalizeProductHandle(oldHandle);
+    const cleanNew = normalizeProductHandle(newProduct.handle);
+    if (cleanOld === cleanNew) return { ok: true };
+
+    const { data: updated, error: updateErr } = await supabase
+      .from("products")
+      .update({ handle: cleanNew })
+      .eq("handle", cleanOld)
+      .select("id,handle")
+      .maybeSingle();
+
+    if (!updateErr && updated?.handle === cleanNew) {
+      markHandleDeleted(cleanOld);
+      unmarkHandleDeleted(cleanNew);
+      const syncRes = await syncProductToSupabase({
+        ...newProduct,
+        handle: cleanNew,
+        id: String(updated.id || newProduct.id || ""),
+      });
+      return syncRes.ok ? { ok: true } : { ok: false, error: syncRes.error || "Sync failed" };
+    }
+
+    const created = await syncProductToSupabase({ ...newProduct, handle: cleanNew });
+    if (!created.ok) return { ok: false, error: created.error || "Sync failed" };
+    await deleteProductFromSupabase(cleanOld);
+    unmarkHandleDeleted(cleanNew);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Failed to rename product handle" };
+  }
+}
+
+export async function deleteProductFromSupabase(handle: string): Promise<{ ok: boolean; error?: string }> {
+  if (!handle) return { ok: false, error: "Missing product handle" };
+  const cleanHandle = normalizeProductHandle(handle);
+  markHandleDeleted(cleanHandle);
+  if (!isSupabaseConfigured()) return { ok: true };
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      return {
+        ok: false,
+        error: "No live Supabase Auth session active — use the Reconnect Database bar at the top or log in again.",
+      };
+    }
+
+    // 1. Try hard-deleting the product row first (order_items has ON DELETE SET NULL, reservations has ON DELETE CASCADE)
+    const { data: deletedRows, error: delError } = await supabase
+      .from("products")
+      .delete()
+      .eq("handle", cleanHandle)
+      .select("handle");
+
+    if (!delError && Array.isArray(deletedRows) && deletedRows.length > 0) {
+      try {
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("annr:products:updated"));
+      } catch {}
+      return { ok: true };
+    }
+
+    // 2. Fallback: archive in place if hard-delete did not remove the row
+    const { error: archError } = await supabase
       .from("products")
       .update({ status: "archived", stock: 0, reserved_until: null })
-      .eq("handle", handle);
-    if (error) return { ok: false, error: error.message };
+      .eq("handle", cleanHandle);
+    if (archError && delError) return { ok: false, error: archError.message };
+    try {
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("annr:products:updated"));
+    } catch {}
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Delete failed" };
@@ -737,15 +936,33 @@ export async function deleteProductFromSupabase(handle: string): Promise<{ ok: b
 }
 export const getPublished = () => dataSource.read<Published>(PUB_KEY);
 export const getHistory = () => dataSource.read<{ at: string; state: State }[]>(HIST_KEY) || [];
-export async function publishToSupabase(config: Published = siteConfig(get())): Promise<{ ok: boolean; error?: string }> {
+export async function publishToSupabase(noteOrConfig?: string | Published): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseConfigured()) return { ok: false, error: "Supabase is not configured" };
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) return { ok: false, error: "Sign in again before publishing." };
+  const config = typeof noteOrConfig === "object" && noteOrConfig !== null ? noteOrConfig : siteConfig(get());
+  const note =
+    typeof noteOrConfig === "string"
+      ? noteOrConfig.slice(0, 200)
+      : `Published by ${getSessionSafe()?.email || "admin"}`.slice(0, 200);
   const { error } = await supabase.rpc("publish_site_config", {
     _config: config,
-    _note: `Published by ${getSessionSafe()?.email || "admin"}`.slice(0, 200),
+    _note: note,
   });
-  return error ? { ok: false, error: error.message } : { ok: true };
+  if (error) {
+    try {
+      await supabase.from("site_config_versions").update({ is_published: false }).eq("is_published", true);
+      const { error: insErr } = await supabase.from("site_config_versions").insert({
+        config,
+        is_published: true,
+        note,
+        created_by: sessionData.session.user.id,
+      });
+      if (!insErr) return { ok: true };
+    } catch {}
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
 
 export async function unpublishFromSupabase(): Promise<{ ok: boolean; error?: string }> {
@@ -753,8 +970,21 @@ export async function unpublishFromSupabase(): Promise<{ ok: boolean; error?: st
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) return { ok: false, error: "Sign in again before unpublishing." };
   const { error } = await supabase.rpc("unpublish_site_config");
-  return error ? { ok: false, error: error.message } : { ok: true };
+  if (error) {
+    try {
+      const { error: upErr } = await supabase
+        .from("site_config_versions")
+        .update({ is_published: false })
+        .eq("is_published", true);
+      if (!upErr) return { ok: true };
+    } catch {}
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
+
+let bgPublishTimer: ReturnType<typeof setTimeout> | null = null;
+
 export function publish() {
   const s = get();
   const hist = getHistory();
@@ -769,9 +999,18 @@ export function publish() {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("annr:products:updated"));
       window.dispatchEvent(new CustomEvent("annr:categories:updated"));
+      if (isSupabaseConfigured()) {
+        if (bgPublishTimer) clearTimeout(bgPublishTimer);
+        bgPublishTimer = setTimeout(() => {
+          void supabase.auth.getSession().then(({ data }) => {
+            if (data?.session) {
+              void publishToSupabase(pubCfg);
+            }
+          }).catch(() => {});
+        }, 400);
+      }
     }
   } catch {}
-
 }
 // Throw away unpublished edits: go back to the last published version (or original).
 export function discardDraft() {

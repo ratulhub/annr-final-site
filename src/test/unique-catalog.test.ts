@@ -200,7 +200,8 @@ describe("AnnR Unique One-of-One Archival Catalog", () => {
     const siteConfigJs = fs.readFileSync(path.resolve("public/_ext/site-config.js"), "utf8");
     expect(siteConfigJs).toContain("isLegacyShihikoAsset");
     expect(siteConfigJs).toContain("Shihiko_2nd_Logo");
-    expect(siteConfigJs).toContain("unique-catalog.js?v=20261112-v2");
+    expect(siteConfigJs).toContain("unique-catalog.js?v=20261120-v3");
+    expect(uniqueCatalogJs).toContain(".js-catalog__content-preloader");
 
     const deployWorkflow = fs.readFileSync(path.resolve(".github/workflows/deploy-cloudflare.yml"), "utf8");
     expect(deployWorkflow).not.toMatch(/if:\s*\$\{\{\s*secrets\./);
