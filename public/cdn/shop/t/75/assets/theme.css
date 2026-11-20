@@ -141,13 +141,26 @@ product-carousel-showcase .product-carousel-showcase__slider[data-few-items="tru
     margin-bottom: 18px !important;
     display: flex !important;
     flex-direction: row !important;
-    align-items: center !important;
+    align-items: flex-end !important;
     justify-content: space-between !important;
     gap: 12px !important;
   }
+  product-carousel-showcase .product-carousel-showcase__heading {
+    display: flex !important;
+    flex-direction: column-reverse !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+    min-width: 0 !important;
+  }
+  product-carousel-showcase .product-carousel-showcase__eyebrow {
+    margin: 0 !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
   product-carousel-showcase .product-carousel-showcase__title {
-    font-size: 22px !important;
-    line-height: 1.08 !important;
+    font-size: 20px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
   }
   product-carousel-showcase .product-carousel-showcase__actions {
     width: auto !important;

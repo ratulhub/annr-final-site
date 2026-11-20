@@ -922,7 +922,12 @@ function CheckoutPage() {
   }, [vipMember, subtotal, appliedCoupon]);
 
   const baseShippingFee = calculateShippingFee(division, district);
-  const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD_BDT ? 0 : baseShippingFee;
+  const shippingFee =
+    items.length === 0 || subtotal <= 0
+      ? 0
+      : subtotal >= FREE_SHIPPING_THRESHOLD_BDT
+        ? 0
+        : baseShippingFee;
   const couponDiscountBdt = appliedCoupon ? appliedCoupon.discountAmount : 0;
   const pointsDiscountBdt =
     redemptionCap.canRedeem && pointsToRedeem >= Number(loyaltySettings.min_redemption_points || 50)
@@ -1897,7 +1902,7 @@ function CheckoutPage() {
             <form onSubmit={handleApplyCoupon} className="annr-chk-coupon-row">
               <input
                 type="text"
-                placeholder="Discount or VIP Referral Code"
+                placeholder="Promo / VIP code"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
               />
