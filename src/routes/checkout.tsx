@@ -52,8 +52,8 @@ interface CartItem {
 }
 
 const FREE_SHIPPING_THRESHOLD_BDT = 5000;
-const ANNR_WHATSAPP_NUMBER = "8801786500883";
-const ANNR_WHATSAPP_DISPLAY = "+880 1786-500883";
+const ANNR_WHATSAPP_NUMBER = "8801602888198";
+const ANNR_WHATSAPP_DISPLAY = "+880 1602-888198";
 const WHATSAPP_RECEIPT_STORAGE_KEY = "annr_last_order_receipt";
 
 function formatDhakaTimestamp(date: Date): string {
