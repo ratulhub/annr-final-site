@@ -380,12 +380,15 @@ function AdminLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setAuthed(isLoggedIn());
+    const loggedIn = isLoggedIn();
+    setAuthed(loggedIn);
     setCollapsed(localStorage.getItem("shihiko-admin-collapsed") === "1");
     setReady(true);
     if (isSupabaseConfigured()) {
       void syncAnalyticsEventsFromEdge();
-      void syncAllFromSupabase();
+      if (loggedIn) {
+        void syncAllFromSupabase();
+      }
       void supabase.auth.getSession().then(({ data }) => {
         setDbAuthed(Boolean(data?.session));
         if (data?.session) void syncAllFromSupabase();

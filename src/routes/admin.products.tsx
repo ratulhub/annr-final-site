@@ -112,6 +112,13 @@ function Products() {
               ].filter(Boolean)),
             );
 
+            const isExpiredReservation =
+              sp.status === "reserved" &&
+              (!sp.reserved_until || new Date(String(sp.reserved_until)).getTime() <= Date.now());
+            const effectiveStatus: Product["status"] = isExpiredReservation
+              ? "active"
+              : (sp.status || existing?.status || "active");
+
             const merged: Product = {
               id: sp.id || existing?.id,
               handle: sp.handle,
@@ -121,7 +128,7 @@ function Products() {
               price: sp.price != null ? String(sp.price) : existing?.price || "0.00",
               compareAt: sp.compare_at_price != null ? String(sp.compare_at_price) : existing?.compareAt || "",
               currency: sp.currency || existing?.currency || "BDT",
-              status: sp.status || existing?.status || "active",
+              status: effectiveStatus,
               vendor: sp.vendor || existing?.vendor || "AnnR",
               type: sp.product_type || existing?.type || resolvedCategory,
               category: resolvedCategory,
@@ -178,7 +185,7 @@ function Products() {
             );
           } catch {}
           return { ...current, products: finalProducts };
-        });
+        }, { silent: true });
         setSyncMsg(`✓ Synced ${remoteRows.length} live product${remoteRows.length === 1 ? "" : "s"} from Supabase`);
         setTimeout(() => setSyncMsg(""), 3000);
         try { publish(); } catch {}

@@ -135,6 +135,11 @@
     if (!p || !p.handle || LEGACY_HANDLES[p.handle]) return null;
     var st = String(p.status || "active").toLowerCase();
     if (p.deleted || st === "deleted" || st === "draft" || st === "archived") return null;
+    var resUntil = p.reserved_until || p.reservedUntil || null;
+    if (st === "reserved" && (!resUntil || new Date(String(resUntil)).getTime() <= Date.now())) {
+      st = "active";
+      resUntil = null;
+    }
 
     var tags = Array.isArray(p.tags)
       ? p.tags
@@ -183,7 +188,7 @@
       collections: cols,
       images: imgs,
       stock: st === "sold" ? 0 : (typeof p.stock === "number" ? p.stock : 1),
-      reservedUntil: p.reserved_until || p.reservedUntil || null,
+      reservedUntil: resUntil,
       isOneOfOne: true
     };
   }

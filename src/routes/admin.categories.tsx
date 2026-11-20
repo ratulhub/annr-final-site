@@ -104,7 +104,7 @@ function CategoriesPage() {
         });
       }
       return { ...x, categories: mapped, collections: nextCols };
-    });
+    }, { silent: true });
     emitCategoryUpdate();
   };
 

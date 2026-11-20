@@ -439,16 +439,18 @@ export function diffStates(a: State, b: State): Change[] {
 }
 const MERGE_MS = 5000; // typing in one field merges into one entry
 export function setSite<K extends keyof SiteConfig>(k: K, v: SiteConfig[K]) { setState((x) => ({ ...x, site: { ...x.site, [k]: v } })); }
-export function setState(fn: (s: State) => State) {
+export function setState(fn: (s: State) => State, opts?: { silent?: boolean }) {
   const prev = get();
   const next = fn(prev);
   const log = [...(next.activity || [])];
-  const now = new Date();
-  for (const c of diffStates(prev, next)) {
-    const last = log[0];
-    if (last && c.action === "updated" && last.action === "updated" && last.section === c.section && last.item === c.item && last.fields === c.fields && now.getTime() - new Date(last.at).getTime() < MERGE_MS) {
-      log[0] = { ...last, at: now.toISOString() };
-    } else log.unshift({ id: uid(), at: now.toISOString(), by: getSessionSafe()?.email || "unknown", ...c });
+  if (!opts?.silent) {
+    const now = new Date();
+    for (const c of diffStates(prev, next)) {
+      const last = log[0];
+      if (last && c.action === "updated" && last.action === "updated" && last.section === c.section && last.item === c.item && last.fields === c.fields && now.getTime() - new Date(last.at).getTime() < MERGE_MS) {
+        log[0] = { ...last, at: now.toISOString() };
+      } else log.unshift({ id: uid(), at: now.toISOString(), by: getSessionSafe()?.email || "unknown", ...c });
+    }
   }
   state = { ...next, activity: log.slice(0, 1000) };
   persist(state);
@@ -1052,15 +1054,17 @@ export async function syncAllFromSupabase(): Promise<void> {
 
   inFlightGlobalSync = (async () => {
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const hasAuthSession = Boolean(sessionData?.session);
       const deletedHandles = getDeletedHandles();
       const [prodRes, catRes, campRes, ordRes, itemsRes, discRes, loyRes] = await Promise.allSettled([
         supabase.from("products").select("*").order("created_at", { ascending: false }),
         supabase.from("categories").select("*").order("sort_order", { ascending: true }),
         supabase.from("campaigns").select("*").order("sort_order", { ascending: true }),
-        supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100),
-        supabase.from("order_items").select("*").limit(300),
+        hasAuthSession ? supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100) : Promise.resolve({ data: null, error: null }),
+        hasAuthSession ? supabase.from("order_items").select("*").limit(300) : Promise.resolve({ data: null, error: null }),
         supabase.from("discounts").select("*").limit(100),
-        supabase.rpc("admin_get_loyalty_overview"),
+        hasAuthSession ? supabase.rpc("admin_get_loyalty_overview") : Promise.resolve({ data: null, error: null }),
       ]);
 
       setState((current) => {
@@ -1161,6 +1165,18 @@ export async function syncAllFromSupabase(): Promise<void> {
                 "all",
               ].filter(Boolean)),
             );
+            const isExpiredReservation =
+              sp.status === "reserved" &&
+              (!sp.reserved_until || new Date(String(sp.reserved_until)).getTime() <= Date.now());
+            const effectiveStatus: Product["status"] = isExpiredReservation
+              ? "active"
+              : (sp.status || existing?.status || "active");
+            if (isExpiredReservation && hasAuthSession && sp.id) {
+              void supabase
+                .from("products")
+                .update({ status: "active", reserved_until: null, stock: 1 })
+                .eq("id", sp.id);
+            }
             map.set(sp.handle, {
               id: sp.id || existing?.id,
               handle: sp.handle,
@@ -1170,7 +1186,7 @@ export async function syncAllFromSupabase(): Promise<void> {
               price: sp.price != null ? String(sp.price) : existing?.price || "0.00",
               compareAt: sp.compare_at_price != null ? String(sp.compare_at_price) : existing?.compareAt || "",
               currency: sp.currency || existing?.currency || "BDT",
-              status: sp.status || existing?.status || "active",
+              status: effectiveStatus,
               vendor: sp.vendor || existing?.vendor || "AnnR",
               type: sp.product_type || existing?.type || resolvedCategory,
               category: resolvedCategory,
@@ -1333,7 +1349,7 @@ export async function syncAllFromSupabase(): Promise<void> {
           customers: nextCustomers,
           discounts: nextDiscounts,
         };
-      });
+      }, { silent: true });
     } catch {
       // ignore network error
     } finally {

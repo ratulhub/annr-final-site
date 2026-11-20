@@ -96,7 +96,7 @@ function CampaignsPage() {
           status: (r.status as Campaign["status"]) || "active",
           sortOrder: Number(r.sort_order ?? idx + 1),
         }));
-        setState((x) => ({ ...x, campaigns: mapped }));
+        setState((x) => ({ ...x, campaigns: mapped }), { silent: true });
         setTimeout(() => { try { publish(); } catch {} }, 30);
         return;
       }
@@ -108,7 +108,7 @@ function CampaignsPage() {
         .limit(1);
       const remoteCamps = (cfgRows?.[0] as any)?.config?.campaigns;
       if (Array.isArray(remoteCamps) && remoteCamps.length > 0) {
-        setState((x) => ({ ...x, campaigns: remoteCamps }));
+        setState((x) => ({ ...x, campaigns: remoteCamps }), { silent: true });
         setTimeout(() => { try { publish(); } catch {} }, 30);
         return;
       }
