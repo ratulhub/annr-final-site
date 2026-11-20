@@ -1898,28 +1898,117 @@
       }
     }
 
-    // 4. Cart Drawer Checkout Redirection, Cart Coupon Input & Cart Sync
+    // 4. Cart Drawer Checkout Redirection, Live 1-of-1 Cart Drawer Renderer & Cart Coupon Input
     (function initCartCheckoutSync() {
-      function syncCartItems() {
+      function readLocalCart() {
         try {
-          fetch("/cart.js").then(function(r) { return r.ok ? r.json() : null; }).then(function(cart) {
-            if (cart && Array.isArray(cart.items) && cart.items.length > 0) {
-              var formatted = cart.items.map(function(it) {
-                var size = (it.variant_options && it.variant_options[0]) ||
-                           (it.options_with_values && it.options_with_values[0] && it.options_with_values[0].value) || "Standard";
-                return {
-                  id: String(it.id || it.variant_id || it.handle),
-                  title: it.title || it.product_title || "AnnR Product",
-                  price: Math.round((it.price || 0) / 100),
-                  quantity: it.quantity || 1,
-                  size: size,
-                  image: it.featured_image ? it.featured_image.url : (it.image || "")
-                };
-              });
-              localStorage.setItem("annr-cart", JSON.stringify(formatted));
-            }
-          }).catch(function() {});
-        } catch(e) {}
+          var raw = localStorage.getItem("annr-cart") || localStorage.getItem("shihiko-cart");
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed.filter(function (x) { return x && x.title; });
+          }
+        } catch (e) {}
+        return [];
+      }
+
+      function updateHeaderCartBadges(items) {
+        var count = Array.isArray(items) ? items.length : 0;
+        document.querySelectorAll(".header-cart-count, .js-cart-count, .cart-count-bubble, .header-new__cart-count").forEach(function (el) {
+          el.textContent = count > 0 ? String(count) : "";
+          el.style.display = count > 0 ? "" : "none";
+        });
+      }
+
+      function renderAnnrCartDrawer() {
+        var cartPopup = document.getElementById("cart-popup");
+        var items = readLocalCart();
+        updateHeaderCartBadges(items);
+        if (!cartPopup) return;
+
+        var countEl = cartPopup.querySelector(".cart-popup-title .count");
+        if (countEl) countEl.textContent = "[" + (items.length < 10 ? "0" + items.length : String(items.length)) + "]";
+
+        // Clean legacy US payment icons inside empty cart
+        var payIcons = cartPopup.querySelector(".inline-list.payment-icons");
+        if (payIcons && !payIcons.getAttribute("data-annr-bd-pay")) {
+          payIcons.setAttribute("data-annr-bd-pay", "1");
+          payIcons.innerHTML =
+            "<li style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;letter-spacing:1.4px;color:rgba(255,255,255,0.72);text-transform:uppercase'>CASH ON DELIVERY · BKASH · NAGAD</li>";
+        }
+
+        var existingBody = document.getElementById("annr-cart-drawer-body");
+        var emptyEl = cartPopup.querySelector(".cart-popup-empty");
+
+        if (items.length === 0) {
+          if (existingBody) existingBody.remove();
+          if (emptyEl) emptyEl.style.display = "";
+          return;
+        }
+
+        if (emptyEl) emptyEl.style.display = "none";
+
+        var subtotal = items.reduce(function (sum, it) {
+          return sum + (Number(it.price) || 0) * (Number(it.quantity) || 1);
+        }, 0);
+        var freeShipRemain = Math.max(0, 5000 - subtotal);
+
+        var bodyEl = existingBody || document.createElement("div");
+        bodyEl.id = "annr-cart-drawer-body";
+        bodyEl.style.cssText = "flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:0 16px 20px;overflow-y:auto;color:#ffffff;font-family:'NB Architekt Std',sans-serif";
+
+        var itemsHtml = items.map(function (it, idx) {
+          var imgSrc = safeImg(it.image || "/_ext/annr-template-001.png");
+          return (
+            "<div style='display:flex;gap:14px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.12);align-items:flex-start'>" +
+              "<img src='" + esc(imgSrc) + "' alt='" + esc(it.title) + "' style='width:76px;height:76px;object-fit:cover;background:#1a1a1a;flex-shrink:0;border:1px solid rgba(255,255,255,0.12)' onerror=\"this.src='/_ext/annr-template-001.png'\">" +
+              "<div style='flex:1;min-width:0'>" +
+                (it.code ? "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:9.5px;color:#e05a2b;letter-spacing:1.4px;margin-bottom:4px'>" + esc(it.code) + " · 1 OF 1</div>" : "") +
+                "<div style='font-size:13px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;line-height:1.35;color:#ffffff'>" + esc(it.title) + "</div>" +
+                (it.showSize !== false && it.size ? "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;color:rgba(255,255,255,0.6);margin-top:4px'>SIZE: " + esc(it.size) + "</div>" : "") +
+                "<div style='display:flex;justify-content:space-between;align-items:center;margin-top:10px'>" +
+                  "<span style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:13px;font-weight:700;color:#ffffff'>Tk " + (Number(it.price) || 0).toLocaleString("en-US") + " BDT</span>" +
+                  "<button type='button' data-annr-remove-idx='" + idx + "' style='background:none;border:none;color:rgba(255,255,255,0.55);font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;text-decoration:underline;cursor:pointer;padding:0'>REMOVE</button>" +
+                "</div>" +
+              "</div>" +
+            "</div>"
+          );
+        }).join("");
+
+        bodyEl.innerHTML =
+          "<div>" +
+            "<div style='background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);padding:10px 12px;margin-bottom:8px;font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#f3f3f3'>" +
+              (freeShipRemain === 0
+                ? "✓ COMPLIMENTARY BANGLADESH SHIPPING UNLOCKED"
+                : "ADD ৳" + freeShipRemain.toLocaleString("en-US") + " MORE FOR FREE SHIPPING") +
+            "</div>" +
+            itemsHtml +
+          "</div>" +
+          "<div class='cart-popup-footer' style='padding-top:16px;border-top:1px solid rgba(255,255,255,0.16);margin-top:16px'>" +
+            "<div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px'>" +
+              "<span style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:11px;letter-spacing:1.4px;color:rgba(255,255,255,0.7);text-transform:uppercase'>SUBTOTAL</span>" +
+              "<span style='font-family:\"NB Architekt Std\",sans-serif;font-size:18px;font-weight:700;color:#ffffff'>Tk " + subtotal.toLocaleString("en-US") + " BDT</span>" +
+            "</div>" +
+            "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:10px;color:rgba(255,255,255,0.55);margin-bottom:16px'>Shipping &amp; VIP Points calculated at checkout.</div>" +
+            "<a href='/checkout' class='cart-popup-checkout' style='display:block;width:100%;text-align:center;background:#ffffff;color:#0a0a0a;padding:15px 18px;font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;text-decoration:none;box-sizing:border-box'>PROCEED TO CHECKOUT →</a>" +
+            "<div style='text-align:center;margin-top:10px;font-family:\"FK Grotesk SemiMono\",monospace;font-size:9.5px;letter-spacing:1.2px;color:rgba(255,255,255,0.5)'>CASH ON DELIVERY · BKASH · NAGAD</div>" +
+          "</div>";
+
+        if (!existingBody) {
+          cartPopup.appendChild(bodyEl);
+        }
+
+        bodyEl.querySelectorAll("[data-annr-remove-idx]").forEach(function (rmBtn) {
+          rmBtn.onclick = function () {
+            var idx = Number(rmBtn.getAttribute("data-annr-remove-idx"));
+            var next = readLocalCart().filter(function (_, i) { return i !== idx; });
+            try { localStorage.setItem("annr-cart", JSON.stringify(next)); } catch (e) {}
+            renderAnnrCartDrawer();
+          };
+        });
+      }
+
+      function syncCartItems() {
+        renderAnnrCartDrawer();
       }
 
       // Inject a clean VIP Referral Coupon bar inside the slide-out cart drawer (#cart-popup)
@@ -1936,14 +2025,14 @@
 
         var box = document.createElement("div");
         box.id = "adm-cart-coupon-box";
-        box.style.cssText = "padding:10px 0 12px;border-top:1px solid rgba(0,0,0,0.1);margin-bottom:8px;font:11px/1.4 'NB Architekt Std',sans-serif";
+        box.style.cssText = "padding:0 0 12px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.12);font:11px/1.4 'NB Architekt Std',sans-serif";
         box.innerHTML =
           "<div style='display:flex;gap:6px;align-items:center'>" +
-            "<input type='text' id='adm-cart-coupon-input' value='" + esc(savedCode) + "' placeholder='VIP REFERRAL / PROMO CODE' style='flex:1;padding:8px 10px;border:1px solid rgba(0,0,0,0.22);background:#fff;color:#000;font:11px/1 monospace;text-transform:uppercase;letter-spacing:1px;outline:none'>" +
-            "<button type='button' id='adm-cart-coupon-btn' style='padding:8px 12px;background:#000;color:#fff;border:1px solid #000;font:10px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer'>APPLY</button>" +
+            "<input type='text' id='adm-cart-coupon-input' value='" + esc(savedCode) + "' placeholder='VIP REFERRAL / PROMO CODE' style='flex:1;padding:9px 10px;border:1px solid rgba(255,255,255,0.22);background:#121212;color:#ffffff;font:11px/1 monospace;text-transform:uppercase;letter-spacing:1px;outline:none'>" +
+            "<button type='button' id='adm-cart-coupon-btn' style='padding:9px 13px;background:#ffffff;color:#0a0a0a;border:1px solid #ffffff;font:10px/1 \"NB Architekt Std\",sans-serif;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;cursor:pointer'>APPLY</button>" +
           "</div>" +
-          "<div id='adm-cart-coupon-msg' style='font-size:10px;margin-top:5px;letter-spacing:0.5px;color:" + (savedCode ? "#008060" : "#555") + "'>" +
-            (savedCode ? "✓ Code " + esc(savedCode) + " queued for 10% OFF at checkout" : "") +
+          "<div id='adm-cart-coupon-msg' style='font-size:10px;margin-top:5px;letter-spacing:0.5px;color:" + (savedCode ? "#4ade80" : "#999") + "'>" +
+            (savedCode ? "✓ Code " + esc(savedCode) + " queued for checkout" : "") +
           "</div>";
 
         footerEl.insertBefore(box, footerEl.firstChild);
@@ -1956,7 +2045,7 @@
             var cVal = String(inp.value || "").trim().toUpperCase();
             if (!cVal) {
               try { localStorage.removeItem("annr_cart_coupon"); } catch (e) {}
-              msg.style.color = "#666";
+              msg.style.color = "#999";
               msg.textContent = "Coupon cleared.";
               return;
             }
@@ -1965,10 +2054,10 @@
                 localStorage.setItem("annr_cart_coupon", cVal);
                 localStorage.setItem("annr_active_ref_code", cVal);
               } catch (e) {}
-              msg.style.color = "#008060";
+              msg.style.color = "#4ade80";
               msg.textContent = "✓ " + cVal + " applied! Discount will be deducted at checkout.";
             } else {
-              msg.style.color = "#e10600";
+              msg.style.color = "#f87171";
               msg.textContent = "Invalid coupon format. Use a valid VIP-XXXX or promo code.";
             }
           };
@@ -1979,16 +2068,18 @@
       if (cpEl && !cpEl.__annrCouponObserved) {
         cpEl.__annrCouponObserved = true;
         var cpObs = new MutationObserver(function () {
+          renderAnnrCartDrawer();
           if (!document.getElementById("adm-cart-coupon-box")) injectCartCouponBar();
         });
         cpObs.observe(cpEl, { childList: true, subtree: true });
       }
+      renderAnnrCartDrawer();
       injectCartCouponBar();
 
       // Sync when cart popup opens or item is added
       document.addEventListener("click", function(e) {
         var a = e.target.closest && e.target.closest(".js-cart-trigger, [href*='/cart'], button[name='add'], .js-add-to-cart");
-        if (a) setTimeout(function () { syncCartItems(); injectCartCouponBar(); }, 500);
+        if (a) setTimeout(function () { syncCartItems(); injectCartCouponBar(); }, 180);
 
         // Intercept Checkout Buttons
         var chk = e.target.closest && e.target.closest("button[name='checkout'], a[href*='/checkout'], .cart-popup-checkout, [data-checkout-button]");

@@ -1229,14 +1229,23 @@ function Edit() {
           {imgErr && <div className="adm-err">{imgErr}</div>}
         </div>
       </Card>
-      <Card title="Variants & inventory">
+      <Card title="Showcase & Advanced Options">
         <div className="adm-row" style={{ marginBottom: 12 }}>
-          <Toggle label="Track stock" value={p.trackStock} onChange={(v) => up({ trackStock: v })} />
-          <Toggle label="Sell when out of stock" value={p.allowBackorder} onChange={(v) => up({ allowBackorder: v })} />
-          <Toggle label="Featured" value={p.featured} onChange={(v) => up({ featured: v })} />
+          <Toggle label="Featured on Home Showcase" value={p.featured} onChange={(v) => up({ featured: v })} />
+          <Toggle label="Track 1-of-1 availability" value={p.trackStock} onChange={(v) => up({ trackStock: v })} />
         </div>
-        <RowList<Variant> rows={p.variants} onChange={(v) => up({ variants: v })} blank={{ option: "", sku: "", price: p.price, stock: 0 }}
-          fields={[{ key: "option", label: "Option / size" }, { key: "sku", label: "SKU" }, { key: "price", label: "Price" }, { key: "stock", label: "Stock", type: "number" }]} />
+        <details style={{ borderTop: "1px solid var(--p-border-subdued)", paddingTop: 10 }}>
+          <summary style={{ cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--p-text-subdued)" }}>
+            Advanced Variant Table (Auto-synced for 1-of-1 archival pieces)
+          </summary>
+          <div style={{ marginTop: 12 }}>
+            <div className="adm-row" style={{ marginBottom: 10 }}>
+              <Toggle label="Sell when out of stock" value={p.allowBackorder} onChange={(v) => up({ allowBackorder: v })} />
+            </div>
+            <RowList<Variant> rows={p.variants} onChange={(v) => up({ variants: v })} blank={{ option: "", sku: "", price: p.price, stock: 0 }}
+              fields={[{ key: "option", label: "Option / size" }, { key: "sku", label: "SKU" }, { key: "price", label: "Price" }, { key: "stock", label: "Stock", type: "number" }]} />
+          </div>
+        </details>
       </Card>
       <Card title="Collections"><div className="adm-row">
         {s.collections.map((c) => <Toggle key={c.handle} label={c.title} value={p.collections.includes(c.handle)} onChange={() => toggleCol(c.handle)} />)}

@@ -35,53 +35,65 @@
     return n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
-  // Inject Luxury Typography & Styles
+  // Inject Luxury Monochrome Editorial Typography & Styles
   function injectStyles() {
     if (document.getElementById("annr-unique-styles")) return;
     var st = document.createElement("style");
     st.id = "annr-unique-styles";
     st.textContent =
-      "/* AnnR Unique One-of-One Styling */\n" +
-      ".annr-unique-badge-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }\n" +
-      ".annr-unique-pill { display: inline-flex; align-items: center; gap: 6px; background: #111111; color: #ffffff; padding: 5px 10px; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-radius: 2px; }\n" +
-      ".annr-unique-pill.sold { background: #555555; color: #f5f5f5; }\n" +
-      ".annr-unique-pill.reserved { background: #b45309; color: #ffffff; }\n" +
-      ".annr-unique-code { font-family: 'FK Grotesk SemiMono', monospace; font-size: 11px; font-weight: 700; color: #e05a2b; letter-spacing: 1.5px; text-transform: uppercase; }\n" +
-      ".annr-exact-size-card { background: #ffffff; border: 1.5px solid #111111; padding: 18px 20px; margin: 16px 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; box-shadow: 3px 3px 0 #111111; }\n" +
-      ".annr-size-primary { display: flex; align-items: baseline; gap: 12px; }\n" +
-      ".annr-size-tag { font-family: 'FK Grotesk SemiMono', monospace; font-size: 10.5px; letter-spacing: 2px; color: #666666; text-transform: uppercase; }\n" +
-      ".annr-size-value { font-family: 'NB Architekt Std', sans-serif; font-size: 30px; font-weight: 900; color: #111111; letter-spacing: 1px; line-height: 1; }\n" +
-      ".annr-size-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #444444; }\n" +
-      ".annr-measurements-panel { background: #faf8f4; border: 1px solid #e5e0d6; padding: 18px 20px; margin: 18px 0; }\n" +
-      ".annr-measurements-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #e5e0d6; padding-bottom: 8px; }\n" +
-      ".annr-measurements-head span { font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #111111; text-transform: uppercase; }\n" +
-      ".annr-measurements-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }\n" +
-      ".annr-meas-item { background: #ffffff; border: 1px solid #e8e3d8; padding: 8px 10px; }\n" +
-      ".annr-meas-label { font-family: 'FK Grotesk SemiMono', monospace; font-size: 9px; letter-spacing: 1px; color: #777777; text-transform: uppercase; margin-bottom: 2px; }\n" +
-      ".annr-meas-val { font-family: 'NB Architekt Std', sans-serif; font-size: 13px; font-weight: 700; color: #111111; }\n" +
-      ".annr-meas-note { font-family: Georgia, serif; font-size: 11px; font-style: italic; color: #666666; margin-top: 10px; }\n" +
-      ".annr-single-qty-lock { display: inline-flex; align-items: center; gap: 8px; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: #444444; background: #efeae0; padding: 8px 14px; border: 1px solid #dcd6ca; margin: 10px 0 16px; }\n" +
-      ".annr-single-qty-lock span.dot { width: 6px; height: 6px; border-radius: 50%; background: #e05a2b; display: inline-block; }\n" +
-      ".annr-archival-banner { padding: 16px 20px; margin: 16px 0; border: 1.5px solid; font-family: 'NB Architekt Std', sans-serif; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; line-height: 1.4; }\n" +
-      ".annr-archival-banner.sold { background: #1a1a1a; color: #ffffff; border-color: #000000; }\n" +
-      ".annr-archival-banner.reserved { background: #fffbeb; color: #b45309; border-color: #f59e0b; }\n" +
-      "/* Unique Campaign Header & Filter Bar */\n" +
-      ".annr-campaign-hero { background: #ffffff; border-bottom: 2px solid #111111; padding: 48px 24px 36px; text-align: center; margin-bottom: 32px; }\n" +
-      ".annr-campaign-hero .top-badge { display: inline-block; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 2.5px; color: #e05a2b; text-transform: uppercase; margin-bottom: 12px; }\n" +
-      ".annr-campaign-hero h1 { font-family: 'NB Architekt Std', sans-serif; font-size: 38px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: #111111; margin: 0 0 12px; line-height: 1.05; }\n" +
-      ".annr-campaign-hero p.lead { font-family: Georgia, serif; font-size: 14px; font-style: italic; color: #555555; max-width: 680px; margin: 0 auto 20px; line-height: 1.5; }\n" +
-      ".annr-category-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 900px; margin: 0 auto; }\n" +
-      ".annr-cat-chip { background: #f7f4ef; border: 1px solid #d8d3ca; color: #111111; padding: 9px 16px; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: all .15s ease; }\n" +
-      ".annr-cat-chip:hover, .annr-cat-chip.is-active { background: #111111; color: #ffffff; border-color: #111111; }\n" +
-      ".annr-grid-controls { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; background: #faf8f4; border: 1px solid #e5e0d6; margin: 0 24px 28px; flex-wrap: wrap; gap: 14px; }\n" +
-      ".annr-toggle-label { display: flex; align-items: center; gap: 8px; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: #333333; cursor: pointer; user-select: none; }\n" +
-      ".annr-toggle-label input { accent-color: #111111; width: 15px; height: 15px; cursor: pointer; }\n" +
-      ".annr-sort-select { background: #ffffff; border: 1px solid #d8d3ca; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; padding: 6px 12px; outline: none; cursor: pointer; }\n" +
-      ".annr-card-one-badge { position: absolute; top: 10px; left: 10px; z-index: 4; background: rgba(17,17,17,0.92); color: #ffffff; padding: 4px 8px; font-family: 'FK Grotesk SemiMono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; pointer-events: none; }\n" +
-      ".annr-card-sold-overlay { position: absolute; inset: 0; background: rgba(17,17,17,0.68); display: flex; align-items: center; justify-content: center; z-index: 5; pointer-events: none; }\n" +
-      ".annr-card-sold-tag { background: #ffffff; color: #111111; font-family: 'NB Architekt Std', sans-serif; font-size: 13px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; padding: 8px 16px; border: 2px solid #111111; box-shadow: 0 6px 20px rgba(0,0,0,0.3); }\n" +
+      "/* AnnR Unique One-of-One Luxury Editorial Styling */\n" +
+      ".annr-unique-badge-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 12px; flex-wrap: wrap; }\n" +
+      ".annr-unique-pill { display: inline-flex; align-items: center; gap: 7px; background: #0a0a0a; color: #ffffff; padding: 6px 11px; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 1.6px; text-transform: uppercase; }\n" +
+      ".annr-unique-pill.sold { background: #525252; color: #f5f5f5; }\n" +
+      ".annr-unique-pill.reserved { background: #92400e; color: #ffffff; }\n" +
+      ".annr-unique-code { font-family: 'FK Grotesk SemiMono', monospace; font-size: 11px; font-weight: 500; color: #e05a2b; letter-spacing: 1.5px; text-transform: uppercase; }\n" +
+      ".annr-exact-size-card { background: #ffffff; border: 1px solid #0a0a0a; padding: 18px 20px; margin: 12px 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }\n" +
+      ".annr-size-primary { display: flex; align-items: baseline; gap: 14px; }\n" +
+      ".annr-size-tag { font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; letter-spacing: 1.8px; color: #666666; text-transform: uppercase; }\n" +
+      ".annr-size-value { font-family: 'Druk Wide', 'NB Architekt Std', sans-serif; font-size: 24px; font-weight: 900; color: #0a0a0a; letter-spacing: 0.5px; line-height: 1; }\n" +
+      ".annr-size-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; text-align: right; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #666666; }\n" +
+      ".annr-size-meta strong { color: #0a0a0a; font-weight: 600; }\n" +
+      ".annr-measurements-panel { background: #f8f8f6; border: 1px solid #e6e6e2; padding: 16px 18px; margin: 0 0 14px; }\n" +
+      ".annr-measurements-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #e6e6e2; padding-bottom: 8px; }\n" +
+      ".annr-measurements-head span { font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; color: #0a0a0a; text-transform: uppercase; }\n" +
+      ".annr-measurements-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 8px; }\n" +
+      ".annr-meas-item { background: #ffffff; border: 1px solid #e8e8e4; padding: 10px 12px; }\n" +
+      ".annr-meas-label { font-family: 'FK Grotesk SemiMono', monospace; font-size: 9px; letter-spacing: 1.2px; color: #737373; text-transform: uppercase; margin-bottom: 4px; }\n" +
+      ".annr-meas-val { font-family: 'NB Architekt Std', sans-serif; font-size: 14px; font-weight: 700; color: #0a0a0a; letter-spacing: 0.5px; }\n" +
+      ".annr-meas-note { font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; color: #737373; margin-top: 10px; line-height: 1.5; letter-spacing: 0.2px; }\n" +
+      ".annr-single-qty-lock { display: flex; align-items: center; gap: 9px; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; color: #262626; background: #ffffff; padding: 10px 14px; border: 1px solid #e4e4e0; border-left: 2px solid #0a0a0a; margin: 0 0 18px; }\n" +
+      ".annr-single-qty-lock span.dot { width: 6px; height: 6px; border-radius: 50%; background: #e05a2b; display: inline-block; flex-shrink: 0; }\n" +
+      ".annr-archival-banner { padding: 14px 18px; margin: 14px 0; border: 1px solid; font-family: 'NB Architekt Std', sans-serif; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; line-height: 1.45; }\n" +
+      ".annr-archival-banner.sold { background: #0a0a0a; color: #ffffff; border-color: #0a0a0a; }\n" +
+      ".annr-archival-banner.reserved { background: #fffbeb; color: #92400e; border-color: #f59e0b; }\n" +
+      "/* Compact Monochrome Editorial Collection Header & Filter Bar */\n" +
+      ".annr-campaign-hero { background: #ffffff; border-top: 1px solid #ecece8; border-bottom: 1px solid #0a0a0a; padding: 26px 24px 22px; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin: 0 0 20px; }\n" +
+      ".annr-campaign-hero .top-badge { display: inline-block; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 2px; color: #e05a2b; text-transform: uppercase; margin-bottom: 6px; }\n" +
+      ".annr-campaign-hero h1 { font-family: 'Druk Wide', 'NB Architekt Std', sans-serif; font-size: clamp(22px, 2.6vw, 34px); font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; color: #0a0a0a; margin: 0; line-height: 1.05; }\n" +
+      ".annr-campaign-hero p.lead { font-family: 'FK Grotesk SemiMono', monospace; font-size: 11px; color: #555555; max-width: 480px; margin: 0; line-height: 1.55; letter-spacing: 0.2px; }\n" +
+      ".annr-grid-controls { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; background: #ffffff; border-bottom: 1px solid #ecece8; margin: 0 0 22px; flex-wrap: wrap; gap: 14px; }\n" +
+      ".annr-toggle-label { display: flex; align-items: center; gap: 8px; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; color: #171717; cursor: pointer; user-select: none; }\n" +
+      ".annr-toggle-label input { accent-color: #0a0a0a; width: 14px; height: 14px; cursor: pointer; }\n" +
+      ".annr-sort-select { background: #ffffff; border: 1px solid #d4d4d0; font-family: 'FK Grotesk SemiMono', monospace; font-size: 10px; letter-spacing: 1.1px; text-transform: uppercase; padding: 7px 12px; color: #0a0a0a; outline: none; cursor: pointer; }\n" +
+      ".annr-card-one-badge { position: absolute; top: 10px; left: 10px; z-index: 4; background: rgba(10,10,10,0.88); backdrop-filter: blur(4px); color: #ffffff; padding: 4px 9px; font-family: 'FK Grotesk SemiMono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 1.3px; text-transform: uppercase; pointer-events: none; }\n" +
+      ".annr-card-meta { padding: 14px 2px 4px; display: flex; flex-direction: column; gap: 4px; }\n" +
+      ".annr-card-code { font-family: 'FK Grotesk SemiMono', monospace; font-size: 9.5px; color: #e05a2b; letter-spacing: 1.4px; font-weight: 600; text-transform: uppercase; }\n" +
+      ".annr-card-sold-overlay { position: absolute; inset: 0; background: rgba(10,10,10,0.62); display: flex; align-items: center; justify-content: center; z-index: 5; pointer-events: none; }\n" +
+      ".annr-card-sold-tag { background: #ffffff; color: #0a0a0a; font-family: 'NB Architekt Std', sans-serif; font-size: 12px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; padding: 8px 16px; border: 1.5px solid #0a0a0a; }\n" +
       ".product-card-image-wrapper img:only-child, .product-card-image:hover .product-card-image-wrapper img:only-child { opacity: 1 !important; visibility: visible !important; }\n" +
-      ".js-catalog__content-preloader, .ajax-preloader.js-catalog__content-preloader { display: none !important; opacity: 0 !important; pointer-events: none !important; height: 0 !important; }\n";
+      ".js-catalog__content-preloader, .ajax-preloader.js-catalog__content-preloader { display: none !important; opacity: 0 !important; pointer-events: none !important; height: 0 !important; }\n" +
+      "/* Fullscreen Lightbox for PDP Photography Inspection */\n" +
+      ".annr-lightbox { position: fixed; inset: 0; z-index: 100000; background: rgba(10,10,10,0.94); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; padding: 24px; }\n" +
+      ".annr-lightbox img { max-width: min(92vw, 1100px); max-height: 86vh; object-fit: contain; box-shadow: 0 24px 64px rgba(0,0,0,0.6); }\n" +
+      ".annr-lightbox-btn { position: fixed; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.22); cursor: pointer; font-family: 'FK Grotesk SemiMono', monospace; font-size: 14px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }\n" +
+      ".annr-lightbox-btn:hover { background: #ffffff; color: #0a0a0a; }\n" +
+      "@media only screen and (max-width: 767px) {\n" +
+      "  .annr-exact-size-card { padding: 14px 16px; }\n" +
+      "  .annr-size-meta { align-items: flex-start; text-align: left; }\n" +
+      "  .annr-campaign-hero { padding: 18px 14px 16px; }\n" +
+      "  .annr-grid-controls { padding: 10px 14px; }\n" +
+      "  .product-gallery-carousel .product-gallery-nav { width: 32px !important; height: 32px !important; }\n" +
+      "}\n";
     document.head.appendChild(st);
   }
 
@@ -415,6 +427,33 @@
         return;
       }
 
+      if (sliderEl) {
+        sliderEl.setAttribute("data-few-items", featured.length <= 2 ? "true" : "false");
+      }
+
+      // Update Home Page parallax category section counts with real live inventory counts
+      try {
+        var parallaxSections = document.querySelectorAll('section[id*="__parallax_"]');
+        parallaxSections.forEach(function (sec) {
+          var metaEl = sec.querySelector('[class*="__meta"]');
+          var linkEl = sec.querySelector('a[href*="/collections/"]');
+          if (!metaEl || !linkEl) return;
+          var hrefMatch = String(linkEl.getAttribute("href") || "").match(/\/collections\/([a-zA-Z0-9_-]+)/);
+          if (!hrefMatch) return;
+          var slug = hrefMatch[1].toLowerCase();
+          var liveCount = products.filter(function (p) {
+            if (!p || p.status === "sold" || p.status === "draft" || p.status === "archived") return false;
+            return p.categorySlug === slug || p.category === slug || (Array.isArray(p.collections) && p.collections.indexOf(slug) !== -1);
+          }).length;
+          if (liveCount > 0) {
+            var numStr = liveCount < 10 ? ("0" + liveCount) : String(liveCount);
+            metaEl.innerHTML = "<span>" + numStr + "</span><span>//</span><span>" + (liveCount === 1 ? "PIECE" : "PIECES") + "</span>";
+          } else {
+            metaEl.innerHTML = "<span>1 OF 1</span><span>//</span><span>ARCHIVE</span>";
+          }
+        });
+      } catch (e) {}
+
       if (mainWrap) {
         mainWrap.innerHTML = featured.map(function (p) {
           var img1 = safeImg(p.images && p.images[0]);
@@ -432,10 +471,10 @@
                     "<img src='" + esc(img2) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='lazy' onerror=\"this.onerror=null;this.src='/_ext/annr-template-001.png'\">" +
                   "</a>" +
                 "</div>" +
-                "<div style='padding-top:8px'>" +
-                  "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:9px;color:#e05a2b;letter-spacing:1.4px;font-weight:700'>" + esc(p.code) + "</div>" +
+                "<div class='annr-card-meta'>" +
+                  "<div class='annr-card-code'>" + esc(p.code) + "</div>" +
                   "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title'>" + esc(p.title) + "</a>" +
-                  "<div class='product-card-price'><span class='money'>Tk " + formatMoney(p.price) + "<span class='money-currency-code'>BDT</span></span></div>" +
+                  "<div class='product-card-price'><span class='money'>Tk " + formatMoney(p.price) + " <span class='money-currency-code'>BDT</span></span></div>" +
                 "</div>" +
               "</div>" +
             "</div>"
@@ -504,79 +543,242 @@
           (extraMeta.length ? "<div style='margin-top:12px;font-size:12px;opacity:.85;display:flex;flex-direction:column;gap:4px'>" + extraMeta.join("<br>") + "</div>" : "");
       }
 
-      // Update Product Images in Carousel & Thumbnails
+      // Update Product Images in Carousel & Thumbnails (adaptive natural ratio + distinct thumbs + lightbox)
       if (prod.images && prod.images.length > 0) {
+        var cleanImgs = prod.images.map(safeImg);
         var mainWrapper = document.querySelector(".product-gallery-carousel .swiper-wrapper");
         var thumbWrapper = document.querySelector(".product-gallery-thumb-carousel .swiper-wrapper");
-        if (mainWrapper) {
-          var mainSlides = "";
-          var thumbSlides = "";
-          prod.images.forEach(function (rawSrc, idx) {
-            var imgSrc = safeImg(rawSrc);
-            mainSlides +=
-              "<div class='swiper-slide' data-media-id='" + idx + "'>" +
-                "<div class='carousel-item' style='aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;background:#faf8f4;overflow:hidden;'>" +
-                  "<img src='" + esc(imgSrc) + "' alt='" + esc(prod.title) + " - View " + (idx + 1) + "' onerror=\"this.src='/_ext/annr-template-001.png'\" style='width:100%;height:100%;object-fit:cover;' loading='" + (idx === 0 ? "eager" : "lazy") + "'>" +
-                "</div>" +
-              "</div>";
+        var mainCarouselEl = document.querySelector(".product-gallery-carousel");
+        var statusEl = document.querySelector(".product-gallery-status");
+        var totalImgs = cleanImgs.length;
+        var activeIdx = 0;
 
-            thumbSlides +=
-              "<div class='swiper-slide prod-thumb-slide " + (idx === 0 ? "swiper-slide-thumb-active" : "") + "'>" +
-                "<div class='carousel-thumb-item' style='width:64px;height:64px;overflow:hidden;border:1.5px solid " + (idx === 0 ? "#111" : "#e6e1d7") + ";background:#fff;cursor:pointer;'>" +
-                  "<img src='" + esc(imgSrc) + "' alt='Thumbnail " + (idx + 1) + "' onerror=\"this.src='/_ext/annr-template-001.png'\" style='width:100%;height:100%;object-fit:cover;'>" +
-                "</div>" +
-              "</div>";
-          });
-          mainWrapper.innerHTML = mainSlides;
-          if (thumbWrapper) thumbWrapper.innerHTML = thumbSlides;
+        function openLightbox(startIdx) {
+          var lbIdx = startIdx;
+          var old = document.getElementById("annr-pdp-lightbox");
+          if (old) old.remove();
+          var lb = document.createElement("div");
+          lb.id = "annr-pdp-lightbox";
+          lb.className = "annr-lightbox";
+          lb.innerHTML =
+            "<img id='annr-lb-img' src='" + esc(cleanImgs[lbIdx]) + "' alt='" + esc(prod.title) + "'>" +
+            "<button type='button' class='annr-lightbox-btn' id='annr-lb-close' aria-label='Close zoom' style='top:20px;right:20px'>✕</button>" +
+            (totalImgs > 1
+              ? "<button type='button' class='annr-lightbox-btn' id='annr-lb-prev' aria-label='Previous photo' style='left:20px;top:50%;transform:translateY(-50%)'>←</button>" +
+                "<button type='button' class='annr-lightbox-btn' id='annr-lb-next' aria-label='Next photo' style='right:20px;top:50%;transform:translateY(-50%)'>→</button>"
+              : "") +
+            "<div id='annr-lb-count' style='position:fixed;bottom:22px;left:50%;transform:translateX(-50%);font-family:\"FK Grotesk SemiMono\",monospace;font-size:11px;letter-spacing:2px;color:#fff;background:rgba(0,0,0,0.65);padding:6px 14px;border:1px solid rgba(255,255,255,0.2)'>" + (lbIdx + 1) + " // " + totalImgs + "</div>";
+          document.body.appendChild(lb);
 
-          var mainCarouselEl = document.querySelector(".product-gallery-carousel");
-          var thumbCarouselEl = document.querySelector(".product-gallery-thumb-carousel");
-          if (mainCarouselEl && mainCarouselEl.swiper) {
-            try { mainCarouselEl.swiper.update(); mainCarouselEl.swiper.slideTo(0); } catch(e) {}
+          function setLb(n) {
+            lbIdx = (n + totalImgs) % totalImgs;
+            var im = lb.querySelector("#annr-lb-img");
+            var ct = lb.querySelector("#annr-lb-count");
+            if (im) im.src = cleanImgs[lbIdx];
+            if (ct) ct.textContent = (lbIdx + 1) + " // " + totalImgs;
+            goToSlide(lbIdx);
           }
-          if (thumbCarouselEl && thumbCarouselEl.swiper) {
-            try { thumbCarouselEl.swiper.update(); thumbCarouselEl.swiper.slideTo(0); } catch(e) {}
+          function closeLb() {
+            document.removeEventListener("keydown", onKey);
+            lb.remove();
           }
+          function onKey(ev) {
+            if (ev.key === "Escape") closeLb();
+            else if (ev.key === "ArrowRight" && totalImgs > 1) setLb(lbIdx + 1);
+            else if (ev.key === "ArrowLeft" && totalImgs > 1) setLb(lbIdx - 1);
+          }
+          document.addEventListener("keydown", onKey);
+          lb.onclick = function (ev) { if (ev.target === lb) closeLb(); };
+          var cBtn = lb.querySelector("#annr-lb-close");
+          if (cBtn) cBtn.onclick = closeLb;
+          var pBtn = lb.querySelector("#annr-lb-prev");
+          if (pBtn) pBtn.onclick = function (ev) { ev.stopPropagation(); setLb(lbIdx - 1); };
+          var nBtn = lb.querySelector("#annr-lb-next");
+          if (nBtn) nBtn.onclick = function (ev) { ev.stopPropagation(); setLb(lbIdx + 1); };
+        }
 
+        function syncGalleryState(idx) {
+          activeIdx = Math.max(0, Math.min(totalImgs - 1, idx));
+          if (statusEl) {
+            statusEl.innerHTML = "<span class='swiper-pagination-current'>" + (activeIdx + 1) + "</span> // <span class='swiper-pagination-total'>" + totalImgs + "</span>";
+          }
           if (thumbWrapper) {
-            thumbWrapper.querySelectorAll(".prod-thumb-slide").forEach(function (th, tIdx) {
-              th.onclick = function () {
-                if (mainCarouselEl && mainCarouselEl.swiper) {
-                  try { mainCarouselEl.swiper.slideTo(tIdx); } catch(e) {}
-                }
-                var allMain = mainWrapper.querySelectorAll(".swiper-slide");
-                allMain.forEach(function (ms, mIdx) {
-                  ms.style.display = (mIdx === tIdx) ? "block" : "none";
-                });
-                thumbWrapper.querySelectorAll(".prod-thumb-slide").forEach(function (s) {
-                  s.classList.remove("swiper-slide-thumb-active");
-                  var cti = s.querySelector(".carousel-thumb-item");
-                  if (cti) cti.style.borderColor = "#e6e1d7";
-                });
-                th.classList.add("swiper-slide-thumb-active");
-                var activeCti = th.querySelector(".carousel-thumb-item");
-                if (activeCti) activeCti.style.borderColor = "#111";
-              };
+            thumbWrapper.querySelectorAll(".prod-thumb-slide").forEach(function (s, sIdx) {
+              var active = sIdx === activeIdx;
+              s.classList.toggle("swiper-slide-thumb-active", active);
+              s.classList.toggle("is-active", active);
+              s.setAttribute("aria-current", active ? "true" : "false");
             });
           }
         }
 
-        var allImgs = document.querySelectorAll(".product-gallery img, .product__media img, .product-media img");
-        if (allImgs.length > 0 && prod.images[0]) {
-          allImgs.forEach(function (im, i) {
-            if (im.closest && im.closest(".product-info-save-button")) return;
-            var targetSrc = safeImg(prod.images[i] || prod.images[0]);
-            im.src = targetSrc;
-            if (im.srcset) im.removeAttribute("srcset");
+        function goToSlide(idx) {
+          var target = (idx + totalImgs) % totalImgs;
+          if (mainCarouselEl && mainCarouselEl.swiper) {
+            try {
+              mainCarouselEl.swiper.slideTo(target);
+            } catch (e) {}
+          } else if (mainWrapper) {
+            var slides = mainWrapper.querySelectorAll(".swiper-slide");
+            slides.forEach(function (ms, mIdx) {
+              ms.style.display = mIdx === target ? "block" : "none";
+            });
+          }
+          syncGalleryState(target);
+        }
+
+        if (mainWrapper) {
+          mainWrapper.innerHTML = cleanImgs.map(function (imgSrc, idx) {
+            return (
+              "<div class='swiper-slide' data-media-id='" + idx + "'>" +
+                "<div class='carousel-item' data-slide-idx='" + idx + "' style='aspect-ratio: 4 / 3.2;'>" +
+                  "<img src='" + esc(imgSrc) + "' alt='" + esc(prod.title) + " - View " + (idx + 1) + "' onerror=\"this.onerror=null;this.src='/_ext/annr-template-001.png'\" loading='" + (idx === 0 ? "eager" : "lazy") + "'>" +
+                "</div>" +
+              "</div>"
+            );
+          }).join("");
+
+          // Adapt each slide frame to the natural photo aspect ratio (clamped 0.8..1.38) so zero garment edges clip and zero grey bars appear
+          mainWrapper.querySelectorAll(".carousel-item").forEach(function (itemEl, idx) {
+            var im = itemEl.querySelector("img");
+            if (!im) return;
+            var applyRatio = function () {
+              if (im.naturalWidth > 0 && im.naturalHeight > 0) {
+                var ratio = Math.max(0.8, Math.min(1.38, im.naturalWidth / im.naturalHeight));
+                itemEl.style.aspectRatio = ratio.toFixed(4) + " / 1";
+                if (mainCarouselEl && mainCarouselEl.swiper) {
+                  try { mainCarouselEl.swiper.update(); } catch (e) {}
+                }
+              }
+            };
+            if (im.complete) applyRatio();
+            else im.addEventListener("load", applyRatio, { once: true });
+            itemEl.onclick = function () { openLightbox(idx); };
           });
+
+          if (thumbWrapper) {
+            thumbWrapper.innerHTML = cleanImgs.map(function (imgSrc, idx) {
+              return (
+                "<div class='swiper-slide prod-thumb-slide" + (idx === 0 ? " swiper-slide-thumb-active is-active" : "") + "' role='button' tabindex='0' aria-label='View photo " + (idx + 1) + " of " + totalImgs + "'>" +
+                  "<div class='carousel-thumb-item'>" +
+                    "<img src='" + esc(imgSrc) + "' alt='" + esc(prod.title) + " thumbnail " + (idx + 1) + "' onerror=\"this.onerror=null;this.src='/_ext/annr-template-001.png'\" loading='eager'>" +
+                  "</div>" +
+                "</div>"
+              );
+            }).join("");
+
+            thumbWrapper.querySelectorAll(".prod-thumb-slide").forEach(function (th, tIdx) {
+              th.onclick = function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                goToSlide(tIdx);
+              };
+              th.onkeydown = function (ev) {
+                if (ev.key === "Enter" || ev.key === " ") {
+                  ev.preventDefault();
+                  goToSlide(tIdx);
+                }
+              };
+            });
+          }
+
+          var thumbCarouselEl = document.querySelector(".product-gallery-thumb-carousel");
+          if (thumbCarouselEl && thumbCarouselEl.swiper) {
+            try { thumbCarouselEl.swiper.destroy(true, true); } catch (e) {}
+          }
+
+          var prevNav = mainCarouselEl ? mainCarouselEl.querySelector(".product-gallery-nav--prev") : null;
+          var nextNav = mainCarouselEl ? mainCarouselEl.querySelector(".product-gallery-nav--next") : null;
+          if (totalImgs <= 1) {
+            if (prevNav) prevNav.style.display = "none";
+            if (nextNav) nextNav.style.display = "none";
+          } else {
+            if (prevNav) {
+              prevNav.style.display = "";
+              prevNav.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); goToSlide(activeIdx - 1); };
+            }
+            if (nextNav) {
+              nextNav.style.display = "";
+              nextNav.onclick = function (ev) { ev.preventDefault(); ev.stopPropagation(); goToSlide(activeIdx + 1); };
+            }
+          }
+
+          if (mainCarouselEl && mainCarouselEl.swiper) {
+            try {
+              mainCarouselEl.swiper.update();
+              mainCarouselEl.swiper.slideTo(0, 0);
+              if (!mainCarouselEl.__annrSlideSyncBound) {
+                mainCarouselEl.__annrSlideSyncBound = true;
+                mainCarouselEl.swiper.on("slideChange", function () {
+                  syncGalleryState(mainCarouselEl.swiper.realIndex || mainCarouselEl.swiper.activeIndex || 0);
+                });
+              }
+            } catch (e) {}
+          }
+          syncGalleryState(0);
         }
 
         var ogImg = document.querySelector("meta[property='og:image']");
-        if (ogImg && prod.images[0]) ogImg.setAttribute("content", safeImg(prod.images[0]));
+        if (ogImg && cleanImgs[0]) ogImg.setAttribute("content", cleanImgs[0]);
         var twImg = document.querySelector("meta[name='twitter:image']");
-        if (twImg && prod.images[0]) twImg.setAttribute("content", safeImg(prod.images[0]));
+        if (twImg && cleanImgs[0]) twImg.setAttribute("content", cleanImgs[0]);
       }
+
+      // Upgrade legacy PDP feature badges, Bangladesh delivery timeline, & Shipping/Returns accordion
+      try {
+        var featList = document.querySelector(".product-info-features");
+        if (featList) {
+          featList.innerHTML =
+            "<li class='product-info-feature product-info-feature--points'>" +
+              "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#0a0a0a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' style='flex-shrink:0'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>" +
+              "<span>EARN ANNR VIP POINTS</span>" +
+            "</li>" +
+            "<li class='product-info-feature product-info-feature--shipping'>" +
+              "<svg width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='#0a0a0a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' style='flex-shrink:0'><rect x='1' y='3' width='15' height='13'/><polygon points='16 8 20 8 23 11 23 16 16 16 16 8'/><circle cx='5.5' cy='18.5' r='2.5'/><circle cx='18.5' cy='18.5' r='2.5'/></svg>" +
+              "<span>FREE DELIVERY OVER ৳5,000 BDT</span>" +
+            "</li>" +
+            "<li class='product-info-feature product-info-feature--stock'>" +
+              "<span>1 OF 1 · AUTHENTICATED ARCHIVE</span>" +
+            "</li>";
+        }
+
+        // Dynamic live Bangladesh delivery timeline (replaces stale hardcoded October dates)
+        var fmtBdDate = function (addDays) {
+          var d = new Date(Date.now() + addDays * 86400000);
+          var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          var day = d.getDate() < 10 ? "0" + d.getDate() : String(d.getDate());
+          return day + " " + months[d.getMonth()];
+        };
+        var updateDeliveryDates = function () {
+          var delHeadingSpan = document.querySelector('[class*="delivery-heading-"] h2 span');
+          if (delHeadingSpan) delHeadingSpan.textContent = fmtBdDate(2) + " - " + fmtBdDate(4) + " ";
+          var delDates = document.querySelectorAll('[class*="delivery-date-"]');
+          if (delDates.length >= 3) {
+            delDates[0].textContent = fmtBdDate(0);
+            delDates[1].textContent = fmtBdDate(1) + " - " + fmtBdDate(2);
+            delDates[2].textContent = fmtBdDate(2) + " - " + fmtBdDate(4);
+          }
+        };
+        updateDeliveryDates();
+        setTimeout(updateDeliveryDates, 400);
+
+        // Replace legacy US-only Shipping & Returns accordion with accurate AnnR Bangladesh policy
+        var shipDetail = document.querySelector(".product-info-details-footer .product-info-detail-content-inner");
+        if (shipDetail) {
+          shipDetail.innerHTML =
+            "<h3>BANGLADESH DELIVERY</h3>" +
+            "<p>All archival 1-of-1 garments are inspected, steamed, and sealed in protective AnnR collector packaging prior to dispatch from Dhaka.</p>" +
+            "<ul>" +
+              "<li><strong>Inside Dhaka Metro:</strong> ৳70 BDT (24–48 hours express delivery)</li>" +
+              "<li><strong>Outside Dhaka (All 64 Districts):</strong> ৳130 BDT (2–4 business days)</li>" +
+              "<li><strong>Complimentary Shipping:</strong> Automatically unlocked on orders over <strong>৳5,000 BDT</strong></li>" +
+              "<li><strong>Payment Methods:</strong> Cash on Delivery (COD), bKash, and Nagad</li>" +
+            "</ul>" +
+            "<p>See full details on our <a href='/pages/shipping-policy/index.html'>Shipping Policy</a> page.</p>" +
+            "<h3>RETURNS &amp; ARCHIVAL GUARANTEE</h3>" +
+            "<p>Every AnnR piece is a verified one-of-one garment with flat measurements provided in inches. If an item arrives damaged or differs from its verified specification, contact support within 7 days of delivery. See our <a href='/pages/return-policy/index.html'>Return Policy</a> for full terms.</p>";
+        }
+      } catch (e) {}
 
       // Replace Size Selector with 1-of-1 Archival Badge & Measurement Table
       var variantArea = document.querySelector("variant-buttons, variant-radios, .product-form__variants, .size-selector, .product-info-size-selector");
@@ -687,24 +889,24 @@
       // Store active product for capture-phase 1-of-1 checkout interception
       window.__annrCurrentProduct = prod;
 
-      // Update Add to Cart Button & intercept Shopify AJAX /cart/add with 1-of-1 /checkout flow
-      var atcBtn = document.querySelector("[name='add'], [data-product-button], .btn-add-to-cart, .product-info-submit button");
-      if (atcBtn) {
+      // Update ALL Acquire / Add to Cart Buttons (desktop + mobile sticky bar) & intercept /cart/add with 1-of-1 /checkout flow
+      var atcBtns = document.querySelectorAll("[name='add'], [data-product-button], .btn-add-to-cart, .product-info-submit button, .product-action-buttons button");
+      atcBtns.forEach(function (atcBtn) {
         if (prod.status === "sold" || prod.stock < 1) {
           atcBtn.disabled = true;
           atcBtn.style.opacity = "0.5";
           atcBtn.style.cursor = "not-allowed";
-          atcBtn.innerHTML = "<span class='content'><span><span class='text'>ARCHIVED / SOLD OUT</span></span></span>";
+          atcBtn.innerHTML = "<span class='content has-additional-atc-text'><span><span class='text'>ARCHIVED — SOLD OUT</span></span><span class='additional-atc-text'>PERMANENTLY CLAIMED</span></span><span class='corners'></span>";
         } else if (prod.status === "reserved") {
           atcBtn.disabled = true;
           atcBtn.style.opacity = "0.7";
-          atcBtn.innerHTML = "<span class='content'><span><span class='text'>RESERVED IN CHECKOUT</span></span></span>";
+          atcBtn.innerHTML = "<span class='content has-additional-atc-text'><span><span class='text'>RESERVED IN CHECKOUT</span></span><span class='additional-atc-text'>15-MINUTE COLLECTOR HOLD</span></span><span class='corners'></span>";
         } else {
           atcBtn.disabled = false;
           atcBtn.style.opacity = "1";
-          atcBtn.innerHTML = "<span class='content'><span><span class='text'>ACQUIRE 1-OF-1 PIECE</span></span></span>";
+          atcBtn.innerHTML = "<span class='content has-additional-atc-text'><span><span class='text'>ACQUIRE 1-OF-1 PIECE</span></span><span class='additional-atc-text'>ONLY 1 IN EXISTENCE · READY TO DISPATCH</span></span><span class='corners'></span>";
         }
-      }
+      });
 
       if (!window.__annrPdpCheckoutBound) {
         window.__annrPdpCheckoutBound = true;
@@ -951,11 +1153,11 @@
                 (img2 ? "<img src='" + esc(img2) + "' alt='" + esc(p.title) + "' width='1200' height='1200' loading='" + loadAttr + "' decoding='async' onerror=\"this.onerror=null;this.src='/_ext/annr-template-001.png'\">" : "") +
               "</a>" +
             "</div>" +
-            "<div style='padding-top:10px'>" +
-              "<div style='font-family:\"FK Grotesk SemiMono\",monospace;font-size:9.5px;color:#e05a2b;letter-spacing:1.5px;margin-bottom:4px;font-weight:700'>" + esc(p.code) + "</div>" +
-              "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;color:#111;text-decoration:none'>" + esc(p.title) + "</a>" +
-              "<div class='product-card-price' style='margin-top:4px'>" +
-                "<span class='money' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:900;color:#111'>Tk " + formatMoney(p.price) + " <span class='money-currency-code'>BDT</span></span>" +
+            "<div class='annr-card-meta'>" +
+              "<div class='annr-card-code'>" + esc(p.code) + "</div>" +
+              "<a href='/products/" + esc(p.handle) + "/index.html' class='product-card-title' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;color:#0a0a0a;text-decoration:none'>" + esc(p.title) + "</a>" +
+              "<div class='product-card-price'>" +
+                "<span class='money' style='font-family:\"NB Architekt Std\",sans-serif;font-size:13px;font-weight:700;color:#0a0a0a'>Tk " + formatMoney(p.price) + " <span class='money-currency-code'>BDT</span></span>" +
               "</div>" +
             "</div>" +
           "</div>"
@@ -983,19 +1185,12 @@
         hero.id = "annr-campaign-hero-el";
         hero.className = "annr-campaign-hero";
 
-        var chips = liveCats.map(function (c) {
-          var isAct = activeCategory === c.slug;
-          return "<button type='button' class='annr-cat-chip" + (isAct ? " is-active" : "") + "' data-category='" + esc(c.slug) + "'>" + esc(c.name) + "</button>";
-        }).join("");
-
         hero.innerHTML =
-          "<div class='top-badge'>[ ANNR ARCHIVAL DROPS ]</div>" +
-          "<h1>UNIQUE CAMPAIGN</h1>" +
-          "<p class='lead'>Every garment in the Unique Campaign exists as exactly one singular piece worldwide. When acquired, it is permanently locked in the AnnR collector archive.</p>" +
-          "<div class='annr-category-chips'>" +
-            "<button type='button' class='annr-cat-chip" + (activeCategory === "all" ? " is-active" : "") + "' data-category='all'>ALL ARCHIVE</button>" +
-            chips +
-          "</div>";
+          "<div>" +
+            "<div class='top-badge'>[ ANNR ARCHIVAL DROPS ]</div>" +
+            "<h1>UNIQUE CAMPAIGN</h1>" +
+          "</div>" +
+          "<p class='lead'>Every garment exists as exactly one singular piece worldwide. Once acquired, it is permanently locked in the AnnR collector archive.</p>";
 
         if (colHeader) {
           colHeader.parentNode.replaceChild(hero, colHeader);
