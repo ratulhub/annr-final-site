@@ -437,17 +437,15 @@ async function route(request: Request): Promise<Response> {
   const url = new URL(request.url);
   if (!ALLOWED_METHODS.has(request.method)) return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD, POST" } });
   if (!isSameOriginMutation(request, url)) return new Response("Forbidden: cross-origin mutation rejected", { status: 403 });
-  if (request.method === "GET" || request.method === "HEAD") {
-    const stub = LEGACY_VENDOR_STUBS[url.pathname];
-    if (stub) {
-      return new Response(request.method === "HEAD" ? null : stub.body, {
-        status: 200,
-        headers: {
-          "content-type": stub.contentType,
-          "cache-control": "public, max-age=86400",
-        },
-      });
-    }
+  const stub = LEGACY_VENDOR_STUBS[url.pathname];
+  if (stub && (request.method === "GET" || request.method === "HEAD" || (request.method === "POST" && url.pathname === "/shopify_pay/accelerated_checkout"))) {
+    return new Response(request.method === "HEAD" ? null : stub.body, {
+      status: 200,
+      headers: {
+        "content-type": stub.contentType,
+        "cache-control": "public, max-age=86400",
+      },
+    });
   }
   if (url.pathname === "/search" || url.pathname === "/search/") {
     return new Response(null, {

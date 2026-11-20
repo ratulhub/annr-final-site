@@ -2,7 +2,7 @@
    Only values that differ from the original defaults are applied, so untouched pages stay identical.
    Add ?preview=1 to any page to preview the unpublished draft instead. */
 (function () {
-  // Prevent app.js / product-filter.js ReferenceErrors when optional CDN bundles are omitted
+  // Prevent app.js / product-filter.js / splide.min.js ReferenceErrors when optional CDN bundles are omitted
   if (typeof window !== "undefined") {
     if (typeof window.Fancybox === "undefined") {
       window.Fancybox = { bind: function () {}, close: function () {} };
@@ -11,6 +11,9 @@
       window.TomSelect = function () {
         return { on: function () {}, off: function () {}, destroy: function () {}, setValue: function () {}, clear: function () {} };
       };
+    }
+    if (typeof window.observer === "undefined") {
+      window.observer = { disconnect: function () {}, observe: function () {} };
     }
   }
 
@@ -2640,10 +2643,11 @@
           ".vip-page .vip-form__wrapper { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }\n" +
           "#vip-inpage-hub { width: 100%; margin: 0 auto; color: #111; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; box-sizing: border-box; background: #f7f4ef; min-height: 100vh; }\n" +
           "#vip-inpage-hub input, #vip-inpage-hub select, #vip-inpage-hub textarea, .vip-field input, .vip-field select, .vip-field textarea { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; text-transform: none !important; letter-spacing: normal !important; }\n" +
-          "html { overflow-x: clip !important; overflow-y: auto !important; height: auto !important; -webkit-overflow-scrolling: touch; }\n" +
+          "html { overflow-x: clip !important; overflow-y: auto !important; height: auto !important; scroll-padding-top: 84px !important; -webkit-overflow-scrolling: touch; }\n" +
           "body.vip-page, body.vip-page.no-scroll, body.vip-page.disable-scroll, .vip-page .wrapper, .vip-page .wrapper-vip, .vip-page .vip, .vip-page .vip-wrapper, .vip-page .vip.vit-account .vip-wrapper, .vip-page .main, .vip-page .vip-form, .vip-page .vip-form__wrapper, #vip-inpage-hub, .vip-dash-shell { overflow: visible !important; height: auto !important; max-height: none !important; }\n" +
           "body.vip-page, body.vip-page.no-scroll, body.vip-page.disable-scroll { position: static !important; inset: auto !important; }\n" +
           ".vip-page .header-group { position: sticky !important; top: 0 !important; left: 0 !important; right: 0 !important; width: 100% !important; z-index: 1000 !important; }\n" +
+          ".vip-page #cart-popup:not(.open):not(.show), .vip-page .cart-popup-overflow:not(.open):not(.show), .vip-page .header-mobile-menu:not(.open):not(.show) { display: none !important; }\n" +
           "#main_element { display: none !important; }\n" +
 
           "/* Exact Store Navbar on VIP page */\n" +

@@ -89,6 +89,9 @@ try {
     max-height: none !important;
     overflow: visible !important;
   }
+  html {
+    scroll-padding-top: 84px !important;
+  }
   .vip-page .header-group {
     position: sticky !important;
     top: 0 !important;
@@ -96,6 +99,11 @@ try {
     right: 0 !important;
     width: 100% !important;
     z-index: 1000 !important;
+  }
+  .vip-page #cart-popup:not(.open):not(.show),
+  .vip-page .cart-popup-overflow:not(.open):not(.show),
+  .vip-page .header-mobile-menu:not(.open):not(.show) {
+    display: none !important;
   }
   input, select, textarea, .vip-field input, .vip-field select {
     text-transform: none !important;
