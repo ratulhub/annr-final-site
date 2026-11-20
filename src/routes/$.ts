@@ -334,7 +334,85 @@ async function handle({ request }: { request: Request }) {
   return secure(await route(request));
 }
 
+const LEGACY_VENDOR_STUBS: Record<string, { contentType: string; body: string }> = {
+  "/_ext/cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.js": {
+    contentType: "application/javascript; charset=utf-8",
+    body: "window.TomSelect=window.TomSelect||function(){return{on:function(){},off:function(){},destroy:function(){},setValue:function(){},clear:function(){}}};",
+  },
+  "/_ext/cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css": {
+    contentType: "text/css; charset=utf-8",
+    body: "/* tom-select stub */",
+  },
+  "/_ext/cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js": {
+    contentType: "application/javascript; charset=utf-8",
+    body: "window.Fancybox=window.Fancybox||{bind:function(){},close:function(){}};",
+  },
+  "/_ext/cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css": {
+    contentType: "text/css; charset=utf-8",
+    body: "/* fancybox stub */",
+  },
+  "/_ext/githubfix.myshopify.com/cdn/shop/t/1/assets/component-1.0.47.js": {
+    contentType: "application/javascript; charset=utf-8",
+    body: "/* noop */",
+  },
+  "/_ext/www.googletagmanager.com/gtag/js": {
+    contentType: "application/javascript; charset=utf-8",
+    body: "window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){window.dataLayer.push(arguments);};",
+  },
+  "/checkouts/internal/preloads.js": {
+    contentType: "application/javascript; charset=utf-8",
+    body: "/* noop */",
+  },
+  "/shopify_pay/accelerated_checkout": {
+    contentType: "application/json; charset=utf-8",
+    body: "{}",
+  },
+};
+
+type CloudflareAssetsBinding = {
+  fetch(input: Request | string): Promise<Response>;
+};
+
+function getCfAssetsBinding(): CloudflareAssetsBinding | null {
+  const env = (globalThis as unknown as { __env__?: { ASSETS?: CloudflareAssetsBinding } }).__env__;
+  return env?.ASSETS && typeof env.ASSETS.fetch === "function" ? env.ASSETS : null;
+}
+
 async function fetchStaticHtml(url: URL, assetPath: string): Promise<Response | null> {
+  const cfAssets = getCfAssetsBinding();
+  if (cfAssets) {
+    const candidates = [assetPath];
+    if (assetPath.endsWith("/index.html")) {
+      candidates.push(assetPath.slice(0, -"index.html".length));
+    }
+    for (const candidate of candidates) {
+      try {
+        let currentUrl = new URL(candidate, url.origin);
+        for (let hop = 0; hop < 3; hop += 1) {
+          const res = await cfAssets.fetch(new Request(currentUrl.toString(), { method: "GET" }));
+          if (res.status >= 300 && res.status < 400) {
+            const loc = res.headers.get("location");
+            if (!loc) break;
+            const nextUrl = new URL(loc, currentUrl);
+            if (nextUrl.origin !== url.origin) break;
+            currentUrl = nextUrl;
+            continue;
+          }
+          const ct = res.headers.get("content-type") || "";
+          if (res.ok && /text\/html/i.test(ct)) {
+            return new Response(res.body, {
+              status: 200,
+              headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+            });
+          }
+          break;
+        }
+      } catch {
+        // try next candidate
+      }
+    }
+  }
+
   try {
     const res = await fetch(new URL(assetPath, url.origin), {
       headers: { "x-annr-static-check": "1" },
@@ -359,6 +437,18 @@ async function route(request: Request): Promise<Response> {
   const url = new URL(request.url);
   if (!ALLOWED_METHODS.has(request.method)) return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD, POST" } });
   if (!isSameOriginMutation(request, url)) return new Response("Forbidden: cross-origin mutation rejected", { status: 403 });
+  if (request.method === "GET" || request.method === "HEAD") {
+    const stub = LEGACY_VENDOR_STUBS[url.pathname];
+    if (stub) {
+      return new Response(request.method === "HEAD" ? null : stub.body, {
+        status: 200,
+        headers: {
+          "content-type": stub.contentType,
+          "cache-control": "public, max-age=86400",
+        },
+      });
+    }
+  }
   if (url.pathname === "/search" || url.pathname === "/search/") {
     return new Response(null, {
       status: 302,
@@ -378,10 +468,14 @@ async function route(request: Request): Promise<Response> {
       return new Response("Too many requests", { status: 429, headers: { "retry-after": String(rl.retryAfterSec), "cache-control": "no-store" } });
     }
     const isPopup = url.pathname === "/cart" && url.searchParams.get("section_id") === "ajax-cart-popup";
-    const popupFallback = () =>
-      fetch(new URL("/_ext/cart-popup-empty.html", url.origin)).then(
-        (r) => new Response(r.body, { headers: { "content-type": "text/html", "cache-control": "no-store" } }),
-      );
+    const popupFallback = async () => {
+      const staticPopup = await fetchStaticHtml(url, "/_ext/cart-popup-empty.html");
+      if (staticPopup) return staticPopup;
+      return new Response('<div id="cart-popup" class="cart-popup"></div>', {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+      });
+    };
     try {
       const res = await proxy(request, url);
       if (isPopup) {
@@ -409,21 +503,17 @@ async function route(request: Request): Promise<Response> {
           headers: { location: `/collections/unique-campaign/index.html${url.search}` },
         });
       }
-      if (handle === "annr-archival-001") {
-        const existing = await fetchStaticHtml(url, "/products/annr-archival-001/index.html");
-        if (existing) return existing;
-      }
-      // Render dynamic products through the product template, pre-injecting live Supabase product metadata when available
+      // Render products through the product template, pre-injecting live Supabase product metadata when available
       const fallbackProd = await fetchStaticHtml(url, "/products/annr-archival-001/index.html");
       if (fallbackProd) {
         if (isSupabaseConfigured()) {
           try {
-            const { data: row } = await supabase
+            const { data: row, error: rowErr } = await supabase
               .from("products")
               .select("id,handle,code,title,description,price,compare_at_price,currency,status,size,show_size,measurement_unit,measurements,fabric,condition,care_instructions,images,tags,stock,reserved_until,created_at")
               .eq("handle", handle)
               .maybeSingle();
-            if (row && row.status !== "archived" && row.status !== "draft") {
+            if (!rowErr && row && row.status !== "archived" && row.status !== "draft") {
               let html = await fallbackProd.text();
               const safeTitle = esc(String(row.title || "Archival Piece"));
               const safeImg = esc(String((Array.isArray(row.images) && row.images[0]) || "/_ext/annr-template-001.png"));
@@ -435,6 +525,14 @@ async function route(request: Request): Promise<Response> {
                 .replace(/<\/head>/i, `<script>window.__ANNR_SSR_PRODUCT__=${safeJson};</script></head>`);
               return new Response(html, {
                 status: 200,
+                headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+              });
+            }
+            if (!rowErr && (!row || row.status === "archived" || row.status === "draft") && url.searchParams.get("preview") !== "1") {
+              let html = await fallbackProd.text();
+              html = html.replace(/<\/head>/i, `<script>window.__ANNR_PRODUCT_UNAVAILABLE__=true;</script></head>`);
+              return new Response(html, {
+                status: 404,
                 headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
               });
             }

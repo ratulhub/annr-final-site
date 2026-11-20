@@ -896,6 +896,20 @@ export async function deleteProductFromSupabase(handle: string): Promise<{ ok: b
   if (!handle) return { ok: false, error: "Missing product handle" };
   const cleanHandle = normalizeProductHandle(handle);
   markHandleDeleted(cleanHandle);
+  try {
+    if (typeof window !== "undefined") {
+      const rawLive = localStorage.getItem("annr_live_products");
+      if (rawLive) {
+        const parsed = JSON.parse(rawLive);
+        if (Array.isArray(parsed)) {
+          localStorage.setItem(
+            "annr_live_products",
+            JSON.stringify(parsed.filter((p: any) => p && p.handle !== cleanHandle)),
+          );
+        }
+      }
+    }
+  } catch {}
   if (!isSupabaseConfigured()) return { ok: true };
   try {
     const { data: sessionData } = await supabase.auth.getSession();

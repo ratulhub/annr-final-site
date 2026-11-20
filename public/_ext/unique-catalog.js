@@ -208,15 +208,16 @@
     return map;
   }
 
-  function mergeProductLists(lists) {
+  function mergeProductLists(lists, allowHandles) {
     var byHandle = {};
     var order = [];
     var delMap = getDeletedHandlesMap();
+    var allowed = allowHandles || {};
     lists.forEach(function (arr) {
       if (!Array.isArray(arr)) return;
       arr.forEach(function (raw) {
         var norm = normalizeProduct(raw);
-        if (!norm || delMap[norm.handle]) return;
+        if (!norm || (delMap[norm.handle] && !allowed[norm.handle])) return;
         if (!byHandle[norm.handle]) order.push(norm.handle);
         byHandle[norm.handle] = norm;
       });
@@ -232,7 +233,10 @@
     var remoteCacheList = [];
     var siteCfgList = [];
     var localAdmList = [];
-    var ssrList = window.__ANNR_SSR_PRODUCT__ ? [window.__ANNR_SSR_PRODUCT__] : [];
+    var ssrProd = window.__ANNR_SSR_PRODUCT__ || null;
+    var ssrList = ssrProd ? [ssrProd] : [];
+    var ssrAllow = {};
+    if (ssrProd && ssrProd.handle) ssrAllow[ssrProd.handle] = 1;
 
     try {
       var rawRemote = localStorage.getItem("annr_live_products");
@@ -261,7 +265,7 @@
       }
     } catch (e) {}
 
-    liveProducts = mergeProductLists([ssrList, remoteCacheList, siteCfgList, localAdmList]);
+    liveProducts = mergeProductLists([ssrList, remoteCacheList, siteCfgList, localAdmList], ssrAllow);
     if (liveProducts.length > 0 && callback) {
       callback(liveProducts);
     }
@@ -287,15 +291,21 @@
       })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
-        if (Array.isArray(data) && data.length > 0) {
-          var normalizedRemote = mergeProductLists([data]);
+        if (Array.isArray(data)) {
+          var liveAllow = Object.assign({}, ssrAllow);
+          data.forEach(function (row) {
+            if (row && row.handle && row.status && row.status !== "archived" && row.status !== "draft") {
+              liveAllow[row.handle] = 1;
+            }
+          });
+          var normalizedRemote = mergeProductLists([data], liveAllow);
           try {
             localStorage.setItem("annr_live_products", JSON.stringify(normalizedRemote));
           } catch (e) {}
-          var filteredAdm = localAdmList.filter(function (p) {
-            return p && !(p.handle === "annr-archival-001" && !p.id);
+          var unsyncedLocal = localAdmList.filter(function (p) {
+            return p && !p.id && p.handle !== "annr-archival-001";
           });
-          liveProducts = mergeProductLists([normalizedRemote, filteredAdm]);
+          liveProducts = mergeProductLists([ssrList, normalizedRemote, unsyncedLocal], liveAllow);
           if (callback) callback(liveProducts);
         } else if (liveProducts.length === 0) {
           fetch("/_ext/catalog.json")
@@ -303,7 +313,7 @@
             .then(function (catData) {
               var seedArr = Array.isArray(catData) ? catData : (catData && Array.isArray(catData.products) ? catData.products : []);
               baseList = Array.isArray(seedArr) ? seedArr : [];
-              liveProducts = mergeProductLists([baseList, siteCfgList, localAdmList]);
+              liveProducts = mergeProductLists([baseList, siteCfgList, localAdmList], ssrAllow);
               if (callback) callback(liveProducts);
             })
             .catch(function () {
@@ -313,7 +323,7 @@
       })
       .catch(function () {
         if (liveProducts.length === 0) {
-          liveProducts = mergeProductLists([baseList, siteCfgList, localAdmList]);
+          liveProducts = mergeProductLists([baseList, siteCfgList, localAdmList], ssrAllow);
         }
         if (callback) callback(liveProducts);
       });
@@ -1104,18 +1114,54 @@
     });
 
     var mobSubs = document.querySelectorAll("#header-mobile-menu .header-new__mobile-submenu[data-annr-categories-mobile]");
+    var mobileSubHtml =
+      "<div class='header-new__mobile-section'>" +
+        "<a href='/collections/unique-campaign/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink header-new__mobile-sublink--heading'><span>Unique Campaign</span><span>[01]</span></a>" +
+      "</div>" +
+      "<div class='header-new__mobile-section'>" +
+        "<a href='/collections/all/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink header-new__mobile-sublink--heading'><span>Shop by Category</span><span>[02]</span></a>" +
+        cats.map(function (c) {
+          return "<a href='/collections/" + esc(c.slug) + "/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink'><span>" + esc(c.name) + "</span></a>";
+        }).join("") +
+        "<a href='/collections/all/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink'><span>All Archive</span></a>" +
+      "</div>";
     mobSubs.forEach(function (ms) {
-      ms.innerHTML =
-        "<div class='header-new__mobile-section'>" +
-          "<a href='/collections/unique-campaign/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink header-new__mobile-sublink--heading'><span>Unique Campaign</span><span>[01]</span></a>" +
-        "</div>" +
-        "<div class='header-new__mobile-section'>" +
-          "<a href='/collections/all/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink header-new__mobile-sublink--heading'><span>Shop by Category</span><span>[02]</span></a>" +
-          cats.map(function (c) {
-            return "<a href='/collections/" + esc(c.slug) + "/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink'><span>" + esc(c.name) + "</span></a>";
-          }).join("") +
-          "<a href='/collections/all/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink'><span>All Archive</span></a>" +
-        "</div>";
+      ms.innerHTML = mobileSubHtml;
+    });
+
+    // Also modernize legacy static mobile menus that lack data-annr-categories-mobile (removing Bonsai/Golden Goal/Samurai links)
+    var mobLists = document.querySelectorAll("#header-mobile-menu .header-new__mobile-menu-list");
+    mobLists.forEach(function (ml) {
+      var topLink = ml.querySelector(":scope > a.header-new__mobile-link");
+      if (topLink) {
+        topLink.setAttribute("href", "/collections/unique-campaign/index.html");
+        var topSpan = topLink.querySelector("span");
+        if (topSpan) topSpan.textContent = "Unique Campaign";
+      }
+      var blocks = ml.querySelectorAll(":scope > .collapsible-block");
+      if (blocks[0]) {
+        var btn0 = blocks[0].querySelector(".collapsible-button span");
+        if (btn0) btn0.textContent = "Categories";
+        var sub0 = blocks[0].querySelector(".header-new__mobile-submenu");
+        if (sub0) {
+          sub0.setAttribute("data-annr-categories-mobile", "1");
+          sub0.innerHTML = mobileSubHtml;
+        }
+      }
+      if (blocks[1]) {
+        var btn1 = blocks[1].querySelector(".collapsible-button span");
+        if (btn1) btn1.textContent = "Campaigns";
+        var sub1 = blocks[1].querySelector(".header-new__mobile-submenu");
+        if (sub1) {
+          sub1.innerHTML =
+            "<div class='header-new__mobile-section'>" +
+              "<a href='/collections/unique-campaign/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink header-new__mobile-sublink--heading'><span>Unique Campaign</span><span>[01]</span></a>" +
+            "</div>" +
+            "<div class='header-new__mobile-section'>" +
+              "<a href='/collections/all/index.html' class='mobile-menu-sublinks-item header-new__mobile-sublink header-new__mobile-sublink--heading'><span>All Archive</span><span>[02]</span></a>" +
+            "</div>";
+        }
+      }
     });
 
     document.querySelectorAll(".collection-menu__list").forEach(function (ul) {

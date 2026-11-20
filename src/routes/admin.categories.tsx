@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { safeImageUrl } from "../admin/security/sanitize";
 import { publish, publishToSupabase, setState, uid, useAdmin, type Category } from "../admin/store";
 import { BackBtn, Card } from "../admin/ui";
@@ -49,6 +49,34 @@ function CategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [syncError, setSyncError] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const syncTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingOrigSlugRef = useRef<Record<string, string>>({});
+  const pendingLatestRef = useRef<Record<string, Category>>({});
+
+  const flushCategorySync = (id: string) => {
+    const timer = syncTimersRef.current[id];
+    if (timer) {
+      clearTimeout(timer);
+      delete syncTimersRef.current[id];
+    }
+    const latest = pendingLatestRef.current[id];
+    if (!latest) return;
+    const origSlug = pendingOrigSlugRef.current[id];
+    delete pendingLatestRef.current[id];
+    delete pendingOrigSlugRef.current[id];
+    if (!latest.slug) return;
+    void syncCategoryDb(latest, origSlug !== latest.slug ? origSlug : undefined).then((r) => {
+      if (!r.ok && r.error) setSyncError(`Saved locally; DB sync failed: ${r.error}`);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      for (const id of Object.keys(syncTimersRef.current)) {
+        flushCategorySync(id);
+      }
+    };
+  }, []);
 
   const emitCategoryUpdate = () => {
     setTimeout(() => {
@@ -220,9 +248,13 @@ function CategoriesPage() {
     }
     emitCategoryUpdate();
     if (nextObj) {
-      void syncCategoryDb(nextObj, oldSlug).then((r) => {
-        if (!r.ok && r.error) setSyncError(`Saved locally; DB sync failed: ${r.error}`);
-      });
+      const updatedCat: Category = nextObj;
+      if (!pendingOrigSlugRef.current[id] && oldSlug) {
+        pendingOrigSlugRef.current[id] = oldSlug;
+      }
+      pendingLatestRef.current[id] = updatedCat;
+      if (syncTimersRef.current[id]) clearTimeout(syncTimersRef.current[id]);
+      syncTimersRef.current[id] = setTimeout(() => flushCategorySync(id), 450);
     }
   };
 
@@ -437,7 +469,10 @@ function CategoriesPage() {
                 <button
                   type="button"
                   className="adm-btn primary sm"
-                  onClick={() => setEditing(null)}
+                  onClick={() => {
+                    flushCategorySync(editing.id);
+                    setEditing(null);
+                  }}
                 >
                   Done Editing
                 </button>

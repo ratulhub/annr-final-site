@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { safeImageUrl } from "../admin/security/sanitize";
 import { publish, publishToSupabase, setState, uid, useAdmin, type Campaign } from "../admin/store";
 import { BackBtn, Card } from "../admin/ui";
@@ -46,6 +46,34 @@ function CampaignsPage() {
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [syncError, setSyncError] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const syncTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingOrigSlugRef = useRef<Record<string, string>>({});
+  const pendingLatestRef = useRef<Record<string, Campaign>>({});
+
+  const flushCampaignSync = (id: string) => {
+    const timer = syncTimersRef.current[id];
+    if (timer) {
+      clearTimeout(timer);
+      delete syncTimersRef.current[id];
+    }
+    const latest = pendingLatestRef.current[id];
+    if (!latest) return;
+    const origSlug = pendingOrigSlugRef.current[id];
+    delete pendingLatestRef.current[id];
+    delete pendingOrigSlugRef.current[id];
+    if (!latest.slug) return;
+    void syncCampaignDb(latest, origSlug !== latest.slug ? origSlug : undefined).then((r) => {
+      if (!r.ok && r.error) setSyncError(`Saved locally; DB sync failed: ${r.error}`);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      for (const id of Object.keys(syncTimersRef.current)) {
+        flushCampaignSync(id);
+      }
+    };
+  }, []);
 
   const syncFromDb = async (silent = false) => {
     if (!isSupabaseConfigured()) {
@@ -138,9 +166,13 @@ function CampaignsPage() {
     }
     setTimeout(() => { try { publish(); } catch {} }, 30);
     if (nextObj) {
-      void syncCampaignDb(nextObj, oldSlug).then((r) => {
-        if (!r.ok && r.error) setSyncError(`Saved locally; DB sync failed: ${r.error}`);
-      });
+      const updatedCamp: Campaign = nextObj;
+      if (!pendingOrigSlugRef.current[id] && oldSlug) {
+        pendingOrigSlugRef.current[id] = oldSlug;
+      }
+      pendingLatestRef.current[id] = updatedCamp;
+      if (syncTimersRef.current[id]) clearTimeout(syncTimersRef.current[id]);
+      syncTimersRef.current[id] = setTimeout(() => flushCampaignSync(id), 450);
     }
   };
 
@@ -328,7 +360,10 @@ function CampaignsPage() {
                 <button
                   type="button"
                   className="adm-btn primary sm"
-                  onClick={() => setEditing(null)}
+                  onClick={() => {
+                    flushCampaignSync(editing.id);
+                    setEditing(null);
+                  }}
                 >
                   Done Editing
                 </button>

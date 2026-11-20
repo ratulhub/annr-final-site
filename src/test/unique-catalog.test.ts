@@ -207,5 +207,33 @@ describe("AnnR Unique One-of-One Archival Catalog", () => {
     expect(deployWorkflow).not.toMatch(/if:\s*\$\{\{\s*secrets\./);
     expect(deployWorkflow).toContain("if: env.CLOUDFLARE_API_TOKEN != ''");
   });
+
+  it("closes .header-group before <main> on all VIP account pages and binds Cloudflare ASSETS in catch-all route", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+
+    for (const rel of [
+      "public/account/index.html",
+      "public/account/login/index.html",
+      "public/account/register/index.html",
+    ]) {
+      const html = fs.readFileSync(path.resolve(rel), "utf8");
+      const hgIdx = html.indexOf('class="header-group"');
+      const mainIdx = html.indexOf("<main");
+      expect(hgIdx).toBeGreaterThan(-1);
+      expect(mainIdx).toBeGreaterThan(hgIdx);
+      const between = html.slice(hgIdx, mainIdx);
+      const opens = (between.match(/<div\b/gi) || []).length;
+      const closes = (between.match(/<\/div\s*>/gi) || []).length;
+      expect(opens - closes).toBe(-1);
+      expect(html).toContain(".vip-page .header-group");
+      expect(html).toContain("overflow: visible !important;");
+    }
+
+    const catchAll = fs.readFileSync(path.resolve("src/routes/$.ts"), "utf8");
+    expect(catchAll).toContain("getCfAssetsBinding");
+    expect(catchAll).toContain("LEGACY_VENDOR_STUBS");
+    expect(catchAll).toContain("__ANNR_PRODUCT_UNAVAILABLE__");
+  });
 });
 

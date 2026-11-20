@@ -65,18 +65,37 @@ try {
   }
   /* The legacy loading layer can leave body.no-scroll behind after account
      navigation. Account content must always retain its document scroll. */
-  html, body.vip-page {
+  html {
     height: auto !important;
-    overflow-x: hidden !important;
+    overflow-x: clip !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
   }
-  body.vip-page.no-scroll {
-    overflow-y: auto !important;
+  body.vip-page,
+  body.vip-page.no-scroll,
+  body.vip-page.disable-scroll {
+    height: auto !important;
     position: static !important;
-  }
-  .vip-page #vip-inpage-hub {
+    inset: auto !important;
     overflow: visible !important;
+  }
+  .vip-page .wrapper,
+  .vip-page .wrapper-vip,
+  .vip-page .main,
+  .vip-page .vip,
+  .vip-page .vip-wrapper,
+  .vip-page #vip-inpage-hub {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .vip-page .header-group {
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 1000 !important;
   }
   input, select, textarea, .vip-field input, .vip-field select {
     text-transform: none !important;
@@ -1447,6 +1466,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 </div>
 <!-- END sections: header-group -->
+    </div>
 
     <div class="reload-overflow"></div>
     <div class="loading-bar"></div>
@@ -1848,6 +1868,7 @@ document.addEventListener("click", function(e) {
 });
 </script>
 <script src="/_ext/site-config.js?v=20261112-v2"></script>
+<script src="/_ext/unique-catalog.js" defer></script>
 <script>
 /* Keep the customer account document scrollable after legacy theme scripts run. */
 (() => {
@@ -1857,10 +1878,16 @@ document.addEventListener("click", function(e) {
     if (!body || !root) return;
     if (body.classList.contains("no-scroll")) body.classList.remove("no-scroll");
     if (root.classList.contains("no-scroll")) root.classList.remove("no-scroll");
+    if (body.classList.contains("disable-scroll")) body.classList.remove("disable-scroll");
     if (root.style.height !== "auto") root.style.setProperty("height", "auto", "important");
+    if (root.style.position !== "static") root.style.setProperty("position", "static", "important");
+    if (root.style.inset !== "auto") root.style.setProperty("inset", "auto", "important");
+    if (root.style.overflowX !== "clip") root.style.setProperty("overflow-x", "clip", "important");
     if (root.style.overflowY !== "auto") root.style.setProperty("overflow-y", "auto", "important");
     if (body.style.height !== "auto") body.style.setProperty("height", "auto", "important");
-    if (body.style.overflowY !== "auto") body.style.setProperty("overflow-y", "auto", "important");
+    if (body.style.position !== "static") body.style.setProperty("position", "static", "important");
+    if (body.style.inset !== "auto") body.style.setProperty("inset", "auto", "important");
+    if (body.style.overflow !== "visible") body.style.setProperty("overflow", "visible", "important");
     const hub = document.getElementById("vip-inpage-hub");
     if (hub && hub.style.overflow !== "visible") hub.style.setProperty("overflow", "visible", "important");
   };
